@@ -42,7 +42,12 @@ jobs:
         run: pnpm build
 
       - name: Test
-        run: pnpm test
+        run: |
+          if [[ "${{ matrix.node-version }}" == "18" ]]; then
+            NODE_OPTIONS="--dns-result-order=ipv4first" pnpm test
+          else
+            pnpm test
+          fi
 
   build-apps:
     runs-on: ${{ matrix.os }}

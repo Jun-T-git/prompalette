@@ -7,9 +7,13 @@ import { PromPaletteClient } from './client';
 // Create MSW server
 const server = setupServer();
 
-// Setup MSW
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
+// Setup MSW with Node.js 18 compatibility
+beforeAll(async () => {
+  server.listen({ 
+    onUnhandledRequest: 'warn',
+  });
+  // Give server time to initialize in Node.js 18
+  await new Promise(resolve => setTimeout(resolve, 100));
 });
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
