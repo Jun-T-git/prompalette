@@ -1,0 +1,50 @@
+{
+  "name": "prompalette",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Your AI Prompts, Beautifully Organized",
+  "license": "MIT",
+  "author": "PromPalette Team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prompalette/prompalette.git"
+  },
+  "bugs": {
+    "url": "https://github.com/prompalette/prompalette/issues"
+  },
+  "homepage": "https://github.com/prompalette/prompalette#readme",
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "test:watch": "turbo test:watch",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf node_modules",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "check-all": "pnpm typecheck && pnpm build && pnpm lint && pnpm test",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.2.4",
+    "turbo": "^1.11.3",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@8.15.1",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  }
+}
