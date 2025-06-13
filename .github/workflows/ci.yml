@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18, 20]
+        node-version: [20, 22]
 
     steps:
       - name: Checkout code
@@ -42,12 +42,7 @@ jobs:
         run: pnpm build
 
       - name: Test
-        run: |
-          if [[ "${{ matrix.node-version }}" == "18" ]]; then
-            NODE_OPTIONS="--dns-result-order=ipv4first" pnpm test
-          else
-            pnpm test
-          fi
+        run: pnpm test
 
   build-apps:
     runs-on: ${{ matrix.os }}
