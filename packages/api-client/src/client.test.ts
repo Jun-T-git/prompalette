@@ -1,16 +1,27 @@
 import { http, HttpResponse } from 'msw';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { setupServer } from 'msw/node';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 
 import { PromPaletteClient } from './client';
-import { server } from './test/setup';
+
+// Create MSW server
+const server = setupServer();
+
+// Setup MSW
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' });
+});
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe('PromPaletteClient', () => {
   let client: PromPaletteClient;
 
-  beforeEach(() => {
+  beforeAll(() => {
     client = new PromPaletteClient({
       baseUrl: 'http://localhost:3000/api',
       apiKey: 'test-api-key',
+      timeout: 5000,
     });
   });
 
@@ -24,14 +35,14 @@ describe('PromPaletteClient', () => {
         tagIds: [],
         visibility: 'private' as const,
         status: 'active' as const,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
         usageCount: 0,
       };
 
       server.use(
         http.post('http://localhost:3000/api/prompts', () => {
-          return HttpResponse.json(mockPrompt);
+          return HttpResponse.json({ prompt: mockPrompt }, { status: 201 });
         })
       );
 
@@ -61,15 +72,15 @@ describe('PromPaletteClient', () => {
           tagIds: [],
           visibility: 'private',
           status: 'active',
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
           usageCount: 0,
         },
       ];
 
       server.use(
         http.get('http://localhost:3000/api/prompts', () => {
-          return HttpResponse.json(mockPrompts);
+          return HttpResponse.json({ prompts: mockPrompts, total: mockPrompts.length });
         })
       );
 
@@ -86,7 +97,7 @@ describe('PromPaletteClient', () => {
       server.use(
         http.get('http://localhost:3000/api/prompts/:id', () => {
           return HttpResponse.json(
-            { message: 'Prompt not found' },
+            { error: 'Prompt not found' },
             { status: 404 }
           );
         })

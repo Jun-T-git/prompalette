@@ -43,8 +43,8 @@ export class PromPaletteClient {
         afterResponse: [
           async (_request, _options, response) => {
             if (!response.ok) {
-              const error = (await response.json().catch(() => ({ message: 'Unknown error' }))) as { message?: string };
-              throw new Error(error.message || `Request failed with status ${response.status}`);
+              const error = (await response.json().catch(() => ({ error: 'Unknown error' }))) as { error?: string; message?: string };
+              throw new Error(error.error || error.message || `Request failed with status ${response.status}`);
             }
             return response;
           },
@@ -55,11 +55,13 @@ export class PromPaletteClient {
 
   // Prompts
   async createPrompt(data: CreatePrompt): Promise<Prompt> {
-    return this.client.post('prompts', { json: data }).json();
+    const response = await this.client.post('prompts', { json: data }).json<{ prompt: Prompt }>();
+    return response.prompt;
   }
 
   async updatePrompt(id: string, data: UpdatePrompt): Promise<Prompt> {
-    return this.client.patch(`prompts/${id}`, { json: data }).json();
+    const response = await this.client.put(`prompts/${id}`, { json: data }).json<{ prompt: Prompt }>();
+    return response.prompt;
   }
 
   async deletePrompt(id: string): Promise<void> {
@@ -67,12 +69,14 @@ export class PromPaletteClient {
   }
 
   async getPrompt(id: string): Promise<Prompt> {
-    return this.client.get(`prompts/${id}`).json();
+    const response = await this.client.get(`prompts/${id}`).json<{ prompt: Prompt }>();
+    return response.prompt;
   }
 
   async listPrompts(filter?: PromptFilter): Promise<Prompt[]> {
     const searchParams = filter ? new URLSearchParams(filter as Record<string, string>) : undefined;
-    return this.client.get('prompts', { searchParams }).json();
+    const response = await this.client.get('prompts', { searchParams }).json<{ prompts: Prompt[]; total: number }>();
+    return response.prompts;
   }
 
   async searchPrompts(query: string): Promise<Prompt[]> {
