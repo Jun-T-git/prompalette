@@ -31,7 +31,7 @@ describe('PromPaletteClient', () => {
 
       server.use(
         http.post('http://localhost:3000/api/prompts', () => {
-          return HttpResponse.json(mockPrompt);
+          return HttpResponse.json({ prompt: mockPrompt }, { status: 201 });
         })
       );
 
@@ -69,7 +69,7 @@ describe('PromPaletteClient', () => {
 
       server.use(
         http.get('http://localhost:3000/api/prompts', () => {
-          return HttpResponse.json(mockPrompts);
+          return HttpResponse.json({ prompts: mockPrompts, total: mockPrompts.length });
         })
       );
 
@@ -86,7 +86,7 @@ describe('PromPaletteClient', () => {
       server.use(
         http.get('http://localhost:3000/api/prompts/:id', () => {
           return HttpResponse.json(
-            { message: 'Prompt not found' },
+            { error: 'Prompt not found' },
             { status: 404 }
           );
         })
