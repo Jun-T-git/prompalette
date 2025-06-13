@@ -4,11 +4,13 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 
 import { PromPaletteClient } from './client';
 
-// Create MSW server with default handlers
+// Create MSW server
 const server = setupServer();
 
 // Setup MSW
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' });
+});
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -58,7 +60,7 @@ describe('PromPaletteClient', () => {
         title: 'Test Prompt',
         content: 'Test content',
       });
-    }, 15000);
+    });
 
     it('should list prompts', async () => {
       const mockPrompts = [
