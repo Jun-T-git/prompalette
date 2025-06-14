@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+
 import { authService } from '../../services/auth.js';
 
 export interface TestAuth {

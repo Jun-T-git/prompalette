@@ -11,7 +11,8 @@ import {
 // Input sanitization function
 const sanitizeString = (str: string): string => {
   return str
-    .replace(/[<>"'&\x00-\x1F\x7F]/g, '') // Remove potentially dangerous characters
+    // eslint-disable-next-line no-control-regex
+    .replace(/[<>"'&\u0000-\u001F\u007F]/g, '') // Remove potentially dangerous characters
     .trim()
     .normalize('NFC'); // Unicode normalization
 };
@@ -22,7 +23,8 @@ export const PromptSchema = z.object({
   title: z.string().min(1, 'Title is required').max(MAX_TITLE_LENGTH, `Title must be ${MAX_TITLE_LENGTH} characters or less`).transform(sanitizeString),
   content: z.string().min(1, 'Content is required').max(MAX_PROMPT_LENGTH, `Content must be ${MAX_PROMPT_LENGTH} characters or less`).transform((str) => {
     return str
-      .replace(/[<>"'&\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[<>"'&\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
       .trim()
       .normalize('NFC');
   }),

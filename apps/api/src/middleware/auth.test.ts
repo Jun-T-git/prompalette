@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { authMiddleware, requestIdMiddleware } from './auth.js';
 import { createTestAuth, type TestAuth } from '../test/helpers/auth.js';
+
+import { authMiddleware, requestIdMiddleware } from './auth.js';
 
 describe('Authentication Middleware', () => {
   let app: Hono;

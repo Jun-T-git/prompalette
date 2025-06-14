@@ -4,7 +4,7 @@ import { env, isProduction } from './env.js';
 
 export const logger = pino({
   level: env.LOG_LEVEL,
-  transport: isProduction
+  transport: (isProduction || env.NODE_ENV === 'test')
     ? undefined
     : {
         target: 'pino-pretty',
