@@ -4,3 +4,5 @@ export * from './models/tag';
 export * from './services/storage';
 export * from './utils/id';
 export * from './constants';
+
+export type { PromptFilter } from './services/storage';

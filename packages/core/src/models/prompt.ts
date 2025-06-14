@@ -8,13 +8,27 @@ import {
   PROMPT_STATUS 
 } from '../constants';
 
+// Input sanitization function
+const sanitizeString = (str: string): string => {
+  return str
+    .replace(/[<>"'&\x00-\x1F\x7F]/g, '') // Remove potentially dangerous characters
+    .trim()
+    .normalize('NFC'); // Unicode normalization
+};
+
+
 export const PromptSchema = z.object({
-  id: z.string(),
-  title: z.string().min(1).max(MAX_TITLE_LENGTH),
-  content: z.string().min(1).max(MAX_PROMPT_LENGTH),
-  description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
-  workspaceId: z.string(),
-  tagIds: z.array(z.string()).default([]),
+  id: z.string().regex(/^prm_[a-zA-Z0-9]+$/, 'Invalid prompt ID format'),
+  title: z.string().min(1, 'Title is required').max(MAX_TITLE_LENGTH, `Title must be ${MAX_TITLE_LENGTH} characters or less`).transform(sanitizeString),
+  content: z.string().min(1, 'Content is required').max(MAX_PROMPT_LENGTH, `Content must be ${MAX_PROMPT_LENGTH} characters or less`).transform((str) => {
+    return str
+      .replace(/[<>"'&\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .trim()
+      .normalize('NFC');
+  }),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH, `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`).optional().transform((str) => str ? sanitizeString(str) : str),
+  workspaceId: z.string().regex(/^wsp_[a-zA-Z0-9]+$/, 'Invalid workspace ID format'),
+  tagIds: z.array(z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Invalid tag format')).max(20, 'Maximum 20 tags allowed').default([]),
   visibility: z.enum([PROMPT_VISIBILITY.PRIVATE, PROMPT_VISIBILITY.PUBLIC, PROMPT_VISIBILITY.SHARED])
     .default(PROMPT_VISIBILITY.PRIVATE),
   status: z.enum([PROMPT_STATUS.DRAFT, PROMPT_STATUS.ACTIVE, PROMPT_STATUS.ARCHIVED])
@@ -22,8 +36,15 @@ export const PromptSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   lastUsedAt: z.date().optional(),
-  usageCount: z.number().int().min(0).default(0),
-  metadata: z.record(z.unknown()).optional(),
+  usageCount: z.number().int().min(0).max(1000000, 'Usage count too high').default(0),
+  metadata: z.record(z.unknown()).optional().refine(
+    (metadata) => {
+      if (!metadata) return true;
+      const str = JSON.stringify(metadata);
+      return str.length <= 10000; // Limit metadata size
+    },
+    'Metadata too large'
+  ),
 });
 
 export type Prompt = z.infer<typeof PromptSchema>;

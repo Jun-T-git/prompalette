@@ -1,12 +1,42 @@
-import { describe, expect, it } from 'vitest';
+import { Hono } from 'hono';
+import { describe, expect, it, beforeEach } from 'vitest';
+
+import { authMiddleware, requestIdMiddleware } from '../middleware/auth.js';
+import { fileStorage } from '../services/fileStorage.js';
+import { createTestAuth, createAuthHeaders, type TestAuth } from '../test/helpers/auth.js';
 
 import { promptsRoute } from './prompts.js';
 
 describe('Prompts Route', () => {
+  let app: Hono;
+  let testAuth: TestAuth;
+
+  beforeEach(async () => {
+    // Ensure file storage is initialized before each test
+    await fileStorage.initialize();
+    
+    // Create test authentication dynamically
+    testAuth = await createTestAuth(['read', 'write', 'admin']);
+    
+    app = new Hono();
+    app.use('*', requestIdMiddleware());
+    app.use('*', authMiddleware({ required: false })); // Optional auth for testing
+    app.route('/', promptsRoute);
+  });
+
+  const getAuthHeaders = () => createAuthHeaders(testAuth.apiKey);
+
   it('should return list of prompts', async () => {
-    const req = new Request('http://localhost/');
-    const res = await promptsRoute.fetch(req);
+    const res = await app.request('/', {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
+
+    // Debug output for failed test
+    if (res.status !== 200) {
+      console.log('Response status:', res.status);
+      console.log('Response data:', data);
+    }
 
     expect(res.status).toBe(200);
     expect(data).toHaveProperty('prompts');
@@ -16,8 +46,9 @@ describe('Prompts Route', () => {
   });
 
   it('should filter prompts by status', async () => {
-    const req = new Request('http://localhost/?status=active');
-    const res = await promptsRoute.fetch(req);
+    const res = await app.request('/?status=active', {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -25,8 +56,9 @@ describe('Prompts Route', () => {
   });
 
   it('should filter prompts by visibility', async () => {
-    const req = new Request('http://localhost/?visibility=private');
-    const res = await promptsRoute.fetch(req);
+    const res = await app.request('/?visibility=private', {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -38,16 +70,15 @@ describe('Prompts Route', () => {
       title: 'Test Prompt',
       content: 'This is a test prompt',
       description: 'A test prompt for testing',
+      workspaceId: 'wsp_demo',
       tagIds: ['test-tag'],
     };
 
-    const req = new Request('http://localhost/', {
+    const res = await app.request('/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(promptData),
     });
-
-    const res = await promptsRoute.fetch(req);
     const data = await res.json();
 
     expect(res.status).toBe(201);
@@ -59,24 +90,25 @@ describe('Prompts Route', () => {
   });
 
   it('should return 404 for non-existent prompt', async () => {
-    const req = new Request('http://localhost/non-existent-id');
-    const res = await promptsRoute.fetch(req);
+    const res = await app.request('/non-existent-id', {
+      headers: getAuthHeaders()
+    });
 
     expect(res.status).toBe(404);
   });
 
   it('should increment usage count', async () => {
     // First, get a prompt ID from the initial data
-    const listReq = new Request('http://localhost/');
-    const listRes = await promptsRoute.fetch(listReq);
+    const listRes = await app.request('/', {
+      headers: getAuthHeaders()
+    });
     const listData = await listRes.json();
     const promptId = listData.prompts[0].id;
 
-    const req = new Request(`http://localhost/${promptId}/usage`, {
+    const res = await app.request(`/${promptId}/usage`, {
       method: 'POST',
+      headers: getAuthHeaders()
     });
-
-    const res = await promptsRoute.fetch(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -91,13 +123,11 @@ describe('Prompts Route', () => {
       content: 'Test content',
     };
 
-    const req = new Request('http://localhost/', {
+    const res = await app.request('/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(invalidData),
     });
-
-    const res = await promptsRoute.fetch(req);
 
     expect(res.status).toBe(400);
   });

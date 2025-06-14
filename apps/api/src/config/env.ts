@@ -2,17 +2,27 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+  PORT: z.string().transform(Number).default('8080'),
   CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:5173'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  DATABASE_PATH: z.string().default('./data/prompts.db'),
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default('900000'),
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default('100'),
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Environment = z.infer<typeof envSchema>;
 
-export const env = envSchema.parse(process.env);
+let env: Environment;
 
-export const corsOrigins = env.CORS_ORIGINS.split(',').map(origin => origin.trim());
+try {
+  env = envSchema.parse(process.env);
+} catch (error) {
+  console.error('❌ Invalid environment variables:', error);
+  process.exit(1);
+}
 
+export { env };
+
+// Helper functions for backwards compatibility
 export const isProduction = env.NODE_ENV === 'production';
-export const isDevelopment = env.NODE_ENV === 'development';
-export const isTest = env.NODE_ENV === 'test';
+export const corsOrigins = env.CORS_ORIGINS.split(',');
