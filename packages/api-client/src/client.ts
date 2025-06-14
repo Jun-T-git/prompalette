@@ -80,16 +80,19 @@ export class PromPaletteClient {
   }
 
   async searchPrompts(query: string): Promise<Prompt[]> {
-    return this.client.get('prompts/search', { searchParams: { q: query } }).json();
+    const response = await this.client.get('prompts/search', { searchParams: { q: query } }).json<Prompt[]>();
+    return response;
   }
 
   // Workspaces
   async createWorkspace(data: CreateWorkspace): Promise<Workspace> {
-    return this.client.post('workspaces', { json: data }).json();
+    const response = await this.client.post('workspaces', { json: data }).json<{ workspace: Workspace }>();
+    return response.workspace;
   }
 
   async updateWorkspace(id: string, data: UpdateWorkspace): Promise<Workspace> {
-    return this.client.patch(`workspaces/${id}`, { json: data }).json();
+    const response = await this.client.patch(`workspaces/${id}`, { json: data }).json<{ workspace: Workspace }>();
+    return response.workspace;
   }
 
   async deleteWorkspace(id: string): Promise<void> {
@@ -97,20 +100,24 @@ export class PromPaletteClient {
   }
 
   async getWorkspace(id: string): Promise<Workspace> {
-    return this.client.get(`workspaces/${id}`).json();
+    const response = await this.client.get(`workspaces/${id}`).json<{ workspace: Workspace }>();
+    return response.workspace;
   }
 
   async listWorkspaces(): Promise<Workspace[]> {
-    return this.client.get('workspaces').json();
+    const response = await this.client.get('workspaces').json<{ workspaces: Workspace[]; total: number }>();
+    return response.workspaces;
   }
 
   // Tags
   async createTag(data: CreateTag): Promise<Tag> {
-    return this.client.post('tags', { json: data }).json();
+    const response = await this.client.post('tags', { json: data }).json<{ tag: Tag }>();
+    return response.tag;
   }
 
   async updateTag(id: string, data: UpdateTag): Promise<Tag> {
-    return this.client.patch(`tags/${id}`, { json: data }).json();
+    const response = await this.client.patch(`tags/${id}`, { json: data }).json<{ tag: Tag }>();
+    return response.tag;
   }
 
   async deleteTag(id: string): Promise<void> {
@@ -118,10 +125,12 @@ export class PromPaletteClient {
   }
 
   async getTag(id: string): Promise<Tag> {
-    return this.client.get(`tags/${id}`).json();
+    const response = await this.client.get(`tags/${id}`).json<{ tag: Tag }>();
+    return response.tag;
   }
 
   async listTags(): Promise<Tag[]> {
-    return this.client.get('tags').json();
+    const response = await this.client.get('tags').json<{ tags: Tag[]; total: number }>();
+    return response.tags;
   }
 }
