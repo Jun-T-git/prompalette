@@ -13,9 +13,19 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
  */
 const API_KEY = import.meta.env.VITE_API_KEY
 
-// APIキーの存在チェック（アプリ起動時に実行）
+// APIキーの存在チェック（ビルド時に実行）
+// CI環境や本番環境でのビルド時にAPI_KEYが未設定の場合は即座に失敗させる
 if (!API_KEY) {
-  throw new Error('VITE_API_KEY environment variable is required')
+  // 開発環境では警告のみ、本番環境ではエラー
+  const isProduction = import.meta.env.PROD
+  const message = 'VITE_API_KEY environment variable is required. Please set it in .env.local for development or CI environment variables for production.'
+  
+  if (isProduction) {
+    throw new Error(message)
+  } else {
+    // 開発環境では警告を出すが、ビルドは継続
+    console.warn(`[Warning] ${message}`)
+  }
 }
 
 /**
@@ -55,6 +65,11 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
   
+  // API_KEYが存在しない場合の実行時チェック
+  if (!API_KEY) {
+    throw new Error('VITE_API_KEY is not set. Cannot make API requests.')
+  }
+
   // リクエストの実行（認証ヘッダーを自動付与）
   const response = await fetch(url, {
     ...options,
