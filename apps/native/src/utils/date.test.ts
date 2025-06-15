@@ -3,6 +3,16 @@ import { formatDate, formatDateTime, timeAgo } from './date'
 // Mock Date constructor for consistent testing
 const mockDate = new Date('2024-01-15T10:30:00Z')
 
+// Set timezone to JST for consistent testing
+const originalTZ = process.env.TZ
+beforeAll(() => {
+  process.env.TZ = 'Asia/Tokyo'
+})
+
+afterAll(() => {
+  process.env.TZ = originalTZ
+})
+
 vi.useFakeTimers()
 vi.setSystemTime(mockDate)
 
