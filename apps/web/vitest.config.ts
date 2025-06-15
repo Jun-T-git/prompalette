@@ -1,5 +1,6 @@
-import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vitest/config';
+/// <reference types="vitest" />
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
@@ -7,6 +8,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // TypeScript設定の明示
+    typecheck: {
+      tsconfig: './tsconfig.json'
+    }
   },
   resolve: {
     alias: {
