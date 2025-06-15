@@ -101,7 +101,7 @@ export function PromptCard({
         </div>
         
         <span className="text-xs text-gray-400">
-          {timeAgo(prompt.updatedAt)}
+          {timeAgo(prompt.updated_at)}
         </span>
       </div>
     </div>

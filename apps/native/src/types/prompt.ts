@@ -14,9 +14,9 @@ export interface Prompt {
   /** プロンプトに付与されたタグの配列（任意） */
   tags?: string[]
   /** 作成日時（ISO 8601形式） */
-  createdAt: string
+  created_at: string
   /** 最終更新日時（ISO 8601形式） */
-  updatedAt: string
+  updated_at: string
 }
 
 /**

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
+import { promptsApi } from '../services'
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
 import { logger } from '../utils'
 
@@ -104,14 +105,18 @@ export const usePromptStore = create<PromptState>()(
       
       /**
        * 新しいプロンプトを作成
-       * Phase 1.1でpromptsApi.create()を使用した実装に更新予定
        */
       createPrompt: async (request) => {
         set({ isLoading: true, error: null })
         try {
-          logger.debug('Creating prompt (Phase 1.0 placeholder):', request)
-          // Phase 1.1: promptsApi.create(request)で実装予定
-          set({ isLoading: false })
+          logger.debug('Creating prompt:', request)
+          const newPrompt = await promptsApi.create(request)
+          const currentPrompts = get().prompts
+          set({ 
+            prompts: [newPrompt, ...currentPrompts],
+            isLoading: false 
+          })
+          logger.info('Prompt created successfully:', newPrompt.id)
         } catch (error) {
           logger.error('Failed to create prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
@@ -120,14 +125,23 @@ export const usePromptStore = create<PromptState>()(
 
       /**
        * 既存プロンプトを更新
-       * Phase 1.1でpromptsApi.update()を使用した実装に更新予定
        */
       updatePrompt: async (request) => {
         set({ isLoading: true, error: null })
         try {
-          logger.debug('Updating prompt (Phase 1.0 placeholder):', request)
-          // Phase 1.1: promptsApi.update(request)で実装予定
-          set({ isLoading: false })
+          logger.debug('Updating prompt:', request)
+          const updatedPrompt = await promptsApi.update(request)
+          if (updatedPrompt) {
+            const { prompts } = get()
+            set({ 
+              prompts: prompts.map(p => p.id === request.id ? updatedPrompt : p),
+              selectedPrompt: get().selectedPrompt?.id === request.id ? updatedPrompt : get().selectedPrompt,
+              isLoading: false 
+            })
+            logger.info('Prompt updated successfully:', updatedPrompt.id)
+          } else {
+            throw new Error('Prompt not found')
+          }
         } catch (error) {
           logger.error('Failed to update prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
@@ -136,21 +150,23 @@ export const usePromptStore = create<PromptState>()(
 
       /**
        * 指定したプロンプトを削除
-       * Phase 1.0ではUI上の削除のみ実装、Phase 1.1でAPI呼び出し追加予定
        */
       deletePrompt: async (id) => {
         set({ isLoading: true, error: null })
         try {
-          logger.debug('Deleting prompt (Phase 1.0 placeholder):', id)
-          // Phase 1.1: await promptsApi.delete(id)で実装予定
-          
-          // 現在はUI上の削除のみ実施
-          const { prompts } = get()
-          set({ 
-            prompts: prompts.filter(p => p.id !== id),
-            selectedPrompt: get().selectedPrompt?.id === id ? null : get().selectedPrompt,
-            isLoading: false 
-          })
+          logger.debug('Deleting prompt:', id)
+          const deleted = await promptsApi.delete(id)
+          if (deleted) {
+            const { prompts } = get()
+            set({ 
+              prompts: prompts.filter(p => p.id !== id),
+              selectedPrompt: get().selectedPrompt?.id === id ? null : get().selectedPrompt,
+              isLoading: false 
+            })
+            logger.info('Prompt deleted successfully:', id)
+          } else {
+            throw new Error('Prompt not found')
+          }
         } catch (error) {
           logger.error('Failed to delete prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
@@ -159,14 +175,17 @@ export const usePromptStore = create<PromptState>()(
 
       /**
        * 条件を指定してプロンプトを検索
-       * Phase 1.1でpromptsApi.search()を使用した実装に更新予定
        */
       searchPrompts: async (query) => {
         set({ isLoading: true, error: null })
         try {
-          logger.debug('Searching prompts (Phase 1.0 placeholder):', query)
-          // Phase 1.1: const result = await promptsApi.search(query)で実装予定
-          set({ isLoading: false })
+          logger.debug('Searching prompts:', query)
+          const prompts = await promptsApi.search(query)
+          set({ 
+            prompts,
+            isLoading: false 
+          })
+          logger.info(`Found ${prompts.length} prompts matching query`)
         } catch (error) {
           logger.error('Failed to search prompts:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
@@ -175,14 +194,17 @@ export const usePromptStore = create<PromptState>()(
 
       /**
        * 全プロンプトをサーバーから読み込み
-       * Phase 1.1でpromptsApi.getAll()を使用した実装に更新予定
        */
       loadPrompts: async () => {
         set({ isLoading: true, error: null })
         try {
-          logger.debug('Loading prompts (Phase 1.0 placeholder)')
-          // Phase 1.1: const prompts = await promptsApi.getAll()で実装予定
-          set({ isLoading: false })
+          logger.debug('Loading prompts from database')
+          const prompts = await promptsApi.getAll()
+          set({ 
+            prompts,
+            isLoading: false 
+          })
+          logger.info(`Loaded ${prompts.length} prompts from database`)
         } catch (error) {
           logger.error('Failed to load prompts:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
