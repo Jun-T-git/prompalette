@@ -9,9 +9,7 @@ export interface Prompt {
   title: string
   /** プロンプトの本文内容 */
   content: string
-  /** プロンプトのカテゴリ（任意） */
-  category?: string
-  /** プロンプトに付与されたタグの配列（任意） */
+  /** プロンプトに付与されたタグの配列（用途・技術・対象などを自由に設定） */
   tags?: string[]
   /** 作成日時（ISO 8601形式） */
   created_at: string
@@ -28,9 +26,7 @@ export interface CreatePromptRequest {
   title: string
   /** プロンプトの本文内容（必須） */
   content: string
-  /** プロンプトのカテゴリ（任意） */
-  category?: string
-  /** プロンプトに付与するタグの配列（任意、最大10個） */
+  /** プロンプトに付与するタグの配列（用途・技術・対象などを自由に設定、最大10個） */
   tags?: string[]
 }
 
@@ -50,8 +46,6 @@ export interface UpdatePromptRequest extends Partial<CreatePromptRequest> {
 export interface SearchQuery {
   /** 検索キーワード（タイトル・内容・タグから部分一致検索） */
   q?: string
-  /** カテゴリによる絞り込み */
-  category?: string
   /** タグによる絞り込み（AND条件） */
   tags?: string[]
   /** 取得件数の上限（デフォルト: 20） */

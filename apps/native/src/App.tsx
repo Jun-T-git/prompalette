@@ -46,7 +46,6 @@ function AppContent() {
     return (
       prompt.title.toLowerCase().includes(query) ||
       prompt.content.toLowerCase().includes(query) ||
-      prompt.category?.toLowerCase().includes(query) ||
       prompt.tags?.some(tag => tag.toLowerCase().includes(query))
     )
   })
@@ -266,32 +265,19 @@ function AppContent() {
                   {selectedPrompt.content}
                 </div>
                 
-                {(selectedPrompt.category || selectedPrompt.tags?.length) && (
-                  <div className="mt-6 flex items-center space-x-4">
-                    {selectedPrompt.category && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-500">カテゴリ: </span>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {selectedPrompt.category}
+                {selectedPrompt.tags?.length && (
+                  <div className="mt-6">
+                    <span className="text-sm font-medium text-gray-500">タグ: </span>
+                    <div className="inline-flex flex-wrap gap-1 mt-1">
+                      {selectedPrompt.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
+                        >
+                          {tag}
                         </span>
-                      </div>
-                    )}
-                    
-                    {selectedPrompt.tags?.length && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-500">タグ: </span>
-                        <div className="inline-flex space-x-1">
-                          {selectedPrompt.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

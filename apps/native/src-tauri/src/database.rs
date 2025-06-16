@@ -16,7 +16,6 @@ pub struct Prompt {
     pub id: String,
     pub title: String,
     pub content: String,
-    pub category: Option<String>,
     pub tags: Option<String>, // JSON文字列として保存
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -27,7 +26,6 @@ pub struct Prompt {
 pub struct CreatePromptRequest {
     pub title: String,
     pub content: String,
-    pub category: Option<String>,
     pub tags: Option<Vec<String>>,
 }
 
@@ -36,7 +34,6 @@ pub struct CreatePromptRequest {
 pub struct UpdatePromptRequest {
     pub title: Option<String>,
     pub content: Option<String>,
-    pub category: Option<String>,
     pub tags: Option<Vec<String>>,
 }
 
@@ -115,7 +112,6 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
-            category TEXT,
             tags TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -127,9 +123,6 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
     .map_err(|e| format!("Failed to create prompts table: {}", e))?;
     
     // インデックス作成（パフォーマンス最適化）
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);")
-        .execute(pool)
-        .await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_prompts_updated ON prompts(updated_at);")
         .execute(pool)
         .await?;
@@ -160,15 +153,14 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     
     let prompt = sqlx::query_as::<_, Prompt>(
         r#"
-        INSERT INTO prompts (id, title, content, category, tags, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO prompts (id, title, content, tags, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
         "#,
     )
     .bind(&id)
     .bind(&request.title)
     .bind(&request.content)
-    .bind(&request.category)
     .bind(&tags_json)
     .bind(now)
     .bind(now)
@@ -211,7 +203,7 @@ pub async fn search_prompts(query: &str) -> Result<Vec<Prompt>, Box<dyn std::err
     let prompts = sqlx::query_as::<_, Prompt>(
         r#"
         SELECT * FROM prompts 
-        WHERE title LIKE $1 OR content LIKE $1 OR category LIKE $1
+        WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
         ORDER BY updated_at DESC
         "#,
     )
@@ -238,7 +230,6 @@ pub async fn update_prompt(
     // 更新フィールドの決定
     let title = request.title.unwrap_or(existing.title);
     let content = request.content.unwrap_or(existing.content);
-    let category = request.category.or(existing.category);
     
     // タグの処理
     let tags_json = match request.tags {
@@ -251,14 +242,13 @@ pub async fn update_prompt(
     let updated_prompt = sqlx::query_as::<_, Prompt>(
         r#"
         UPDATE prompts 
-        SET title = $1, content = $2, category = $3, tags = $4, updated_at = $5
-        WHERE id = $6
+        SET title = $1, content = $2, tags = $3, updated_at = $4
+        WHERE id = $5
         RETURNING *
         "#,
     )
     .bind(&title)
     .bind(&content)
-    .bind(&category)
     .bind(&tags_json)
     .bind(now)
     .bind(id)
@@ -280,20 +270,6 @@ pub async fn delete_prompt(id: &str) -> Result<bool, Box<dyn std::error::Error>>
     Ok(result.rows_affected() > 0)
 }
 
-/// カテゴリ別プロンプト取得
-#[allow(dead_code)]
-pub async fn get_prompts_by_category(category: &str) -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
-    let pool = get_db_pool();
-    
-    let prompts = sqlx::query_as::<_, Prompt>(
-        "SELECT * FROM prompts WHERE category = $1 ORDER BY updated_at DESC"
-    )
-    .bind(category)
-    .fetch_all(pool)
-    .await?;
-    
-    Ok(prompts)
-}
 
 #[cfg(test)]
 mod tests {
@@ -312,7 +288,6 @@ mod tests {
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
-                category TEXT,
                 tags TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -327,7 +302,6 @@ mod tests {
         let create_request = CreatePromptRequest {
             title: "Test Prompt".to_string(),
             content: "This is a test prompt content".to_string(),
-            category: Some("test".to_string()),
             tags: Some(vec!["test".to_string(), "example".to_string()]),
         };
         

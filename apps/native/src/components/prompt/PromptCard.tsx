@@ -92,15 +92,9 @@ export function PromptCard({
 
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          {prompt.category && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              {prompt.category}
-            </span>
-          )}
-          
           {prompt.tags && prompt.tags.length > 0 && (
             <div className="flex space-x-1">
-              {prompt.tags.slice(0, 2).map((tag) => (
+              {prompt.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
                   className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
@@ -108,9 +102,9 @@ export function PromptCard({
                   {tag}
                 </span>
               ))}
-              {prompt.tags.length > 2 && (
+              {prompt.tags.length > 3 && (
                 <span className="text-xs text-gray-500">
-                  +{prompt.tags.length - 2}
+                  +{prompt.tags.length - 3}
                 </span>
               )}
             </div>

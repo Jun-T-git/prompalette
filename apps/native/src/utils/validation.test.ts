@@ -1,4 +1,4 @@
-import { validatePromptTitle, validatePromptContent, validateCategory, validateTags } from './validation'
+import { validatePromptTitle, validatePromptContent, validateTags } from './validation'
 
 describe('validation utils', () => {
   describe('validatePromptTitle', () => {
@@ -33,23 +33,12 @@ describe('validation utils', () => {
     })
   })
 
-  describe('validateCategory', () => {
-    it('returns null for valid categories', () => {
-      expect(validateCategory()).toBeNull()
-      expect(validateCategory('')).toBeNull()
-      expect(validateCategory('Valid category')).toBeNull()
-      expect(validateCategory('A'.repeat(50))).toBeNull()
-    })
-
-    it('returns error for too long category', () => {
-      expect(validateCategory('A'.repeat(51))).toBe('カテゴリは50文字以内で入力してください')
-    })
-  })
 
   describe('validateTags', () => {
     it('returns null for valid tags', () => {
       expect(validateTags([])).toBeNull()
-      expect(validateTags(['tag1', 'tag2'])).toBeNull()
+      expect(validateTags(['開発', 'JavaScript'])).toBeNull()
+      expect(validateTags(['開発', 'JavaScript', 'React', 'TypeScript'])).toBeNull()
       expect(validateTags(Array(10).fill('tag'))).toBeNull()
     })
 
@@ -59,6 +48,11 @@ describe('validation utils', () => {
 
     it('returns error for too long tag', () => {
       expect(validateTags(['A'.repeat(31)])).toBe('タグは30文字以内で入力してください')
+    })
+
+    it('handles mixed content tags correctly', () => {
+      expect(validateTags(['開発', 'JavaScript', 'コードレビュー', 'AI'])).toBeNull()
+      expect(validateTags(['用途カテゴリ', 'technical-tag', '対象ユーザー'])).toBeNull()
     })
   })
 })

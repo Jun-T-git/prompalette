@@ -52,28 +52,6 @@ export function validatePromptContent(content: string): string | null {
   return null
 }
 
-/**
- * カテゴリのバリデーション
- * 任意項目のため空の場合はOK、文字数制限のみチェック
- * 
- * @param category - 検証するカテゴリ名（任意）
- * @returns エラーメッセージまたはnull（バリデーション成功時）
- * 
- * @example
- * ```typescript
- * const error = validateCategory('開発支援')
- * if (error) {
- *   console.error(error)
- * }
- * ```
- */
-export function validateCategory(category?: string): string | null {
-  // 任意項目のため、存在する場合のみ文字数チェック
-  if (category && category.length > 50) {
-    return 'カテゴリは50文字以内で入力してください'
-  }
-  return null
-}
 
 /**
  * タグ配列のバリデーション
@@ -84,7 +62,7 @@ export function validateCategory(category?: string): string | null {
  * 
  * @example
  * ```typescript
- * const error = validateTags(['AI', '文章生成', 'ChatGPT'])
+ * const error = validateTags(['開発', 'JavaScript', 'React'])
  * if (error) {
  *   console.error(error)
  * }

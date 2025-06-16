@@ -158,7 +158,6 @@ export const promptsApi = {
       request: {
         title: request.title,
         content: request.content,
-        category: request.category,
         tags: request.tags
       }
     })
