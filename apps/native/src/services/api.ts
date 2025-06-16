@@ -1,93 +1,104 @@
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery, SearchResult } from '../types'
-import { logger } from '../utils'
+import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
+import { logger, isTauriEnvironment } from '../utils'
 
 /**
- * APIベースURLの設定
- * 環境変数から取得、未設定時はローカル開発サーバーを使用
+ * Tauri invoke関数を安全に取得
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-
-/**
- * APIアクセスキーの取得
- * 環境変数から取得、未設定時はエラー
- */
-const API_KEY = import.meta.env.VITE_API_KEY
-
-// APIキーの存在チェック（ビルド時に実行）
-// CI環境や本番環境でのビルド時にAPI_KEYが未設定の場合は即座に失敗させる
-if (!API_KEY) {
-  // 開発環境では警告のみ、本番環境ではエラー
-  const isProduction = import.meta.env.PROD
-  const message = 'VITE_API_KEY environment variable is required. Please set it in .env.local for development or CI environment variables for production.'
+async function getTauriInvoke() {
+  if (!isTauriEnvironment()) {
+    return null
+  }
   
-  if (isProduction) {
-    throw new Error(message)
-  } else {
-    // 開発環境では警告を出すが、ビルドは継続
-    console.warn(`[Warning] ${message}`)
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return invoke
+  } catch (error) {
+    logger.error('Failed to import Tauri API:', error)
+    return null
   }
 }
 
 /**
+ * Tauriコマンドのレスポンス型
+ */
+interface TauriResponse<T> {
+  success: boolean
+  data: T
+}
+
+/**
+ * Tauriエラーレスポンス型
+ */
+interface TauriError {
+  error: string
+}
+
+/**
  * APIリクエストエラークラス
- * HTTPステータスコードとメッセージを保持
+ * Tauriコマンドエラーメッセージを保持
  */
 class ApiError extends Error {
   /**
    * ApiErrorインスタンスを作成
-   * @param status - HTTPステータスコード
    * @param message - エラーメッセージ
    */
-  constructor(public status: number, message: string) {
+  constructor(message: string) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
 /**
- * 共通のAPIリクエスト処理
- * 認証ヘッダーの付与、エラーハンドリング、レスポンスのJSONパースを実施
+ * Tauriコマンド実行のラッパー関数
+ * 統一されたエラーハンドリングとレスポンス処理を提供
  * 
  * @template T - レスポンスデータの型
- * @param endpoint - APIエンドポイント（パス部分）
- * @param options - fetch APIのオプション
- * @returns パースされたJSONレスポンス
- * @throws {ApiError} HTTPエラー時にスロー
- * 
- * @example
- * ```typescript
- * const prompts = await apiRequest<Prompt[]>('/api/prompts')
- * ```
+ * @param command - Tauriコマンド名
+ * @param args - コマンド引数
+ * @returns コマンド実行結果
+ * @throws {ApiError} コマンド実行エラー時
  */
-async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
+async function invokeCommand<T>(
+  command: string,
+  args?: Record<string, unknown>
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
-  
-  // API_KEYが存在しない場合の実行時チェック
-  if (!API_KEY) {
-    throw new Error('VITE_API_KEY is not set. Cannot make API requests.')
+  // Tauri環境でない場合は適切なエラーメッセージを表示
+  if (!isTauriEnvironment()) {
+    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
+    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
+    throw new ApiError(errorMessage)
   }
 
-  // リクエストの実行（認証ヘッダーを自動付与）
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
-      ...options.headers,
-    },
-  })
-
-  // HTTPエラーのハンドリング
-  if (!response.ok) {
-    const error = new ApiError(response.status, `API Error: ${response.statusText}`)
-    logger.error('API request failed:', { url, status: response.status, statusText: response.statusText })
-    throw error
+  // Tauri invoke関数を取得
+  const invoke = await getTauriInvoke()
+  if (!invoke) {
+    const errorMessage = 'Failed to load Tauri API'
+    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
+    throw new ApiError(errorMessage)
   }
 
-  return response.json()
+  try {
+    const response = await invoke<TauriResponse<T>>(command, args)
+    
+    if (!response.success) {
+      throw new Error('Command execution failed')
+    }
+    
+    return response.data
+  } catch (error) {
+    let errorMessage = 'Unknown error occurred'
+    
+    if (typeof error === 'string') {
+      errorMessage = error
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    } else if (typeof error === 'object' && error !== null && 'error' in error) {
+      errorMessage = (error as TauriError).error
+    }
+    
+    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
+    throw new ApiError(errorMessage)
+  }
 }
 
 /**
@@ -112,7 +123,7 @@ export const promptsApi = {
    * @returns プロンプトの配列
    */
   async getAll(): Promise<Prompt[]> {
-    return apiRequest<Prompt[]>('/api/prompts')
+    return invokeCommand<Prompt[]>('get_all_prompts')
   },
 
   /**
@@ -121,8 +132,8 @@ export const promptsApi = {
    * @returns 指定したプロンプト
    * @throws {ApiError} プロンプトが見つからない場合
    */
-  async getById(id: string): Promise<Prompt> {
-    return apiRequest<Prompt>(`/api/prompts/${id}`)
+  async getById(id: string): Promise<Prompt | null> {
+    return invokeCommand<Prompt | null>('get_prompt', { id })
   },
 
   /**
@@ -132,10 +143,7 @@ export const promptsApi = {
    * @throws {ApiError} 作成失敗時
    */
   async create(request: CreatePromptRequest): Promise<Prompt> {
-    return apiRequest<Prompt>('/api/prompts', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
+    return invokeCommand<Prompt>('create_prompt', { request })
   },
 
   /**
@@ -144,74 +152,69 @@ export const promptsApi = {
    * @returns 更新されたプロンプト
    * @throws {ApiError} 更新失敗時またはプロンプトが見つからない場合
    */
-  async update(request: UpdatePromptRequest): Promise<Prompt> {
-    return apiRequest<Prompt>(`/api/prompts/${request.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
+  async update(request: UpdatePromptRequest): Promise<Prompt | null> {
+    return invokeCommand<Prompt | null>('update_prompt', { 
+      id: request.id, 
+      request: {
+        title: request.title,
+        content: request.content,
+        category: request.category,
+        tags: request.tags
+      }
     })
   },
 
   /**
    * 指定したプロンプトを削除
    * @param id - 削除するプロンプトのID
-   * @returns Promise<void>
+   * @returns 削除成功の可否
    * @throws {ApiError} 削除失敗時またはプロンプトが見つからない場合
    */
-  async delete(id: string): Promise<void> {
-    return apiRequest<void>(`/api/prompts/${id}`, {
-      method: 'DELETE',
-    })
+  async delete(id: string): Promise<boolean> {
+    return invokeCommand<boolean>('delete_prompt', { id })
   },
 
   /**
    * 条件を指定してプロンプトを検索
-   * キーワード、カテゴリ、タグによる絞り込み、ページネーションに対応
    * 
    * @param query - 検索条件
-   * @returns 検索結果（プロンプト配列、総数、ページ情報）
+   * @returns 検索結果（プロンプト配列）
    * 
    * @example
    * ```typescript
    * // キーワード検索
-   * const result = await promptsApi.search({ q: 'ChatGPT' })
+   * const prompts = await promptsApi.search({ q: 'ChatGPT' })
    * 
-   * // カテゴリとタグで絞り込み
-   * const result = await promptsApi.search({
-   *   category: '開発支援',
-   *   tags: ['AI', 'TypeScript'],
-   *   limit: 10
-   * })
+   * // カテゴリ検索
+   * const prompts = await promptsApi.search({ q: '開発支援' })
    * ```
    */
-  async search(query: SearchQuery): Promise<SearchResult> {
-    // クエリパラメータの構築
-    const params = new URLSearchParams()
-    if (query.q) params.append('q', query.q)
-    if (query.category) params.append('category', query.category)
-    if (query.tags?.length) params.append('tags', query.tags.join(','))
-    if (query.limit) params.append('limit', query.limit.toString())
-    if (query.offset) params.append('offset', query.offset.toString())
-
-    // エンドポイントURLの構築
-    const endpoint = params.toString() 
-      ? `/api/prompts/search?${params.toString()}`
-      : '/api/prompts/search'
-    
-    return apiRequest<SearchResult>(endpoint)
+  async search(query: SearchQuery): Promise<Prompt[]> {
+    const searchQuery = query.q || ''
+    return invokeCommand<Prompt[]>('search_prompts', { query: searchQuery })
   },
 }
 
 /**
- * アプリケーションのヘルスチェック関連API
- * サーバーの状態確認用
+ * アプリケーション情報とヘルスチェック関連API
+ * Native Appの状態確認用
  */
 export const healthApi = {
   /**
-   * アプリケーションのヘルスチェックを実行
-   * @returns サーバーの状態とタイムスタンプ
-   * @throws {ApiError} サーバーに接続できない場合
+   * アプリケーション情報を取得
+   * @returns アプリの名前、バージョン、説明
+   * @throws {ApiError} アプリ情報取得失敗時
    */
-  async check(): Promise<{ status: string; timestamp: string }> {
-    return apiRequest('/health')
+  async getAppInfo(): Promise<{ name: string; version: string; description: string }> {
+    return invokeCommand('get_app_info')
+  },
+
+  /**
+   * データベース初期化を実行
+   * @returns 初期化成功メッセージ
+   * @throws {ApiError} データベース初期化失敗時
+   */
+  async initDatabase(): Promise<string> {
+    return invokeCommand('init_database')
   },
 }
