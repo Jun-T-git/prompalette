@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '../../types'
-import { validatePromptTitle, validatePromptContent, validateCategory, validateTags } from '../../utils'
+import { validatePromptTitle, validatePromptContent, validateTags } from '../../utils'
 import { Button, Input, Textarea } from '../common'
 
 interface PromptFormProps {
@@ -20,7 +20,6 @@ export function PromptForm({
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
-    category: initialData?.category || '',
     tags: initialData?.tags?.join(', ') || '',
   })
 
@@ -34,9 +33,6 @@ export function PromptForm({
 
     const contentError = validatePromptContent(formData.content)
     if (contentError) newErrors.content = contentError
-
-    const categoryError = validateCategory(formData.category)
-    if (categoryError) newErrors.category = categoryError
 
     const tagsArray = formData.tags
       .split(',')
@@ -65,7 +61,6 @@ export function PromptForm({
     const submitData: CreatePromptRequest | UpdatePromptRequest = {
       title: formData.title,
       content: formData.content,
-      category: formData.category || undefined,
       tags: tagsArray.length > 0 ? tagsArray : undefined,
     }
 
@@ -108,21 +103,12 @@ export function PromptForm({
       />
 
       <Input
-        label="カテゴリ"
-        value={formData.category}
-        onChange={(e) => handleInputChange('category', e.target.value)}
-        error={errors.category}
-        placeholder="例: 開発, マーケティング, ライティング"
-        maxLength={50}
-      />
-
-      <Input
         label="タグ"
         value={formData.tags}
         onChange={(e) => handleInputChange('tags', e.target.value)}
         error={errors.tags}
-        placeholder="タグをカンマ区切りで入力（例: JavaScript, React, API）"
-        helperText="カンマ区切りで複数のタグを入力できます（最大10個）"
+        placeholder="例: 開発, JavaScript, React, レビュー"
+        helperText="用途・技術・対象などを自由に設定、カンマ区切りで入力（最大10個）"
       />
 
       <div className="flex justify-end space-x-3 pt-4 border-t">
