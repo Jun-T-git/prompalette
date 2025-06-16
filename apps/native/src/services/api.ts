@@ -1,7 +1,22 @@
-import { invoke } from '@tauri-apps/api/core'
-
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
-import { logger } from '../utils'
+import { logger, isTauriEnvironment } from '../utils'
+
+/**
+ * Tauri invoke関数を安全に取得
+ */
+async function getTauriInvoke() {
+  if (!isTauriEnvironment()) {
+    return null
+  }
+  
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return invoke
+  } catch (error) {
+    logger.error('Failed to import Tauri API:', error)
+    return null
+  }
+}
 
 /**
  * Tauriコマンドのレスポンス型
@@ -47,6 +62,21 @@ async function invokeCommand<T>(
   command: string,
   args?: Record<string, unknown>
 ): Promise<T> {
+  // Tauri環境でない場合は適切なエラーメッセージを表示
+  if (!isTauriEnvironment()) {
+    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
+    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
+    throw new ApiError(errorMessage)
+  }
+
+  // Tauri invoke関数を取得
+  const invoke = await getTauriInvoke()
+  if (!invoke) {
+    const errorMessage = 'Failed to load Tauri API'
+    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
+    throw new ApiError(errorMessage)
+  }
+
   try {
     const response = await invoke<TauriResponse<T>>(command, args)
     

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-import { SearchInput, PromptCard, PromptForm, Button } from './components'
+import { SearchInput, PromptCard, PromptForm, Button, EnvironmentError } from './components'
 import { usePromptStore } from './stores'
 import type { CreatePromptRequest, UpdatePromptRequest, Prompt } from './types'
 import './App.css'
@@ -22,10 +22,16 @@ function App() {
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [environmentError, setEnvironmentError] = useState<string | null>(null)
 
   // Load prompts on mount
   useEffect(() => {
-    loadPrompts()
+    loadPrompts().catch((error) => {
+      // Tauri環境でない場合の特別な処理
+      if (error?.message?.includes('Tauri environment not available')) {
+        setEnvironmentError(error.message)
+      }
+    })
   }, [loadPrompts])
 
   // Filter prompts based on search query
@@ -72,6 +78,19 @@ function App() {
   const handleEditPrompt = (prompt: Prompt) => {
     setSelectedPrompt(prompt)
     setShowEditForm(true)
+  }
+
+  // 環境エラーがある場合は専用画面を表示
+  if (environmentError) {
+    return (
+      <EnvironmentError 
+        error={environmentError} 
+        onRetry={() => {
+          setEnvironmentError(null)
+          loadPrompts()
+        }}
+      />
+    )
   }
 
   return (
