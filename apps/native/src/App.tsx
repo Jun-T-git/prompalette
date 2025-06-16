@@ -26,13 +26,15 @@ function App() {
 
   // Load prompts on mount
   useEffect(() => {
-    loadPrompts().catch((error) => {
-      // Tauri環境でない場合の特別な処理
-      if (error?.message?.includes('Tauri environment not available')) {
-        setEnvironmentError(error.message)
-      }
-    })
-  }, [loadPrompts])
+    loadPrompts()
+  }, []) // 空の依存配列で初回マウント時のみ実行
+
+  // ストアのエラーを監視して環境エラーを検出
+  useEffect(() => {
+    if (error && error.includes('Tauri environment not available')) {
+      setEnvironmentError(error)
+    }
+  }, [error])
 
   // Filter prompts based on search query
   const filteredPrompts = prompts.filter(prompt => {
@@ -87,7 +89,11 @@ function App() {
         error={environmentError} 
         onRetry={() => {
           setEnvironmentError(null)
-          loadPrompts()
+          loadPrompts().catch((error) => {
+            if (error?.message?.includes('Tauri environment not available')) {
+              setEnvironmentError(error.message)
+            }
+          })
         }}
       />
     )
