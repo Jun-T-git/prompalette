@@ -316,23 +316,12 @@ function AppContent() {
   };
 
 
-  // フィルター結果・キーボード選択の統合管理（競合状態を防ぐ）
+  // 検索クエリが変わったときのみ選択をリセット
   useEffect(() => {
     keyboardNav.resetSelection();
     
-    const index = keyboardNav.selectedIndexKeyboard;
-    
     if (filteredPrompts.length > 0) {
-      // キーボード選択がある場合はそちらを優先
-      if (index >= 0 && index < filteredPrompts.length) {
-        const selectedPromptFromKeyboard = filteredPrompts[index];
-        if (selectedPromptFromKeyboard !== undefined) {
-          setSelectedPrompt(selectedPromptFromKeyboard);
-          return;
-        }
-      }
-      
-      // キーボード選択がない場合は最初のプロンプトを自動選択
+      // 最初のプロンプトを自動選択
       const firstPrompt = filteredPrompts[0];
       if (firstPrompt) {
         setSelectedPrompt(firstPrompt);
@@ -341,7 +330,20 @@ function AppContent() {
       // 検索結果なしの場合はプレビューをクリア
       setSelectedPrompt(null);
     }
-  }, [searchQuery, filteredPrompts, keyboardNav.selectedIndexKeyboard, setSelectedPrompt]);
+  }, [searchQuery, filteredPrompts]);
+
+  // キーボード選択インデックスが変わったときにプレビュー更新
+  useEffect(() => {
+    const index = keyboardNav.selectedIndexKeyboard;
+    if (filteredPrompts.length > 0 && 
+        index >= 0 && 
+        index < filteredPrompts.length) {
+      const selectedPromptFromKeyboard = filteredPrompts[index];
+      if (selectedPromptFromKeyboard !== undefined) {
+        setSelectedPrompt(selectedPromptFromKeyboard);
+      }
+    }
+  }, [keyboardNav.selectedIndexKeyboard, filteredPrompts]);
 
   // 環境エラーがある場合は専用画面を表示
   if (environmentError) {
