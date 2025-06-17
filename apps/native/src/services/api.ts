@@ -1,21 +1,17 @@
+import { invoke } from '@tauri-apps/api/core'
+
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
 import { logger, isTauriEnvironment } from '../utils'
 
 /**
  * Tauri invoke関数を安全に取得
  */
-async function getTauriInvoke() {
+function getTauriInvoke() {
   if (!isTauriEnvironment()) {
     return null
   }
   
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    return invoke
-  } catch (error) {
-    logger.error('Failed to import Tauri API:', error)
-    return null
-  }
+  return invoke
 }
 
 /**
@@ -70,7 +66,7 @@ async function invokeCommand<T>(
   }
 
   // Tauri invoke関数を取得
-  const invoke = await getTauriInvoke()
+  const invoke = getTauriInvoke()
   if (!invoke) {
     const errorMessage = 'Failed to load Tauri API'
     logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })

@@ -8,6 +8,7 @@ use crate::database::{
     get_all_prompts as db_get_all_prompts,
     get_prompt as db_get_prompt,
     search_prompts as db_search_prompts,
+    search_prompts_fast as db_search_prompts_fast,
     update_prompt as db_update_prompt,
     CreatePromptRequest,
     Prompt,
@@ -96,6 +97,33 @@ pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>
     }
 }
 
+/// 高速プロンプト検索コマンド（ショートカット専用）
+/// 
+/// パフォーマンス重視の検索実装:
+/// - 優先度付きソート（完全一致 > 前方一致 > 部分一致）
+/// - 結果数制限（最大20件）
+/// - <50ms レスポンス目標
+#[tauri::command]
+pub async fn search_prompts_fast(query: String) -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    // 空クエリは早期リターン
+    if query.trim().is_empty() {
+        return Ok(SuccessResponse {
+            success: true,
+            data: vec![],
+        });
+    }
+    
+    match db_search_prompts_fast(&query).await {
+        Ok(prompts) => Ok(SuccessResponse {
+            success: true,
+            data: prompts,
+        }),
+        Err(e) => Err(ErrorResponse {
+            error: format!("Failed to search prompts fast: {}", e),
+        }),
+    }
+}
+
 /// プロンプト更新コマンド
 #[tauri::command]
 pub async fn update_prompt(
@@ -165,7 +193,6 @@ pub async fn get_app_info() -> Result<SuccessResponse<serde_json::Value>, ErrorR
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_create_prompt_command() {

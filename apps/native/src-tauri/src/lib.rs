@@ -5,8 +5,11 @@
 
 mod database;
 mod commands;
+mod shortcuts;
+mod config;
 
 use commands::*;
+use tauri::Emitter;
 
 /// Legacy greet command (for testing)
 #[tauri::command]
@@ -18,7 +21,8 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .setup(|_app| {
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(|app| {
             // アプリケーション起動時にデータベースを同期的に初期化
             // エラー時はアプリケーション起動を停止
             tauri::async_runtime::block_on(async {
@@ -29,6 +33,24 @@ pub fn run() {
                 e.to_string()
             })?;
             
+            // グローバルショートカット登録
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match shortcuts::register_global_shortcuts(app_handle.clone()).await {
+                    Ok(_) => {
+                        println!("Global shortcuts registered successfully");
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to register global shortcuts: {}", e.error);
+                        
+                        // ショートカット登録失敗をフロントエンドに通知
+                        if let Err(emit_err) = app_handle.emit("shortcut-registration-failed", e.error) {
+                            eprintln!("Failed to emit shortcut registration failure event: {}", emit_err);
+                        }
+                    }
+                }
+            });
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -38,9 +60,14 @@ pub fn run() {
             get_prompt,
             get_all_prompts,
             search_prompts,
+            search_prompts_fast,
             update_prompt,
             delete_prompt,
-            get_app_info
+            get_app_info,
+            shortcuts::register_global_shortcuts,
+            shortcuts::unregister_global_shortcuts,
+            shortcuts::get_shortcut_status,
+            shortcuts::hide_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

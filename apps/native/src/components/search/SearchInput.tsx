@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef } from 'react'
 
 import { Input } from '../common'
 
@@ -21,6 +21,24 @@ interface SearchInputProps {
   
   /** デバウンスの遅延時間（ミリ秒、デフォルト: 300ms） */
   debounceMs?: number
+  
+  /** フォーカス時のコールバック */
+  onFocus?: () => void
+  
+  /** フォーカスが外れた時のコールバック */
+  onBlur?: () => void
+  
+  /** キーボードイベントのコールバック */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  
+  /** IME変換開始のコールバック */
+  onCompositionStart?: () => void
+  
+  /** IME変換終了のコールバック */
+  onCompositionEnd?: () => void
+  
+  /** プロンプト選択確定のコールバック（変換確定後のEnter用） */
+  onPromptSelect?: () => void
 }
 
 /**
@@ -45,15 +63,25 @@ interface SearchInputProps {
  * />
  * ```
  */
-export function SearchInput({
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput({
   value,
   onChange,
   onSearch,
   placeholder = 'プロンプトを検索...',
   debounceMs = 300,
-}: SearchInputProps) {
+  onFocus,
+  onBlur,
+  onKeyDown,
+  onCompositionStart,
+  onCompositionEnd,
+  onPromptSelect,
+}, ref) {
   // ローカル入力状態（デバウンス用）
   const [localValue, setLocalValue] = useState(value)
+  // IME変換中かどうかを追跡
+  const [isComposing, setIsComposing] = useState(false)
+  // compositionEnd直後の短時間フラグ
+  const [justEndedComposition, setJustEndedComposition] = useState(false)
 
   // デバウンス処理：ユーザーの入力が停止してから一定時間後にコールバック実行
   useEffect(() => {
@@ -84,6 +112,65 @@ export function SearchInput({
     onSearch?.('')
   }
 
+  /**
+   * 検索フィールド専用のキーボードハンドラー
+   * IME状態に基づいてEnter処理を適切に分岐
+   */
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 検索フィールド内でのEnter処理
+    if (e.key === 'Enter') {
+      // より確実なIME検出: 複数の方法を組み合わせて判定
+      // 1. isComposingフラグ
+      // 2. keyCodeが229（IME処理中）
+      // 3. compositionEnd直後の短時間
+      const isIMEActive = isComposing || e.keyCode === 229 || e.which === 229 || justEndedComposition
+      
+      if (isIMEActive) {
+        e.stopPropagation() // 親のイベントハンドラーに伝播させない
+        return
+      }
+      
+      // 変換確定後のEnter: プロンプト選択実行
+      e.preventDefault()
+      e.stopPropagation()
+      onPromptSelect?.()
+      return
+    }
+
+    // ArrowUp/ArrowDownは親に委譲（プロンプト選択のため）
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      // プロパゲーションを許可して親のハンドラーに処理を委譲
+      onKeyDown?.(e)
+      return
+    }
+
+    // その他のキーも親に委譲
+    onKeyDown?.(e)
+  }
+
+  /**
+   * IME変換開始ハンドラー
+   */
+  const handleCompositionStart = () => {
+    setIsComposing(true)
+    onCompositionStart?.()
+  }
+
+  /**
+   * IME変換終了ハンドラー
+   */
+  const handleCompositionEnd = () => {
+    setIsComposing(false)
+    setJustEndedComposition(true)
+    
+    // 短時間後にフラグをクリア
+    setTimeout(() => {
+      setJustEndedComposition(false)
+    }, 100)
+    
+    onCompositionEnd?.()
+  }
+
   return (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -103,10 +190,16 @@ export function SearchInput({
       </div>
       
       <Input
+        ref={ref}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
         className="pl-10 pr-10"
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={handleSearchKeyDown}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
       />
 
       {localValue && (
@@ -127,4 +220,4 @@ export function SearchInput({
       )}
     </div>
   )
-}
+})
