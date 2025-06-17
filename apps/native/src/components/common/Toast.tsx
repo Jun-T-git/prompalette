@@ -136,8 +136,8 @@ function ToastContainer({ toasts, onClose }: ToastContainerProps) {
           message={toast.message}
           variant={toast.variant}
           isVisible={toast.isVisible}
-          autoClose={toast.autoClose}
-          duration={toast.duration}
+          autoClose={toast.autoClose ?? true}
+          duration={toast.duration ?? 3000}
           onClose={() => onClose(toast.id)}
         />
       ))}
@@ -177,6 +177,7 @@ export function Toast({
       const timer = setTimeout(onClose, duration)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [autoClose, isVisible, duration, onClose])
 
   if (!isVisible) return null
