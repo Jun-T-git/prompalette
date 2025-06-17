@@ -1,12 +1,21 @@
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
-import { useState, useEffect, useRef } from 'react'
+import { listen } from '@tauri-apps/api/event';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { SearchInput, PromptCard, PromptForm, Button, EnvironmentError, ToastProvider, useToast } from './components'
-import { usePromptStore } from './stores'
-import type { CreatePromptRequest, UpdatePromptRequest, Prompt } from './types'
-import { copyPromptToClipboard } from './utils'
-import './App.css'
+import './App.css';
+import type { AppSidebarRef } from './components';
+import {
+  AppContentArea,
+  AppSidebarWithRef,
+  Button,
+  ConfirmModal,
+  EnvironmentError,
+  ToastProvider,
+  useToast,
+} from './components';
+import { useKeyboardNavigation, usePromptSearch } from './hooks';
+import { usePromptStore } from './stores';
+import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
+import { copyPromptToClipboard, logger } from './utils';
 
 function AppContent() {
   const {
@@ -21,246 +30,354 @@ function AppContent() {
     updatePrompt,
     deletePrompt,
     loadPrompts,
-  } = usePromptStore()
+  } = usePromptStore();
 
-  const { showToast } = useToast()
+  const { showToast } = useToast();
 
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [showEditForm, setShowEditForm] = useState(false)
-  const [environmentError, setEnvironmentError] = useState<string | null>(null)
-  const [selectedIndexKeyboard, setSelectedIndexKeyboard] = useState(0)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [environmentError, setEnvironmentError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    show: boolean;
+    promptId: string | null;
+    promptTitle: string;
+  }>({
+    show: false,
+    promptId: null,
+    promptTitle: '',
+  });
+  const sidebarRef = useRef<AppSidebarRef>(null);
+  const searchQueryRef = useRef(searchQuery);
+
+  // searchQueryRefを最新状態に同期
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   // Load prompts on mount
   useEffect(() => {
-    let mounted = true
+    let isMounted = true;
+    
     const loadData = async () => {
       try {
-        if (mounted) {
-          await loadPrompts()
-        }
+        await loadPrompts();
       } catch (error) {
-        if (mounted) {
-          console.error('Failed to load prompts:', error)
+        if (isMounted) {
+          logger.error('Failed to load prompts:', error);
+        }
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [loadPrompts]);
+
+  // 初期表示時に検索窓にフォーカス
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (sidebarRef.current) {
+        sidebarRef.current.focusSearchInput();
+      }
+    }, 100); // 少し遅延させてDOMがレンダリングされてからフォーカス
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // グローバル文字入力で検索窓にフォーカス
+  const handleGlobalKeyDown = useCallback((e: KeyboardEvent) => {
+    // CmdOrCtrl+N で新規作成
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      setShowCreateForm(true);
+      return;
+    }
+
+    // その他のショートカットキーは除外
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      return;
+    }
+
+    // 特殊キー（ナビゲーション）は除外
+    if (
+      ['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(
+        e.key,
+      )
+    ) {
+      return;
+    }
+
+    // 既に検索窓にフォーカスがある場合は何もしない
+    const activeElement = document.activeElement;
+    if (activeElement && activeElement.tagName === 'INPUT') {
+      return;
+    }
+
+    // フォーム要素にフォーカスがある場合は何もしない
+    if (activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
+      return;
+    }
+
+    // 文字入力、数字、バックスペース、削除の場合に検索窓にフォーカス
+    if (
+      e.key.length === 1 || // 通常の文字入力（英数字、記号、日本語など）
+      e.key === 'Backspace' ||
+      e.key === 'Delete'
+    ) {
+      e.preventDefault();
+
+      // 検索窓にフォーカスを移動
+      if (sidebarRef.current) {
+        sidebarRef.current.focusSearchInput();
+
+        // 文字入力の場合は検索クエリに追加（入力サニタイズ）
+        if (e.key.length === 1) {
+          // 危険な文字を除外（XSS対策）
+          const dangerousChars = /[<>"'&]/;
+          if (!dangerousChars.test(e.key)) {
+            setSearchQuery(searchQueryRef.current + e.key);
+          }
+        } else if (e.key === 'Backspace') {
+          setSearchQuery(searchQueryRef.current.slice(0, -1));
         }
       }
     }
-    loadData()
-    return () => { mounted = false }
-  }, [loadPrompts])
+  }, [sidebarRef, setSearchQuery]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleGlobalKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [handleGlobalKeyDown]); // 依存配列にhandleGlobalKeyDownを追加
 
   // グローバルショートカットでの検索フォーカス
   useEffect(() => {
-    let unlistenFocus: (() => void) | null = null
-    let unlistenShortcutFailed: (() => void) | null = null
+    let unlistenFocus: (() => void) | null = null;
+    let unlistenShortcutFailed: (() => void) | null = null;
 
     const setupListeners = async () => {
       try {
         unlistenFocus = await listen<void>('focus-search', () => {
-          // Refを使用して検索フィールドにフォーカス
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-            searchInputRef.current.select()
+          // refを使用して検索フィールドにフォーカス
+          if (sidebarRef.current) {
+            sidebarRef.current.selectSearchInput();
           }
-          setSelectedIndexKeyboard(0)
-        })
+          keyboardNav.resetSelection();
+        });
 
-        unlistenShortcutFailed = await listen<string>('shortcut-registration-failed', (_event) => {
-          showToast('キーボードショートカットの登録に失敗しました', 'error')
-        })
+        unlistenShortcutFailed = await listen<string>('shortcut-registration-failed', (event) => {
+          logger.error('Shortcut registration failed:', event.payload);
+          showToast('キーボードショートカットの登録に失敗しました', 'error');
+        });
       } catch (error) {
-        console.error('Failed to setup listeners:', error)
+        logger.error('Failed to setup listeners:', error);
       }
-    }
+    };
 
-    setupListeners()
+    setupListeners();
 
     return () => {
-      if (unlistenFocus) unlistenFocus()
-      if (unlistenShortcutFailed) unlistenShortcutFailed()
-    }
-  }, [])
+      if (unlistenFocus) unlistenFocus();
+      if (unlistenShortcutFailed) unlistenShortcutFailed();
+    };
+  }, []);
 
   // ストアのエラーを監視して環境エラーを検出
   useEffect(() => {
     if (error && error.includes('Tauri environment not available')) {
-      setEnvironmentError(error)
+      setEnvironmentError(error);
     }
-  }, [error])
+  }, [error]);
 
-  // Filter prompts based on search query
-  const filteredPrompts = prompts.filter(prompt => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
+  // Filter prompts based on search query (using custom hook for performance)
+  const filteredPrompts = usePromptSearch(prompts, searchQuery);
+
+  const handleCopyPrompt = useCallback(
+    async (prompt: Prompt) => {
+      try {
+        const result = await copyPromptToClipboard(prompt.content, prompt.id);
+        if (result.success) {
+          showToast(`「${prompt.title}」をコピーしました`, 'success');
+        } else {
+          showToast(`コピーに失敗しました: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showToast(`コピーに失敗しました: ${errorMessage}`, 'error');
+        logger.error('Failed to copy prompt:', error);
+      }
+    },
+    [showToast],
+  );
+
+  const handlePromptSelect = useCallback((prompt: Prompt, _index: number) => {
+    setSelectedPrompt(prompt);
+  }, []);
+
+  // Keyboard navigation logic
+  const keyboardNav = useKeyboardNavigation({
+    filteredPrompts,
+    onPromptSelect: handlePromptSelect,
+    onCopyPrompt: handleCopyPrompt,
+  });
+
+  // 型ガード関数（強化版：全フィールドを検証）
+  const isUpdateRequest = (
+    data: CreatePromptRequest | UpdatePromptRequest,
+  ): data is UpdatePromptRequest => {
     return (
-      prompt.title.toLowerCase().includes(query) ||
-      prompt.content.toLowerCase().includes(query) ||
-      (Array.isArray(prompt.tags) && prompt.tags.some(tag => tag.toLowerCase().includes(query)))
-    )
-  })
-
-  // 型ガード関数
-  const isUpdateRequest = (data: CreatePromptRequest | UpdatePromptRequest): data is UpdatePromptRequest => {
-    return 'id' in data && typeof (data as UpdatePromptRequest).id === 'string'
-  }
+      typeof data === 'object' &&
+      data !== null &&
+      'id' in data &&
+      typeof data.id === 'string' &&
+      data.id.length > 0 &&
+      'title' in data &&
+      typeof data.title === 'string' &&
+      'content' in data &&
+      typeof data.content === 'string' &&
+      'tags' in data &&
+      Array.isArray(data.tags)
+    );
+  };
 
   const handleCreatePrompt = async (data: CreatePromptRequest | UpdatePromptRequest) => {
-    if (isUpdateRequest(data)) {
-      await updatePrompt(data)
-    } else {
-      await createPrompt(data)
+    try {
+      if (isUpdateRequest(data)) {
+        await updatePrompt(data);
+      } else {
+        await createPrompt(data);
+      }
+      setShowCreateForm(false);
+    } catch (error) {
+      logger.error('Failed to create/update prompt:', error);
+      showToast('プロンプトの保存に失敗しました', 'error');
     }
-    setShowCreateForm(false)
-  }
+  };
 
   const handleUpdatePrompt = async (data: CreatePromptRequest | UpdatePromptRequest) => {
-    if (isUpdateRequest(data)) {
-      await updatePrompt(data)
-    } else {
-      await createPrompt(data)
+    try {
+      if (isUpdateRequest(data)) {
+        await updatePrompt(data);
+      } else {
+        await createPrompt(data);
+      }
+      setShowEditForm(false);
+      setSelectedPrompt(null);
+    } catch (error) {
+      logger.error('Failed to update prompt:', error);
+      showToast('プロンプトの更新に失敗しました', 'error');
     }
-    setShowEditForm(false)
-    setSelectedPrompt(null)
-  }
+  };
 
   const handleDeletePrompt = async (id: string) => {
-    if (confirm('このプロンプトを削除しますか？')) {
-      await deletePrompt(id)
+    const prompt = prompts.find(p => p.id === id);
+    if (prompt) {
+      setDeleteConfirm({
+        show: true,
+        promptId: id,
+        promptTitle: prompt.title,
+      });
     }
-  }
+  };
 
-  const handleEditPrompt = (prompt: Prompt) => {
-    setSelectedPrompt(prompt)
-    setShowEditForm(true)
-  }
-
-  const handleCopyPrompt = async (prompt: Prompt) => {
-    const result = await copyPromptToClipboard(prompt.content, prompt.id)
-    if (result.success) {
-      showToast(`「${prompt.title}」をコピーしました`, 'success')
-    } else {
-      showToast(`コピーに失敗しました: ${result.error}`, 'error')
-    }
-  }
-
-  // IME変換中かどうかを追跡
-  const [isComposing, setIsComposing] = useState(false)
-  // 検索フィールドにフォーカスがあるかどうかを追跡（将来の拡張用）
-  const [, setIsSearchFocused] = useState(false)
-
-  // アプリケーションレベルのキーボードナビゲーション
-  const handleKeyDown = async (e: React.KeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
-    if (showCreateForm || showEditForm) return
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault()
-        // 検索フィールドのフォーカスは維持したまま、プロンプト選択カーソルを移動
-        if (filteredPrompts.length > 0) {
-          setSelectedIndexKeyboard(prev => 
-            Math.min(prev + 1, filteredPrompts.length - 1)
-          )
-        }
-        break
-        
-      case 'ArrowUp':
-        e.preventDefault()
-        // 検索フィールドのフォーカスは維持したまま、プロンプト選択カーソルを移動
-        if (filteredPrompts.length > 0) {
-          setSelectedIndexKeyboard(prev => Math.max(prev - 1, 0))
-        }
-        break
-        
-      case 'Escape':
-        // 日本語変換中はEscapeキーを無視
-        if (isComposing) return
-        
-        e.preventDefault()
-        // ウィンドウを隠す
-        try {
-          await invoke('hide_main_window')
-        } catch (error) {
-          console.error('Failed to hide window:', error)
-        }
-        break
-    }
-  }
-
-  // プロンプト選択専用のEnterハンドラー（検索フィールド以外からの呼び出し用）
-  const handlePromptSelectEnter = async () => {
-    if (filteredPrompts.length > 0 && filteredPrompts[selectedIndexKeyboard]) {
-      await handleCopyPrompt(filteredPrompts[selectedIndexKeyboard])
-      // ウィンドウを隠す
+  const handleConfirmDelete = async () => {
+    if (deleteConfirm.promptId) {
       try {
-        await invoke('hide_main_window')
+        await deletePrompt(deleteConfirm.promptId);
+        showToast('プロンプトを削除しました', 'success');
       } catch (error) {
-        console.error('Failed to hide window:', error)
+        logger.error('Failed to delete prompt:', error);
+        showToast('削除に失敗しました', 'error');
+      } finally {
+        setDeleteConfirm({
+          show: false,
+          promptId: null,
+          promptTitle: '',
+        });
       }
     }
-  }
+  };
 
-  // 手動でプロンプトが選択された時の処理
-  const handlePromptSelect = (prompt: Prompt, index: number) => {
-    setSelectedPrompt(prompt)
-    setSelectedIndexKeyboard(index)
-  }
+  const handleCancelDelete = () => {
+    setDeleteConfirm({
+      show: false,
+      promptId: null,
+      promptTitle: '',
+    });
+  };
 
-  // フィルター結果が変わったら選択をリセット&プレビュー更新
+  const handleEditPrompt = (prompt: Prompt) => {
+    setSelectedPrompt(prompt);
+    setShowEditForm(true);
+  };
+
+
+  // 検索クエリが変わったときのみ選択をリセット
   useEffect(() => {
-    setSelectedIndexKeyboard(0)
-    // 検索結果の最初のプロンプトを自動プレビュー
+    keyboardNav.resetSelection();
+    
     if (filteredPrompts.length > 0) {
-      setSelectedPrompt(filteredPrompts[0])
-    } else if (searchQuery) {
+      // 最初のプロンプトを自動選択
+      const firstPrompt = filteredPrompts[0];
+      if (firstPrompt) {
+        setSelectedPrompt(firstPrompt);
+      }
+    } else if (searchQuery && filteredPrompts.length === 0) {
       // 検索結果なしの場合はプレビューをクリア
-      setSelectedPrompt(null)
+      setSelectedPrompt(null);
     }
-  }, [searchQuery])
+  }, [searchQuery, filteredPrompts]);
 
   // キーボード選択インデックスが変わったときにプレビュー更新
   useEffect(() => {
-    if (filteredPrompts.length > 0 && selectedIndexKeyboard < filteredPrompts.length) {
-      setSelectedPrompt(filteredPrompts[selectedIndexKeyboard])
+    const index = keyboardNav.selectedIndexKeyboard;
+    if (filteredPrompts.length > 0 && 
+        index >= 0 && 
+        index < filteredPrompts.length) {
+      const selectedPromptFromKeyboard = filteredPrompts[index];
+      if (selectedPromptFromKeyboard !== undefined) {
+        setSelectedPrompt(selectedPromptFromKeyboard);
+      }
     }
-  }, [selectedIndexKeyboard])
+  }, [keyboardNav.selectedIndexKeyboard, filteredPrompts]);
 
   // 環境エラーがある場合は専用画面を表示
   if (environmentError) {
     return (
-      <EnvironmentError 
-        error={environmentError} 
+      <EnvironmentError
+        error={environmentError}
         onRetry={() => {
-          setEnvironmentError(null)
-          loadPrompts().catch((error) => {
-            if (error?.message?.includes('Tauri environment not available')) {
-              setEnvironmentError(error.message)
+          setEnvironmentError(null);
+          const retryLoadPrompts = async () => {
+            try {
+              await loadPrompts();
+            } catch (error) {
+              logger.error('Retry load prompts failed:', error);
+              if (error instanceof Error && error.message.includes('Tauri environment not available')) {
+                setEnvironmentError(error.message);
+              }
             }
-          })
+          };
+          retryLoadPrompts();
         }}
       />
-    )
+    );
   }
 
   return (
-    <div 
-      className="app-layout bg-gray-50"
-      onKeyDown={handleKeyDown}
-      onCompositionStart={() => setIsComposing(true)}
-      onCompositionEnd={() => setIsComposing(false)}
-      tabIndex={0}
-    >
+    <div className="app-layout bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <img 
-              src="/prompalette_logo_1080_1080.png" 
-              alt="PromPalette" 
-              className="w-8 h-8"
-            />
+            <img src="/prompalette_logo_1080_1080.png" alt="PromPalette" className="w-8 h-8" />
             <h1 className="text-xl font-semibold text-gray-900">PromPalette</h1>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Button
               onClick={() => setShowCreateForm(true)}
@@ -268,9 +385,15 @@ function AppContent() {
               className="flex items-center space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               <span>新規作成</span>
+              <span className="text-[10px] text-gray-300 font-mono ml-1 opacity-60">⌘N</span>
             </Button>
           </div>
         </div>
@@ -279,178 +402,54 @@ function AppContent() {
       {/* Main Content */}
       <div className="main-content">
         {/* Sidebar */}
-        <div className="sidebar">
-          <div className="p-4">
-            <SearchInput
-              ref={searchInputRef}
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="プロンプトを検索..."
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              onKeyDown={handleKeyDown}
-              onCompositionStart={() => setIsComposing(true)}
-              onCompositionEnd={() => setIsComposing(false)}
-              onPromptSelect={handlePromptSelectEnter}
-            />
-          </div>
-          
-          <div className="px-4 pb-4">
-            <div className="text-sm text-gray-500 mb-3">
-              {filteredPrompts.length} 件のプロンプト
-            </div>
-            
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-                <div className="mt-2 text-sm text-gray-500">読み込み中...</div>
-              </div>
-            ) : filteredPrompts.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-400 mb-2">
-                  <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {searchQuery ? '検索結果がありません' : 'プロンプトがありません'}
-                </div>
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSearchQuery('')}
-                    className="mt-2"
-                  >
-                    検索をクリア
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {filteredPrompts.map((prompt, index) => (
-                  <PromptCard
-                    key={prompt.id}
-                    prompt={prompt}
-                    isSelected={selectedPrompt?.id === prompt.id || index === selectedIndexKeyboard}
-                    onClick={() => handlePromptSelect(prompt, index)}
-                    onCopy={() => handleCopyPrompt(prompt)}
-                    onDelete={() => handleDeletePrompt(prompt.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <AppSidebarWithRef
+          ref={sidebarRef}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          filteredPrompts={filteredPrompts}
+          selectedPrompt={selectedPrompt}
+          selectedIndexKeyboard={keyboardNav.selectedIndexKeyboard}
+          isLoading={isLoading}
+          isComposing={keyboardNav.isComposing}
+          onSearchFocusChange={() => {}}
+          onKeyDown={keyboardNav.handleKeyDown}
+          onCompositionStart={keyboardNav.setIsComposing.bind(null, true)}
+          onCompositionEnd={keyboardNav.setIsComposing.bind(null, false)}
+          onPromptSelectEnter={keyboardNav.handlePromptSelectEnter}
+          onPromptSelect={keyboardNav.handlePromptSelect}
+          onCopyPrompt={handleCopyPrompt}
+          onDeletePrompt={handleDeletePrompt}
+          onShowCreateForm={() => setShowCreateForm(true)}
+        />
 
         {/* Content Area */}
-        <div className="content-area bg-white">
-          {error && (
-            <div className="p-4 bg-red-50 border-b border-red-200">
-              <div className="text-red-800">{error}</div>
-            </div>
-          )}
-          
-          {showCreateForm ? (
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">新規プロンプト作成</h2>
-              <PromptForm
-                onSubmit={handleCreatePrompt}
-                onCancel={() => setShowCreateForm(false)}
-                isLoading={isLoading}
-              />
-            </div>
-          ) : showEditForm && selectedPrompt ? (
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">プロンプト編集</h2>
-              <PromptForm
-                initialData={selectedPrompt}
-                onSubmit={handleUpdatePrompt}
-                onCancel={() => {
-                  setShowEditForm(false)
-                  setSelectedPrompt(null)
-                }}
-                isLoading={isLoading}
-              />
-            </div>
-          ) : selectedPrompt ? (
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">{selectedPrompt.title}</h2>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopyPrompt(selectedPrompt)}
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    コピー
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditPrompt(selectedPrompt)}
-                  >
-                    編集
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeletePrompt(selectedPrompt.id)}
-                  >
-                    削除
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="prose max-w-none">
-                <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
-                  {selectedPrompt.content}
-                </div>
-                
-                {Array.isArray(selectedPrompt.tags) && selectedPrompt.tags.length > 0 && (
-                  <div className="mt-6">
-                    <span className="text-sm font-medium text-gray-500">タグ: </span>
-                    <div className="inline-flex flex-wrap gap-1 mt-1">
-                      {selectedPrompt.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="text-gray-400 mb-4">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">プロンプトを選択</h3>
-                <p className="text-gray-500 mb-4">
-                  左側のリストからプロンプトを選択して内容を表示
-                </p>
-                <Button onClick={() => setShowCreateForm(true)}>
-                  新しいプロンプトを作成
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <AppContentArea
+          selectedPrompt={selectedPrompt}
+          showCreateForm={showCreateForm}
+          showEditForm={showEditForm}
+          isLoading={isLoading}
+          error={error}
+          onCreatePrompt={handleCreatePrompt}
+          onUpdatePrompt={handleUpdatePrompt}
+          onCopyPrompt={handleCopyPrompt}
+          onEditPrompt={handleEditPrompt}
+          onDeletePrompt={handleDeletePrompt}
+          onShowCreateForm={() => setShowCreateForm(true)}
+          onCancelCreateForm={() => setShowCreateForm(false)}
+          onCancelEditForm={() => {
+            setShowEditForm(false);
+            setSelectedPrompt(null);
+          }}
+        />
       </div>
 
       {/* ショートカットキーガイド */}
       <div className="bg-gray-50 border-t border-gray-200 px-4 py-2">
         <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
+          <div className="flex items-center space-x-1">
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘/Ctrl+N</kbd>
+            <span>新規作成</span>
+          </div>
           <div className="flex items-center space-x-1">
             <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Enter</kbd>
             <span>コピー&amp;閉じる</span>
@@ -465,8 +464,20 @@ function AppContent() {
           </div>
         </div>
       </div>
+
+      {/* 削除確認モーダル */}
+      <ConfirmModal
+        isOpen={deleteConfirm.show}
+        title="プロンプトを削除"
+        message={`「${deleteConfirm.promptTitle}」を削除しますか？この操作は取り消せません。`}
+        confirmText="削除"
+        cancelText="キャンセル"
+        confirmVariant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
-  )
+  );
 }
 
 function App() {
@@ -474,7 +485,7 @@ function App() {
     <ToastProvider>
       <AppContent />
     </ToastProvider>
-  )
+  );
 }
 
-export default App
+export default App;

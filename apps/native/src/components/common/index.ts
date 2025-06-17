@@ -1,4 +1,5 @@
 export * from './Button'
+export * from './ConfirmModal'
 export * from './Input'
 export * from './Textarea'
 export * from './Toast'
