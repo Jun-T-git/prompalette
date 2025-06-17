@@ -98,6 +98,45 @@ async function invokeCommand<T>(
 }
 
 /**
+ * データベースから取得される生のPromptデータ型
+ */
+interface RawPrompt {
+  id: string;
+  title: string;
+  content: string;
+  tags?: string | string[]; // JSON文字列または配列
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * データベースからのPromptデータをフロントエンド用に変換
+ * JSON文字列として保存されたtagsを配列に変換
+ */
+function transformPromptFromDatabase(rawPrompt: RawPrompt): Prompt {
+  let tags: string[] = [];
+  
+  if (rawPrompt.tags) {
+    if (Array.isArray(rawPrompt.tags)) {
+      tags = rawPrompt.tags;
+    } else if (typeof rawPrompt.tags === 'string') {
+      try {
+        const parsed = JSON.parse(rawPrompt.tags);
+        tags = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // JSON parse failed, treat as single tag
+        tags = [rawPrompt.tags];
+      }
+    }
+  }
+  
+  return {
+    ...rawPrompt,
+    tags: tags.length > 0 ? tags : undefined,
+  };
+}
+
+/**
  * プロンプト関連のAPI呼び出し関数群
  * CRUD操作と検索機能を提供
  * 
@@ -119,7 +158,8 @@ export const promptsApi = {
    * @returns プロンプトの配列
    */
   async getAll(): Promise<Prompt[]> {
-    return invokeCommand<Prompt[]>('get_all_prompts')
+    const rawPrompts = await invokeCommand<RawPrompt[]>('get_all_prompts')
+    return rawPrompts.map(transformPromptFromDatabase)
   },
 
   /**
@@ -129,7 +169,8 @@ export const promptsApi = {
    * @throws {ApiError} プロンプトが見つからない場合
    */
   async getById(id: string): Promise<Prompt | null> {
-    return invokeCommand<Prompt | null>('get_prompt', { id })
+    const rawPrompt = await invokeCommand<RawPrompt | null>('get_prompt', { id })
+    return rawPrompt ? transformPromptFromDatabase(rawPrompt) : null
   },
 
   /**
@@ -139,7 +180,8 @@ export const promptsApi = {
    * @throws {ApiError} 作成失敗時
    */
   async create(request: CreatePromptRequest): Promise<Prompt> {
-    return invokeCommand<Prompt>('create_prompt', { request })
+    const rawPrompt = await invokeCommand<RawPrompt>('create_prompt', { request })
+    return transformPromptFromDatabase(rawPrompt)
   },
 
   /**
@@ -149,7 +191,7 @@ export const promptsApi = {
    * @throws {ApiError} 更新失敗時またはプロンプトが見つからない場合
    */
   async update(request: UpdatePromptRequest): Promise<Prompt | null> {
-    return invokeCommand<Prompt | null>('update_prompt', { 
+    const rawPrompt = await invokeCommand<RawPrompt | null>('update_prompt', { 
       id: request.id, 
       request: {
         title: request.title,
@@ -157,6 +199,7 @@ export const promptsApi = {
         tags: request.tags
       }
     })
+    return rawPrompt ? transformPromptFromDatabase(rawPrompt) : null
   },
 
   /**
@@ -186,7 +229,8 @@ export const promptsApi = {
    */
   async search(query: SearchQuery): Promise<Prompt[]> {
     const searchQuery = query.q || ''
-    return invokeCommand<Prompt[]>('search_prompts', { query: searchQuery })
+    const rawPrompts = await invokeCommand<RawPrompt[]>('search_prompts', { query: searchQuery })
+    return rawPrompts.map(transformPromptFromDatabase)
   },
 }
 
