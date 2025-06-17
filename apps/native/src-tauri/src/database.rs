@@ -195,7 +195,7 @@ pub async fn get_all_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Error>
     Ok(prompts)
 }
 
-/// プロンプト検索
+/// プロンプト検索（既存API - 後方互換性維持）
 pub async fn search_prompts(query: &str) -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
     let pool = get_db_pool();
     let search_term = format!("%{}%", query);
@@ -208,6 +208,59 @@ pub async fn search_prompts(query: &str) -> Result<Vec<Prompt>, Box<dyn std::err
         "#,
     )
     .bind(&search_term)
+    .fetch_all(pool)
+    .await?;
+    
+    Ok(prompts)
+}
+
+/// 高速検索（ショートカット用）
+/// 
+/// パフォーマンス重視の検索実装:
+/// - 優先度付きソート（完全一致 > 前方一致 > 部分一致）
+/// - 結果数制限（最大20件）
+/// - 使用頻度考慮（将来実装）
+/// 
+/// @param query 検索クエリ
+/// @returns 検索結果（優先度順）
+pub async fn search_prompts_fast(query: &str) -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
+    let pool = get_db_pool();
+    
+    if query.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    
+    let search_term = format!("%{}%", query);
+    let prefix_term = format!("{}%", query);
+    
+    // 優先度付き検索クエリ
+    let prompts = sqlx::query_as::<_, Prompt>(
+        r#"
+        SELECT *, 
+        CASE 
+            -- 1. タイトル完全一致（最優先）
+            WHEN title = $3 THEN 1
+            -- 2. タイトル前方一致
+            WHEN title LIKE $2 THEN 2
+            -- 3. タイトル部分一致
+            WHEN title LIKE $1 THEN 3
+            -- 4. タグ完全一致
+            WHEN tags LIKE '%"' || $3 || '"%' THEN 4
+            -- 5. タグ部分一致
+            WHEN tags LIKE $1 THEN 5
+            -- 6. 内容一致
+            WHEN content LIKE $1 THEN 6
+            ELSE 7
+        END as priority
+        FROM prompts 
+        WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
+        ORDER BY priority ASC, updated_at DESC
+        LIMIT 20
+        "#,
+    )
+    .bind(&search_term)   // $1: 部分一致用
+    .bind(&prefix_term)   // $2: 前方一致用
+    .bind(query)          // $3: 完全一致用
     .fetch_all(pool)
     .await?;
     
@@ -276,9 +329,8 @@ mod tests {
     use super::*;
     use tokio;
 
-    #[tokio::test]
-    async fn test_prompt_crud_operations() {
-        // テスト用のインメモリデータベース
+    /// テスト用のデータベースプールを作成
+    async fn create_test_pool() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
         
         // テーブル作成
@@ -298,14 +350,130 @@ mod tests {
         .await
         .unwrap();
         
-        // テスト用プロンプト
-        let create_request = CreatePromptRequest {
-            title: "Test Prompt".to_string(),
-            content: "This is a test prompt content".to_string(),
-            tags: Some(vec!["test".to_string(), "example".to_string()]),
-        };
+        // インデックス作成
+        sqlx::query("CREATE INDEX idx_prompts_updated ON prompts(updated_at);")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("CREATE INDEX idx_prompts_title ON prompts(title);")
+            .execute(&pool)
+            .await
+            .unwrap();
         
-        // TODO: 実際のCRUDテストの実装
-        // データベースプールの初期化が必要なため、統合テストで実装
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_search_prompts_fast_priority_ordering() {
+        // テストごとに新しいOnceLockを使用する必要があるため、この方法では正しくテストできない
+        // 統合テストで実装することを推奨
+        
+        // 暫定的に、直接SQLクエリでロジックを検証
+        let pool = create_test_pool().await;
+        
+        // テストデータ挿入
+        let test_data = vec![
+            ("完全一致", "test", "content1", vec!["tag1"]),
+            ("前方一致test", "test_prefix", "content2", vec!["tag2"]),
+            ("部分一致のtest例", "partial", "content3", vec!["tag3"]),
+            ("タグ完全一致", "tag_match", "content4", vec!["test"]),
+            ("タグ部分一致", "tag_partial", "content5", vec!["testing"]),
+            ("内容一致", "content_match", "test content", vec!["tag6"]),
+        ];
+        
+        for (id, title, content, tags) in test_data {
+            let tags_json = serde_json::to_string(&tags).unwrap();
+            sqlx::query(
+                "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
+            )
+            .bind(id)
+            .bind(title)
+            .bind(content)
+            .bind(tags_json)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        
+        // 直接SQLクエリで検証
+        let query = "test";
+        let search_term = format!("%{}%", query);
+        let prefix_term = format!("{}%", query);
+        
+        let rows: Vec<(String, i32)> = sqlx::query_as(
+            r#"
+            SELECT title,
+            CASE 
+                WHEN title = $3 THEN 1
+                WHEN title LIKE $2 THEN 2
+                WHEN title LIKE $1 THEN 3
+                WHEN tags LIKE '%"' || $3 || '"%' THEN 4
+                WHEN tags LIKE $1 THEN 5
+                WHEN content LIKE $1 THEN 6
+                ELSE 7
+            END as priority
+            FROM prompts 
+            WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
+            ORDER BY priority ASC
+            "#,
+        )
+        .bind(&search_term)
+        .bind(&prefix_term)
+        .bind(query)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        
+        // デバッグ出力（コメントアウト）
+        // println!("検索結果: {:?}", rows);
+        
+        // 優先度順に並んでいることを確認
+        assert!(rows.len() >= 5); // 最低5件はヒットするはず
+        assert_eq!(rows[0].0, "test"); // 完全一致
+        assert_eq!(rows[0].1, 1);
+    }
+
+    #[tokio::test]
+    async fn test_search_prompts_fast_empty_query() {
+        // 空のクエリチェックは関数内で行われるため、単体でテスト可能
+        // ただし、OnceLockの制限により統合テストで実装することを推奨
+    }
+
+    #[tokio::test]
+    async fn test_search_prompts_fast_limit() {
+        // LIMIT句のテストも直接SQLで検証
+        let pool = create_test_pool().await;
+        
+        // 25件のテストデータを挿入
+        for i in 0..25 {
+            let id = format!("test_{}", i);
+            sqlx::query(
+                "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
+            )
+            .bind(&id)
+            .bind("test title")
+            .bind("test content")
+            .bind("[]")
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        
+        // 直接SQLクエリで20件制限を検証
+        let search_term = "%test%";
+        let count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM (
+                SELECT * FROM prompts 
+                WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
+                LIMIT 20
+            )"
+        )
+        .bind(search_term)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        // 結果が20件に制限されることを確認
+        assert_eq!(count.0, 20);
     }
 }

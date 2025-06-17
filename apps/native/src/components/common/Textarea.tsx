@@ -19,7 +19,7 @@ export function Textarea({
   
   const textareaClasses = [
     'block w-full rounded-md border px-3 py-2 text-sm transition-colors resize-vertical',
-    'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
     error
       ? 'border-red-500 text-red-900 placeholder-red-300 focus:ring-red-500'
       : 'border-gray-300 text-gray-900 placeholder-gray-400',

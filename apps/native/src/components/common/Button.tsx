@@ -54,10 +54,10 @@ export function Button({
   
   // バリエーション別のスタイル定義
   const variantClasses = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500', // メインアクション用
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500', // メインアクション用
     secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500', // サブアクション用
-    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary-500', // 枠線スタイル
-    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-primary-500', // ミニマルスタイル
+    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500', // 枠線スタイル
+    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-blue-500', // ミニマルスタイル
   }
   
   // サイズ別のスタイル定義

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -6,19 +6,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helperText?: string
 }
 
-export function Input({
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({
   label,
   error,
   helperText,
   className = '',
   id,
   ...props
-}: InputProps) {
+}, ref) {
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
   
   const inputClasses = [
     'block w-full rounded-md border px-3 py-2 text-sm transition-colors',
-    'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
     error
       ? 'border-red-500 text-red-900 placeholder-red-300 focus:ring-red-500'
       : 'border-gray-300 text-gray-900 placeholder-gray-400',
@@ -38,6 +38,7 @@ export function Input({
       )}
       
       <input
+        ref={ref}
         id={inputId}
         className={inputClasses}
         {...props}
@@ -52,4 +53,4 @@ export function Input({
       )}
     </div>
   )
-}
+})
