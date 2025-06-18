@@ -1,0 +1,87 @@
+name: Release Only
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+
+jobs:
+  build-native:
+    name: Build Native Installers
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build frontend
+        run: pnpm --filter apps/native build
+      - name: Build native app
+        run: pnpm --filter apps/native tauri build
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-installer
+          path: |
+            apps/native/src-tauri/target/release/bundle/**/*.dmg
+            apps/native/src-tauri/target/release/bundle/**/*.exe
+            apps/native/src-tauri/target/release/bundle/**/*.msi
+
+  prerelease:
+    if: github.ref == 'refs/heads/staging'
+    name: Pre-release (staging)
+    needs: build-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+      - name: List artifacts
+        run: ls -R ./dist
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          tag_name: staging-${{ github.run_number }}
+          name: 'Staging Pre-release ${{ github.run_number }}'
+          files: |
+            ./dist/**/*.dmg
+            ./dist/**/*.exe
+            ./dist/**/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    name: Official Release (main)
+    needs: build-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+      - name: List artifacts
+        run: ls -R ./dist
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: false
+          tag_name: v${{ github.run_number }}
+          name: 'Release v${{ github.run_number }}'
+          files: |
+            ./dist/**/*.dmg
+            ./dist/**/*.exe
+            ./dist/**/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 署名や公証の自動化は今後ここに追加

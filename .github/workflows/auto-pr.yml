@@ -1,0 +1,38 @@
+name: Auto PR to Next Stage
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+
+jobs:
+  create-pr-to-staging:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR from develop to staging
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: sync develop to staging'
+          title: 'chore: develop → staging 自動PR'
+          body: 'developブランチの変更をstagingブランチへ自動PR'
+          base: staging
+          branch: develop
+          delete-branch: false
+
+  create-pr-to-main:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR from staging to main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: sync staging to main'
+          title: 'chore: staging → main 自動PR'
+          body: 'stagingブランチの変更をmainブランチへ自動PR'
+          base: main
+          branch: staging
+          delete-branch: false
