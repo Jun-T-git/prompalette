@@ -1,6 +1,6 @@
 export * from './Button'
 export * from './ConfirmModal'
-export * from './DropdownButton'
+export * from './HelpModal'
 export * from './Input'
 export * from './PaletteDropdown'
 export * from './Textarea'

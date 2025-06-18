@@ -11,6 +11,8 @@ export interface Prompt {
   content: string
   /** プロンプトに付与されたタグの配列（用途・技術・対象などを自由に設定） */
   tags?: string[]
+  /** クイックアクセスキー（検索で一意特定するための任意キー、英数字のみ、2-20文字） */
+  quickAccessKey?: string
   /** 作成日時（ISO 8601形式） */
   created_at: string
   /** 最終更新日時（ISO 8601形式） */
@@ -32,6 +34,8 @@ export interface CreatePromptRequest {
   content: string
   /** プロンプトに付与するタグの配列（用途・技術・対象などを自由に設定、最大10個） */
   tags?: string[]
+  /** クイックアクセスキー（検索で一意特定するための任意キー、英数字のみ、2-20文字） */
+  quickAccessKey?: string
 }
 
 /**
@@ -120,3 +124,4 @@ export interface CopyPinnedPromptRequest {
   /** コピーする位置（1-10） */
   position: number
 }
+

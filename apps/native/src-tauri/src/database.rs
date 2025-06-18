@@ -17,6 +17,7 @@ pub struct Prompt {
     pub title: String,
     pub content: String,
     pub tags: Option<String>, // JSON文字列として保存
+    pub quick_access_key: Option<String>, // クイックアクセスキー
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub pinned_position: Option<u8>, // ピン留め位置 (1-10)
@@ -29,6 +30,8 @@ pub struct CreatePromptRequest {
     pub title: String,
     pub content: String,
     pub tags: Option<Vec<String>>,
+    #[serde(rename = "quickAccessKey")]
+    pub quick_access_key: Option<String>,
 }
 
 /// プロンプト更新リクエスト
@@ -37,6 +40,8 @@ pub struct UpdatePromptRequest {
     pub title: Option<String>,
     pub content: Option<String>,
     pub tags: Option<Vec<String>>,
+    #[serde(rename = "quickAccessKey")]
+    pub quick_access_key: Option<String>,
 }
 
 /// アプリケーションデータディレクトリの取得
@@ -115,6 +120,7 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             tags TEXT,
+            quick_access_key TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             pinned_position INTEGER,
@@ -159,6 +165,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Err
         .execute(pool)
         .await; // エラーは無視（既に存在する場合）
     
+    // quick_access_keyカラムの追加
+    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN quick_access_key TEXT;")
+        .execute(pool)
+        .await; // エラーは無視（既に存在する場合）
+    
     Ok(())
 }
 
@@ -182,8 +193,8 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     
     let prompt = sqlx::query_as::<_, Prompt>(
         r#"
-        INSERT INTO prompts (id, title, content, tags, created_at, updated_at, pinned_position, pinned_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)
+        INSERT INTO prompts (id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL)
         RETURNING *
         "#,
     )
@@ -191,6 +202,7 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     .bind(&request.title)
     .bind(&request.content)
     .bind(&tags_json)
+    .bind(&request.quick_access_key)
     .bind(now)
     .bind(now)
     .fetch_one(pool)
@@ -319,19 +331,23 @@ pub async fn update_prompt(
         None => existing.tags,
     };
     
+    // クイックアクセスキーの処理
+    let quick_access_key = request.quick_access_key.or(existing.quick_access_key);
+    
     let now = chrono::Utc::now();
     
     let updated_prompt = sqlx::query_as::<_, Prompt>(
         r#"
         UPDATE prompts 
-        SET title = $1, content = $2, tags = $3, updated_at = $4
-        WHERE id = $5
+        SET title = $1, content = $2, tags = $3, quick_access_key = $4, updated_at = $5
+        WHERE id = $6
         RETURNING *
         "#,
     )
     .bind(&title)
     .bind(&content)
     .bind(&tags_json)
+    .bind(&quick_access_key)
     .bind(now)
     .bind(id)
     .fetch_one(pool)

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { PALETTE_COLORS } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores/favorites';
 import type { Prompt } from '../../types';
@@ -12,13 +14,19 @@ interface PromptCardProps {
 export function PromptCard({ prompt, isSelected = false, onClick, onCopy }: PromptCardProps) {
   const { pinnedPrompts } = useFavoritesStore();
 
-  // 現在のプロンプトがピン留めされているかチェック
-  const currentPinnedPosition = pinnedPrompts.findIndex(
-    (pinnedPrompt) => pinnedPrompt?.id === prompt.id,
-  );
-  const isPinned = currentPinnedPosition !== -1;
-  const pinnedPosition = isPinned ? currentPinnedPosition + 1 : null;
-  const paletteColor = isPinned ? PALETTE_COLORS[currentPinnedPosition] : null;
+  // ピン留め状態をメモ化して確実に更新されるようにする
+  const pinStatus = useMemo(() => {
+    const currentPinnedPosition = pinnedPrompts.findIndex(
+      (pinnedPrompt) => pinnedPrompt?.id === prompt.id,
+    );
+    const isPinned = currentPinnedPosition !== -1;
+    const pinnedPosition = isPinned ? currentPinnedPosition + 1 : null;
+    const paletteColor = isPinned ? PALETTE_COLORS[currentPinnedPosition] : null;
+    
+    return { isPinned, pinnedPosition, paletteColor };
+  }, [pinnedPrompts, prompt.id]);
+
+  const { isPinned, pinnedPosition, paletteColor } = pinStatus;
   const cardClasses = [
     'p-2 rounded border cursor-pointer transition-all duration-200 h-12 flex items-center justify-between relative overflow-hidden',
     isSelected
@@ -39,7 +47,9 @@ export function PromptCard({ prompt, isSelected = false, onClick, onCopy }: Prom
 
       {/* 左側: タイトル */}
       <div className="flex items-center space-x-2 flex-1 min-w-0">
-        <h3 className="text-sm font-medium text-gray-900 truncate">{prompt.title}</h3>
+        <h3 className="text-sm font-medium text-gray-900 truncate">
+          {prompt.title}
+        </h3>
       </div>
 
       {/* 右側: コピーボタンのみ */}

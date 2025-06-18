@@ -200,9 +200,9 @@ pub async fn get_app_info() -> Result<SuccessResponse<serde_json::Value>, ErrorR
 /// prompt_id: ピン留めするプロンプトのID
 /// position: ピン留め位置（1-10）
 #[tauri::command]
-pub async fn pin_prompt(promptId: String, position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+pub async fn pin_prompt(prompt_id: String, position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
-    if promptId.trim().is_empty() {
+    if prompt_id.trim().is_empty() {
         return Err(ErrorResponse {
             error: "Prompt ID cannot be empty".to_string(),
         });
@@ -214,7 +214,7 @@ pub async fn pin_prompt(promptId: String, position: u8) -> Result<SuccessRespons
         });
     }
     
-    match db_pin_prompt(&promptId, position).await {
+    match db_pin_prompt(&prompt_id, position).await {
         Ok(_) => Ok(SuccessResponse {
             success: true,
             data: format!("Prompt pinned to position {}", position),
@@ -339,7 +339,7 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
                 // クリップボード操作に失敗した場合は内容を返す
                 Ok(SuccessResponse {
                     success: true,
-                    data: format!("Clipboard operation failed. Content: {}", content),
+                    data: format!("Clipboard operation failed. Content length: {} characters", content.len()),
                 })
             }
         }

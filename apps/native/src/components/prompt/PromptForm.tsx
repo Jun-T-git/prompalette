@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '../../types'
-import { validatePromptTitle, validatePromptContent, validateTags } from '../../utils'
+import { validatePromptTitle, validatePromptContent, validateTags, validateQuickAccessKey, parseTagsString } from '../../utils'
 import { Button, Input, Textarea } from '../common'
 
 interface PromptFormProps {
@@ -21,6 +21,7 @@ export function PromptForm({
     title: initialData?.title || '',
     content: initialData?.content || '',
     tags: initialData?.tags?.join(', ') || '',
+    quickAccessKey: initialData?.quickAccessKey || '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -34,13 +35,13 @@ export function PromptForm({
     const contentError = validatePromptContent(formData.content)
     if (contentError) newErrors.content = contentError
 
-    const tagsArray = formData.tags
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag)
+    const tagsArray = parseTagsString(formData.tags)
     
     const tagsError = validateTags(tagsArray)
     if (tagsError) newErrors.tags = tagsError
+
+    const quickAccessKeyError = validateQuickAccessKey(formData.quickAccessKey)
+    if (quickAccessKeyError) newErrors.quickAccessKey = quickAccessKeyError
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -53,15 +54,13 @@ export function PromptForm({
       return
     }
 
-    const tagsArray = formData.tags
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag)
+    const tagsArray = parseTagsString(formData.tags)
 
     const submitData: CreatePromptRequest | UpdatePromptRequest = {
       title: formData.title,
       content: formData.content,
       tags: tagsArray.length > 0 ? tagsArray : undefined,
+      quickAccessKey: formData.quickAccessKey.trim() || undefined,
     }
 
     if (initialData) {
@@ -109,6 +108,16 @@ export function PromptForm({
         error={errors.tags}
         placeholder="例: 開発, JavaScript, React, レビュー"
         helperText="用途・技術・対象などを自由に設定、カンマ区切りで入力（最大10個）"
+      />
+
+      <Input
+        label="クイックアクセスキー"
+        value={formData.quickAccessKey}
+        onChange={(e) => handleInputChange('quickAccessKey', e.target.value)}
+        error={errors.quickAccessKey}
+        placeholder="例: rvw, code, test"
+        helperText="検索で一意特定するためのキー。/rvw のように検索可能（英数字のみ、2-20文字）"
+        maxLength={20}
       />
 
       <div className="flex justify-end space-x-3 pt-4 border-t">

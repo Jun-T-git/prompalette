@@ -1,5 +1,5 @@
 import { listen } from '@tauri-apps/api/event';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
 import './App.css';
 import type { AppSidebarRef } from './components';
@@ -9,6 +9,7 @@ import {
   Button,
   ConfirmModal,
   EnvironmentError,
+  HelpModal,
   ToastProvider,
   useToast,
 } from './components';
@@ -37,6 +38,7 @@ function AppContent() {
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [environmentError, setEnvironmentError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     show: boolean;
@@ -106,7 +108,13 @@ function AppContent() {
   );
 
   // Filter prompts based on search query (using custom hook for performance)
-  const filteredPrompts = usePromptSearch(prompts, searchQuery);
+  const { results: searchResults } = usePromptSearch(prompts, searchQuery);
+  
+  // Extract prompts from search results for keyboard navigation
+  const filteredPrompts = useMemo(() => 
+    searchResults?.map(result => result.item) || [], 
+    [searchResults]
+  );
 
   const handleCopyPrompt = useCallback(
     async (prompt: Prompt) => {
@@ -180,6 +188,13 @@ function AppContent() {
         return;
       }
 
+      // ? キーでヘルプモーダルを表示
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setShowHelpModal(true);
+        return;
+      }
+
       // その他のショートカットキーは除外
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
@@ -205,6 +220,13 @@ function AppContent() {
 
       if (e.key === 'Escape') {
         e.preventDefault();
+        
+        // ヘルプモーダルが開いている場合は閉じる
+        if (showHelpModal) {
+          setShowHelpModal(false);
+          return;
+        }
+        
         // React.KeyboardEvent形式に変換してkeyboardNavのhandleKeyDownに渡す
         const syntheticEvent = {
           key: e.key,
@@ -249,7 +271,7 @@ function AppContent() {
         }
       }
     },
-    [sidebarRef, setSearchQuery, handlePinnedPromptHotkey, keyboardNav],
+    [sidebarRef, setSearchQuery, handlePinnedPromptHotkey, keyboardNav, showHelpModal],
   );
 
   useEffect(() => {
@@ -389,6 +411,32 @@ function AppContent() {
     setShowEditForm(true);
   };
 
+  // タグクリック時の検索処理
+  const handleTagClick = useCallback((tag: string) => {
+    const tagQuery = `#${tag}`;
+    setSearchQuery(tagQuery);
+    
+    // 検索窓にフォーカスを当てる
+    setTimeout(() => {
+      if (sidebarRef.current) {
+        sidebarRef.current.focusSearchInput();
+      }
+    }, 100);
+  }, [setSearchQuery]);
+
+  // クイックアクセスキークリック時の検索処理
+  const handleQuickAccessKeyClick = useCallback((key: string) => {
+    const quickAccessQuery = `/${key}`;
+    setSearchQuery(quickAccessQuery);
+    
+    // 検索窓にフォーカスを当てる
+    setTimeout(() => {
+      if (sidebarRef.current) {
+        sidebarRef.current.focusSearchInput();
+      }
+    }, 100);
+  }, [setSearchQuery]);
+
   // 検索クエリが変わったときのみ選択をリセット
   useEffect(() => {
     keyboardNav.resetSelection();
@@ -483,6 +531,7 @@ function AppContent() {
           ref={sidebarRef}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
+          prompts={prompts}
           filteredPrompts={filteredPrompts}
           selectedPrompt={selectedPrompt}
           selectedIndexKeyboard={keyboardNav.selectedIndexKeyboard}
@@ -517,6 +566,8 @@ function AppContent() {
             setShowEditForm(false);
             setSelectedPrompt(null);
           }}
+          onTagClick={handleTagClick}
+          onQuickAccessKeyClick={handleQuickAccessKeyClick}
         />
       </div>
 
@@ -539,6 +590,10 @@ function AppContent() {
             <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑↓</kbd>
             <span>選択</span>
           </div>
+          <div className="flex items-center space-x-1">
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">?</kbd>
+            <span>ヘルプ</span>
+          </div>
         </div>
       </div>
 
@@ -552,6 +607,12 @@ function AppContent() {
         confirmVariant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      {/* ヘルプモーダル */}
+      <HelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
       />
     </div>
   );

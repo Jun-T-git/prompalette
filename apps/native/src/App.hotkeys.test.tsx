@@ -42,13 +42,30 @@ vi.mock('./hooks', () => ({
   useKeyboardNavigation: vi.fn(() => ({
     selectedIndexKeyboard: -1,
     isComposing: false,
-    resetSelection: vi.fn(),
     handleKeyDown: vi.fn(),
     setIsComposing: vi.fn(),
     handlePromptSelectEnter: vi.fn(),
     handlePromptSelect: vi.fn(),
+    resetSelection: vi.fn(),
   })),
-  usePromptSearch: vi.fn(() => []),
+  usePromptSearch: vi.fn(() => ({
+    results: [],
+    parsedQuery: {
+      quickAccessKey: undefined,
+      tags: [],
+      textTerms: [],
+      originalQuery: ''
+    }
+  })),
+  useSearchSuggestions: vi.fn(() => ({
+    suggestions: [],
+    isVisible: false,
+  })),
+  useInlineCompletion: vi.fn(() => ({
+    completion: '',
+    fullText: '',
+    type: null
+  })),
 }));
 
 describe('App Hotkeys', () => {

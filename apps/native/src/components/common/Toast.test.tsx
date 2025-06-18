@@ -12,13 +12,13 @@ function TestComponent() {
   
   return (
     <div>
-      <button onClick={() => showToast('成功メッセージ', 'success')}>
+      <button onClick={() => showToast('成功メッセージ', 'success', { autoClose: false })}>
         Success Toast
       </button>
-      <button onClick={() => showToast('エラーメッセージ', 'error')}>
+      <button onClick={() => showToast('エラーメッセージ', 'error', { autoClose: false })}>
         Error Toast
       </button>
-      <button onClick={() => showToast('情報メッセージ', 'info')}>
+      <button onClick={() => showToast('情報メッセージ', 'info', { autoClose: false })}>
         Info Toast
       </button>
     </div>
@@ -155,7 +155,7 @@ describe('useToast Hook', () => {
     vi.useRealTimers()
   })
 
-  it('should show success toast', () => {
+  it('should show success toast', async () => {
     render(
       <ToastProvider>
         <TestComponent />
@@ -164,7 +164,7 @@ describe('useToast Hook', () => {
 
     const successButton = screen.getByText('Success Toast')
     
-    act(() => {
+    await act(async () => {
       successButton.click()
     })
 
@@ -172,7 +172,7 @@ describe('useToast Hook', () => {
     expect(screen.getByRole('alert')).toHaveClass('bg-green-50')
   })
 
-  it('should show error toast', () => {
+  it('should show error toast', async () => {
     render(
       <ToastProvider>
         <TestComponent />
@@ -181,7 +181,7 @@ describe('useToast Hook', () => {
 
     const errorButton = screen.getByText('Error Toast')
     
-    act(() => {
+    await act(async () => {
       errorButton.click()
     })
 
@@ -189,7 +189,7 @@ describe('useToast Hook', () => {
     expect(screen.getByRole('alert')).toHaveClass('bg-red-50')
   })
 
-  it('should show info toast', () => {
+  it('should show info toast', async () => {
     render(
       <ToastProvider>
         <TestComponent />
@@ -198,7 +198,7 @@ describe('useToast Hook', () => {
 
     const infoButton = screen.getByText('Info Toast')
     
-    act(() => {
+    await act(async () => {
       infoButton.click()
     })
 
@@ -207,9 +207,21 @@ describe('useToast Hook', () => {
   })
 
   it('should auto close toast after default duration', () => {
+    function AutoCloseTestComponent() {
+      const { showToast } = useToast()
+      
+      return (
+        <div>
+          <button onClick={() => showToast('成功メッセージ', 'success', { autoClose: true, duration: 3000 })}>
+            Success Toast
+          </button>
+        </div>
+      )
+    }
+
     render(
       <ToastProvider>
-        <TestComponent />
+        <AutoCloseTestComponent />
       </ToastProvider>
     )
 

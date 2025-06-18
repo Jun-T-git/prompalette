@@ -99,4 +99,5 @@ describe('PromptCard', () => {
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveStyle('background-color: #ef4444'); // First position uses red color
   });
+
 });

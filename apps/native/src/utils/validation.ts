@@ -81,3 +81,42 @@ export function validateTags(tags: string[]): string | null {
   }
   return null
 }
+
+/**
+ * クイックアクセスキーのバリデーション
+ * 文字種制限（英数字のみ）と文字数制限をチェック
+ * 
+ * @param quickAccessKey - 検証するクイックアクセスキー文字列
+ * @returns エラーメッセージまたはnull（バリデーション成功時）
+ * 
+ * @example
+ * ```typescript
+ * const error = validateQuickAccessKey('rvw')
+ * if (error) {
+ *   console.error(error)
+ * }
+ * ```
+ */
+export function validateQuickAccessKey(quickAccessKey: string): string | null {
+  // 空文字の場合は問題なし（任意項目）
+  if (!quickAccessKey.trim()) {
+    return null
+  }
+  
+  // 2文字未満の場合はエラー
+  if (quickAccessKey.length < 2) {
+    return 'クイックアクセスキーは2文字以上で入力してください'
+  }
+  
+  // 20文字を超える場合はエラー
+  if (quickAccessKey.length > 20) {
+    return 'クイックアクセスキーは20文字以内で入力してください'
+  }
+  
+  // 英数字以外が含まれている場合はエラー
+  if (!/^[a-zA-Z0-9]+$/.test(quickAccessKey)) {
+    return 'クイックアクセスキーは英数字のみで入力してください'
+  }
+  
+  return null
+}

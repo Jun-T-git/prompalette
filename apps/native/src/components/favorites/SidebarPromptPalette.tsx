@@ -1,6 +1,9 @@
+import { useEffect } from 'react';
+
 import { HOTKEY_DISPLAY, PALETTE_COLORS } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores/favorites';
 import type { Prompt } from '../../types';
+import { logger } from '../../utils';
 
 interface SidebarPromptPaletteProps {
   onPromptSelect: (prompt: Prompt) => void;
@@ -12,6 +15,14 @@ export function SidebarPromptPalette({
   selectedPrompt,
 }: SidebarPromptPaletteProps) {
   const { pinnedPrompts } = useFavoritesStore();
+
+  // デバッグ用：ピン留めプロンプトの変更をログ出力
+  useEffect(() => {
+    logger.debug('SidebarPromptPalette: pinnedPrompts updated', {
+      count: pinnedPrompts.filter(p => p !== null).length,
+      positions: pinnedPrompts.map((p, index) => ({ position: index + 1, hasPrompt: !!p, id: p?.id }))
+    });
+  }, [pinnedPrompts]);
 
   const handleSlotClick = (prompt: Prompt | null) => {
     if (prompt) {

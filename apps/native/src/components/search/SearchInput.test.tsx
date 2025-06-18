@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 import { SearchInput } from './SearchInput'
 
@@ -43,7 +43,9 @@ describe('SearchInput', () => {
     expect(handleChange).not.toHaveBeenCalled()
     
     // Fast-forward time
-    vi.advanceTimersByTime(300)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     
     // Should call after debounce
     expect(handleChange).toHaveBeenCalledWith('test')
@@ -56,7 +58,9 @@ describe('SearchInput', () => {
     const input = screen.getByRole('textbox')
     fireEvent.change(input, { target: { value: 'search term' } })
     
-    vi.advanceTimersByTime(300)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     
     expect(handleSearch).toHaveBeenCalledWith('search term')
   })
@@ -89,14 +93,77 @@ describe('SearchInput', () => {
     
     // First input
     fireEvent.change(input, { target: { value: 'first' } })
-    vi.advanceTimersByTime(100)
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
     
     // Second input before first debounce completes
     fireEvent.change(input, { target: { value: 'second' } })
-    vi.advanceTimersByTime(300)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     
     // Should only call with the latest value
     expect(handleChange).toHaveBeenCalledTimes(1)
     expect(handleChange).toHaveBeenCalledWith('second')
+  })
+
+  describe('Inline Completion', () => {
+    it('should show inline completion when enableInlineCompletion is true', () => {
+      const mockPrompts = [
+        { id: '1', title: 'Test', content: 'Test', tags: ['react'], quickAccessKey: 'test', created_at: '2023-01-01', updated_at: '2023-01-01' }
+      ]
+      
+      render(
+        <SearchInput 
+          value="/t" 
+          onChange={vi.fn()} 
+          enableInlineCompletion={true}
+          prompts={mockPrompts}
+        />
+      )
+      
+      // Check that ghost text is rendered
+      expect(screen.getByText('est')).toBeInTheDocument()
+    })
+
+    it('should not show inline completion when enableInlineCompletion is false', () => {
+      const mockPrompts = [
+        { id: '1', title: 'Test', content: 'Test', tags: ['react'], quickAccessKey: 'test', created_at: '2023-01-01', updated_at: '2023-01-01' }
+      ]
+      
+      render(
+        <SearchInput 
+          value="/t" 
+          onChange={vi.fn()} 
+          enableInlineCompletion={false}
+          prompts={mockPrompts}
+        />
+      )
+      
+      // Check that ghost text is NOT rendered
+      expect(screen.queryByText('est')).not.toBeInTheDocument()
+    })
+
+    it('should accept inline completion with Tab key', () => {
+      const handleChange = vi.fn()
+      const mockPrompts = [
+        { id: '1', title: 'Test', content: 'Test', tags: ['react'], quickAccessKey: 'test', created_at: '2023-01-01', updated_at: '2023-01-01' }
+      ]
+      
+      render(
+        <SearchInput 
+          value="/t" 
+          onChange={handleChange} 
+          enableInlineCompletion={true}
+          prompts={mockPrompts}
+        />
+      )
+      
+      const input = screen.getByRole('textbox')
+      fireEvent.keyDown(input, { key: 'Tab' })
+      
+      expect(handleChange).toHaveBeenCalledWith('/test')
+    })
   })
 })
