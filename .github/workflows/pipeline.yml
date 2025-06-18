@@ -12,206 +12,223 @@ on:
       - staging
       - main
 
+env:
+  PNPM_VERSION: 8
+  NODE_VERSION: 20
+
 jobs:
-  install:
-    name: Install dependencies
+  # ========================================
+  # 基本CI: 全ブランチで実行
+  # ========================================
+  ci:
+    name: CI Check
     runs-on: ubuntu-latest
-    outputs:
-      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          version: 8
-      - uses: actions/setup-node@v4
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
         with:
-          node-version: 20
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
-      - name: Generate cache key
-        id: cache-key
-        run: echo "key=${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}" >> $GITHUB_OUTPUT
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ steps.cache-key.outputs.key }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-  typecheck:
-    name: Type check
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: true
+      - name: Build packages
+        run: pnpm run --filter "./packages/**" build
+
       - name: Type check
         run: pnpm typecheck
 
-  lint:
-    name: Lint
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: true
-      - name: Lint native app
-        run: pnpm --filter apps/native lint
-      - name: Lint web app
-        run: pnpm --filter apps/web lint
-      - name: Lint API
-        run: pnpm --filter apps/api lint
+      - name: Lint
+        run: pnpm lint
 
-  build:
-    name: Build
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: true
-      - name: Build
-        run: pnpm build
-
-  test:
-    name: Test
-    needs: [install, typecheck, lint]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: ${{ needs.install.outputs.cache-key }}
-          fail-on-cache-miss: true
       - name: Test
         run: pnpm test
 
+      - name: Build applications
+        run: pnpm run --filter "./apps/**" build
+
+  # ========================================
+  # ネイティブアプリビルド: リリース用
+  # ========================================
   build-native:
-    name: Build Native Installers
-    needs: [build, test]
+    name: Build Native App (${{ matrix.os }})
+    needs: ci
+    if: |
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            rust_target: x86_64-apple-darwin
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            rust_target: x86_64-unknown-linux-gnu
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
         with:
-          version: 8
-      - uses: actions/setup-node@v4
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install Rust (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: dtolnay/rust-toolchain@stable
-      - name: Install Rust (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: dtolnay/rust-toolchain@stable
-      - name: Build frontend
-        run: pnpm --filter apps/native build
-      - name: Build native app
+
+      - name: Build packages
+        run: pnpm run --filter "./packages/**" build
+
+      - name: Build Tauri app
         run: pnpm --filter apps/native tauri build
-      - name: Upload installer artifact
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-installer
+          name: ${{ matrix.os }}-installers
           path: |
             apps/native/src-tauri/target/release/bundle/**/*.dmg
             apps/native/src-tauri/target/release/bundle/**/*.exe
             apps/native/src-tauri/target/release/bundle/**/*.msi
+            apps/native/src-tauri/target/release/bundle/**/*.deb
+            apps/native/src-tauri/target/release/bundle/**/*.AppImage
+          retention-days: 30
 
+  # ========================================
+  # Stagingプレリリース
+  # ========================================
   prerelease:
-    if: github.ref == 'refs/heads/staging'
-    name: Pre-release (staging)
+    name: Pre-release (Staging)
     needs: build-native
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: ./dist
-      - name: List artifacts
-        run: ls -R ./dist
-      - name: Create GitHub Pre-release
+
+      - name: Create pre-release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           tag_name: staging-${{ github.run_number }}
-          name: 'Staging Pre-release ${{ github.run_number }}'
+          name: 'Staging Build #${{ github.run_number }}'
+          body: |
+            ## 🚧 Staging Pre-release
+
+            This is an automated pre-release from the staging branch.
+            
+            ### Changes
+            - Commit: ${{ github.sha }}
+            - Run: ${{ github.run_number }}
+            
+            ### ⚠️ Warning
+            This is a pre-release version for testing purposes only.
           files: |
             ./dist/**/*.dmg
             ./dist/**/*.exe
             ./dist/**/*.msi
+            ./dist/**/*.deb
+            ./dist/**/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ========================================
+  # 本番リリース
+  # ========================================
   release:
-    if: github.ref == 'refs/heads/main'
-    name: Official Release (main)
+    name: Production Release
     needs: build-native
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./apps/native/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: ./dist
-      - name: List artifacts
-        run: ls -R ./dist
-      - name: Create GitHub Release
+
+      - name: Create production release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: false
-          tag_name: v${{ github.run_number }}
-          name: 'Release v${{ github.run_number }}'
+          tag_name: v${{ steps.version.outputs.version }}
+          name: 'Release v${{ steps.version.outputs.version }}'
+          body: |
+            ## 🎉 Release v${{ steps.version.outputs.version }}
+
+            ### 📦 Downloads
+            Please download the appropriate installer for your platform below.
+
+            ### 🔧 Installation
+            - **macOS**: Download and open the .dmg file
+            - **Windows**: Download and run the .exe or .msi installer
+            - **Linux**: Download the .deb or .AppImage file
+
+            ### 📝 Changelog
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           files: |
             ./dist/**/*.dmg
             ./dist/**/*.exe
             ./dist/**/*.msi
+            ./dist/**/*.deb
+            ./dist/**/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # 署名や公証の自動化は今後ここに追加
+
+  # ========================================
+  # WebアプリDeploy設定 (将来用)
+  # ========================================
+  # deploy-web:
+  #   name: Deploy Web App
+  #   needs: ci
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Placeholder for web deployment
+  #       run: echo "Web deployment will be configured here"
