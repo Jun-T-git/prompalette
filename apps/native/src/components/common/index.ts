@@ -1,5 +1,7 @@
 export * from './Button'
 export * from './ConfirmModal'
+export * from './DropdownButton'
 export * from './Input'
+export * from './PaletteDropdown'
 export * from './Textarea'
 export * from './Toast'

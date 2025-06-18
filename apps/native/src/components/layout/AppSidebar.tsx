@@ -2,6 +2,7 @@ import { useRef, forwardRef, useImperativeHandle } from 'react'
 
 import type { Prompt } from '../../types'
 import { Button } from '../common'
+import { SidebarPromptPalette } from '../favorites'
 import { PromptCard } from '../prompt'
 import { SearchInput } from '../search'
 
@@ -34,10 +35,10 @@ interface AppSidebarProps {
   onPromptSelect: (prompt: Prompt, index: number) => void
   /** プロンプトコピーハンドラー */
   onCopyPrompt: (prompt: Prompt) => Promise<void>
-  /** プロンプト削除ハンドラー */
-  onDeletePrompt: (id: string) => Promise<void>
   /** 新規作成ボタンハンドラー */
   onShowCreateForm: () => void
+  /** ピン留めプロンプト選択ハンドラー */
+  onPinnedPromptSelect: (prompt: Prompt) => void
 }
 
 /**
@@ -59,8 +60,8 @@ export function AppSidebar({
   onPromptSelectEnter,
   onPromptSelect,
   onCopyPrompt,
-  onDeletePrompt,
   onShowCreateForm: _onShowCreateForm,
+  onPinnedPromptSelect: _onPinnedPromptSelect,
 }: AppSidebarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -118,10 +119,9 @@ export function AppSidebar({
               <PromptCard
                 key={prompt.id}
                 prompt={prompt}
-                isSelected={selectedPrompt?.id === prompt.id || index === selectedIndexKeyboard}
+                isSelected={selectedPrompt?.id === prompt.id ? true : (selectedPrompt === null && index === selectedIndexKeyboard)}
                 onClick={() => onPromptSelect(prompt, index)}
                 onCopy={() => onCopyPrompt(prompt)}
-                onDelete={() => onDeletePrompt(prompt.id)}
               />
             ))}
           </div>
@@ -155,8 +155,8 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
     onPromptSelectEnter,
     onPromptSelect,
     onCopyPrompt,
-    onDeletePrompt,
     onShowCreateForm: _onShowCreateForm,
+    onPinnedPromptSelect,
   }, ref) {
     const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -186,6 +186,12 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
             onPromptSelect={onPromptSelectEnter}
           />
         </div>
+        
+        {/* ピン留めパレット */}
+        <SidebarPromptPalette 
+          onPromptSelect={onPinnedPromptSelect}
+          selectedPrompt={selectedPrompt}
+        />
         
         <div className="px-4 pb-4">
           <div className="text-sm text-gray-500 mb-3">
@@ -224,10 +230,9 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
                 <PromptCard
                   key={prompt.id}
                   prompt={prompt}
-                  isSelected={selectedPrompt?.id === prompt.id || index === selectedIndexKeyboard}
+                  isSelected={selectedPrompt?.id === prompt.id ? true : (selectedPrompt === null && index === selectedIndexKeyboard)}
                   onClick={() => onPromptSelect(prompt, index)}
                   onCopy={() => onCopyPrompt(prompt)}
-                  onDelete={() => onDeletePrompt(prompt.id)}
                 />
               ))}
             </div>
