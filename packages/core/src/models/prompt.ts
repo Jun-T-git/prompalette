@@ -29,6 +29,7 @@ export const PromptSchema = z.object({
       .normalize('NFC');
   }),
   description: z.string().max(MAX_DESCRIPTION_LENGTH, `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`).optional().transform((str) => str ? sanitizeString(str) : str),
+  quickAccessKey: z.string().regex(/^[a-zA-Z0-9]+$/, 'Quick access key must be alphanumeric').min(2, 'Quick access key must be at least 2 characters').max(20, 'Quick access key must be 20 characters or less').optional().transform((str) => str ? sanitizeString(str) : str),
   workspaceId: z.string().regex(/^wsp_[a-zA-Z0-9]+$/, 'Invalid workspace ID format'),
   tagIds: z.array(z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Invalid tag format')).max(20, 'Maximum 20 tags allowed').default([]),
   visibility: z.enum([PROMPT_VISIBILITY.PRIVATE, PROMPT_VISIBILITY.PUBLIC, PROMPT_VISIBILITY.SHARED])

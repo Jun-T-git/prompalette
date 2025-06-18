@@ -1,6 +1,10 @@
-import { useState, useEffect, forwardRef } from 'react'
+import { useState, useEffect, forwardRef, useRef } from 'react'
 
+import { useSearchSuggestions, useInlineCompletion, type SearchSuggestion } from '../../hooks'
+import type { Prompt } from '../../types'
 import { Input } from '../common'
+
+import { SearchSuggestions } from './SearchSuggestions'
 
 /**
  * 検索入力コンポーネントのProps
@@ -39,6 +43,19 @@ interface SearchInputProps {
   
   /** プロンプト選択確定のコールバック（変換確定後のEnter用） */
   onPromptSelect?: () => void
+  
+  
+  /** 検索候補機能を有効にするかどうか */
+  enableSuggestions?: boolean
+  
+  /** 検索候補生成用のプロンプト一覧 */
+  prompts?: Prompt[]
+  
+  /** 候補のデバウンス時間（ミリ秒、デフォルト: 150ms） */
+  suggestionsDebounceMs?: number
+  
+  /** インライン補完機能を有効にするかどうか */
+  enableInlineCompletion?: boolean
 }
 
 /**
@@ -75,13 +92,42 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   onCompositionStart,
   onCompositionEnd,
   onPromptSelect,
+  enableSuggestions = true,
+  prompts = [],
+  suggestionsDebounceMs = 150,
+  enableInlineCompletion = true,
 }, ref) {
   // ローカル入力状態（デバウンス用）
   const [localValue, setLocalValue] = useState(value)
+  // 候補表示用のローカル値（より短いデバウンス）
+  const [suggestionsValue, setSuggestionsValue] = useState(value)
   // IME変換中かどうかを追跡
   const [isComposing, setIsComposing] = useState(false)
   // compositionEnd直後の短時間フラグ
   const [justEndedComposition, setJustEndedComposition] = useState(false)
+  // 検索候補の表示状態
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  // 候補ナビゲーション用のインデックス
+  const [suggestionIndex, setSuggestionIndex] = useState(-1)
+  // アクティブなドロップダウン（候補）
+  const [activeDropdown, setActiveDropdown] = useState<'suggestions' | null>(null)
+  // 検索候補フック
+  const { suggestions, isVisible: suggestionsVisible } = useSearchSuggestions(
+    prompts,
+    enableSuggestions ? suggestionsValue : '',
+    {
+      disabled: !enableSuggestions,
+      includeHistory: false,
+    }
+  )
+  // 候補ドロップダウンの参照
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  // インライン補完フック
+  const inlineCompletion = useInlineCompletion(
+    prompts,
+    localValue,
+    { disabled: !enableInlineCompletion }
+  )
 
   // デバウンス処理：ユーザーの入力が停止してから一定時間後にコールバック実行
   useEffect(() => {
@@ -97,10 +143,31 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
     return () => clearTimeout(timer)
   }, [localValue, debounceMs, onChange, onSearch, value])
 
+  // 候補表示用のデバウンス処理（より短いデバウンス）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSuggestionsValue(localValue)
+    }, suggestionsDebounceMs)
+
+    return () => clearTimeout(timer)
+  }, [localValue, suggestionsDebounceMs])
+
   // 外部からの値変更との同期（例：リセット時など）
   useEffect(() => {
     setLocalValue(value)
+    setSuggestionsValue(value)
   }, [value])
+
+  // 候補表示状態の管理
+  useEffect(() => {
+    if (enableSuggestions && suggestionsVisible && localValue.trim()) {
+      setShowSuggestions(true)
+      setActiveDropdown('suggestions')
+    } else {
+      setShowSuggestions(false)
+      setActiveDropdown(null)
+    }
+  }, [enableSuggestions, suggestionsVisible, localValue, activeDropdown])
 
   /**
    * クリアボタンのクリックハンドラー
@@ -108,15 +175,73 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
    */
   const handleClear = () => {
     setLocalValue('')
+    setSuggestionsValue('')
     onChange('')
     onSearch?.('')
+    setShowSuggestions(false)
+    setSuggestionIndex(-1)
+    setActiveDropdown(null)
   }
 
   /**
    * 検索フィールド専用のキーボードハンドラー
    * IME状態に基づいてEnter処理を適切に分岐
+   * 候補のキーボードナビゲーションに対応
    */
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // タブキーでインライン補完を確定
+    if (e.key === 'Tab' && inlineCompletion.completion) {
+      e.preventDefault()
+      setLocalValue(inlineCompletion.fullText)
+      setSuggestionsValue(inlineCompletion.fullText)
+      onChange(inlineCompletion.fullText)
+      onSearch?.(inlineCompletion.fullText)
+      return
+    }
+
+    // 候補ドロップダウンが表示されている場合のキーボード処理
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        )
+        return
+      }
+      
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        )
+        return
+      }
+      
+      if (e.key === 'Enter' && suggestionIndex >= 0 && suggestionIndex < suggestions.length) {
+        e.preventDefault()
+        e.stopPropagation()
+        const selectedSuggestion = suggestions[suggestionIndex]
+        if (selectedSuggestion) {
+          setLocalValue(selectedSuggestion.value)
+          setSuggestionsValue(selectedSuggestion.value)
+          onChange(selectedSuggestion.value)
+          onSearch?.(selectedSuggestion.value)
+        }
+        setShowSuggestions(false)
+        setSuggestionIndex(-1)
+        setActiveDropdown(null)
+        return
+      }
+      
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowSuggestions(false)
+        setSuggestionIndex(-1)
+        setActiveDropdown(null)
+        return
+      }
+    }
+
     // 検索フィールド内でのEnter処理
     if (e.key === 'Enter') {
       // より確実なIME検出: 複数の方法を組み合わせて判定
@@ -137,10 +262,11 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
       return
     }
 
-    // ArrowUp/ArrowDownは親に委譲（プロンプト選択のため）
+    // ArrowUp/ArrowDownはドロップダウンが表示されていない場合のみ親に委譲
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      // プロパゲーションを許可して親のハンドラーに処理を委譲
-      onKeyDown?.(e)
+      if (!showSuggestions) {
+        onKeyDown?.(e)
+      }
       return
     }
 
@@ -171,6 +297,55 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
     onCompositionEnd?.()
   }
 
+  /**
+   * フォーカス時のハンドラー
+   */
+  const handleFocus = () => {
+    onFocus?.()
+  }
+
+  /**
+   * フォーカス外れ時のハンドラー
+   */
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // 候補ドロップダウン内の要素にフォーカスが移動した場合は閉じない
+    if (suggestionsRef.current && suggestionsRef.current.contains(e.relatedTarget as Node)) {
+      return
+    }
+    
+    // 少し遅延を入れてドロップダウンを閉じる
+    setTimeout(() => {
+      setShowSuggestions(false)
+      setSuggestionIndex(-1)
+      setActiveDropdown(null)
+    }, 150)
+    
+    onBlur?.()
+  }
+
+
+  /**
+   * 候補アイテム選択ハンドラー
+   */
+  const handleSuggestionSelect = (suggestion: SearchSuggestion) => {
+    setLocalValue(suggestion.value)
+    setSuggestionsValue(suggestion.value)
+    onChange(suggestion.value)
+    onSearch?.(suggestion.value)
+    setShowSuggestions(false)
+    setSuggestionIndex(-1)
+    setActiveDropdown(null)
+  }
+
+  /**
+   * 候補ドロップダウンのEscapeハンドラー
+   */
+  const handleSuggestionEscape = () => {
+    setShowSuggestions(false)
+    setSuggestionIndex(-1)
+    setActiveDropdown(null)
+  }
+
   return (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -195,12 +370,24 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
         className="pl-10 pr-10"
-        onFocus={onFocus}
-        onBlur={onBlur}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         onKeyDown={handleSearchKeyDown}
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
       />
+
+      {/* インライン補完のオーバーレイ */}
+      {enableInlineCompletion && inlineCompletion.completion && (
+        <div className="absolute inset-0 flex items-center pointer-events-none pl-10 pr-10">
+          <div className="text-gray-400 whitespace-nowrap overflow-hidden">
+            {/* 現在の入力値の分だけスペースを確保 */}
+            <span className="invisible">{localValue}</span>
+            {/* 補完候補を薄く表示 */}
+            <span className="text-gray-300">{inlineCompletion.completion}</span>
+          </div>
+        </div>
+      )}
 
       {localValue && (
         <button
@@ -217,6 +404,18 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
             />
           </svg>
         </button>
+      )}
+      
+      {/* 検索候補ドロップダウン */}
+      {enableSuggestions && (
+        <SearchSuggestions
+          ref={suggestionsRef}
+          suggestions={suggestions}
+          isVisible={showSuggestions}
+          selectedIndex={suggestionIndex}
+          onSelect={handleSuggestionSelect}
+          onEscape={handleSuggestionEscape}
+        />
       )}
     </div>
   )

@@ -11,8 +11,8 @@ import type {
 } from '../types'
 import { logger } from '../utils'
 
-// 操作ロック管理用のフラグ（グローバルスコープで定義）
-let operationLock = false
+// 操作ロック管理用のMap（操作別に管理）
+const operationLocks = new Map<string, boolean>()
 
 /**
  * お気に入り/ピン留めプロンプト管理のグローバル状態インターフェース
@@ -156,7 +156,8 @@ export const useFavoritesStore = create<FavoritesState>()(
           logger.debug('Pinning prompt:', request)
           const message = await pinnedPromptsApi.pin(request)
           
-          // ピン留め成功後、一覧を再読み込み
+          // ピン留め成功後、一覧を再読み込み（操作ロックを無視して強制実行）
+          operationLocks.set('loadPinnedPrompts', false) // 既存のロックをクリア
           await get().loadPinnedPrompts()
           
           logger.info('Prompt pinned successfully:', { position: request.position, message })
@@ -181,7 +182,8 @@ export const useFavoritesStore = create<FavoritesState>()(
           logger.debug('Unpinning prompt:', request)
           const message = await pinnedPromptsApi.unpin(request)
           
-          // ピン留め解除後、一覧を再読み込み
+          // ピン留め解除後、一覧を再読み込み（操作ロックを無視して強制実行）
+          operationLocks.set('loadPinnedPrompts', false) // 既存のロックをクリア
           await get().loadPinnedPrompts()
           
           logger.info('Prompt unpinned successfully:', { position: request.position, message })
@@ -223,12 +225,13 @@ export const useFavoritesStore = create<FavoritesState>()(
        * ピン留めプロンプト一覧をサーバーから読み込み
        */
       loadPinnedPrompts: async (signal?: AbortSignal) => {
-        if (operationLock) {
+        const lockKey = 'loadPinnedPrompts'
+        if (operationLocks.get(lockKey)) {
           logger.warn('Load operation already in progress, skipping')
           return
         }
         
-        operationLock = true
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Loading pinned prompts from database')
@@ -264,7 +267,7 @@ export const useFavoritesStore = create<FavoritesState>()(
             isLoading: false 
           })
         } finally {
-          operationLock = false
+          operationLocks.set(lockKey, false)
         }
       },
 
@@ -351,12 +354,13 @@ export const useFavoritesStore = create<FavoritesState>()(
        * - 片方のみピン留め済み：ピン留めされていない方が新しい位置に移動し、元のプロンプトはピン留め解除
        */
       swapOrReplacePinnedPrompt: async (promptId, targetPosition) => {
-        if (operationLock) {
+        const lockKey = 'swapOrReplacePinnedPrompt'
+        if (operationLocks.get(lockKey)) {
           logger.warn('Swap/replace operation already in progress')
           return false
         }
         
-        operationLock = true
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           const currentPinnedPrompts = get().pinnedPrompts
@@ -435,7 +439,7 @@ export const useFavoritesStore = create<FavoritesState>()(
           })
           return false
         } finally {
-          operationLock = false
+          operationLocks.set(lockKey, false)
         }
       },
     }),

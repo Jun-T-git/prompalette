@@ -1,5 +1,5 @@
-export * from './date'
 export * from './validation'
 export * from './logger'
 export * from './clipboard'
 export * from './environment'
+export * from './tagProcessing'

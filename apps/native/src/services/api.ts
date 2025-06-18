@@ -126,6 +126,7 @@ interface RawPrompt {
   title: string;
   content: string;
   tags?: string | string[]; // JSON文字列または配列
+  quick_access_key?: string; // クイックアクセスキー
   created_at: string;
   updated_at: string;
 }
@@ -154,6 +155,7 @@ function transformPromptFromDatabase(rawPrompt: RawPrompt): Prompt {
   return {
     ...rawPrompt,
     tags: tags.length > 0 ? tags : undefined,
+    quickAccessKey: rawPrompt.quick_access_key,
   };
 }
 
@@ -218,7 +220,8 @@ export const promptsApi = {
       request: {
         title: request.title,
         content: request.content,
-        tags: request.tags
+        tags: request.tags,
+        quickAccessKey: request.quickAccessKey
       }
     })
     return rawPrompt ? transformPromptFromDatabase(rawPrompt) : null

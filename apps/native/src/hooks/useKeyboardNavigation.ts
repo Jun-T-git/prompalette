@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import type { Prompt } from '../types'
 import { logger } from '../utils'
@@ -21,6 +21,24 @@ export function useKeyboardNavigation({
 }: UseKeyboardNavigationProps) {
   const [selectedIndexKeyboard, setSelectedIndexKeyboard] = useState(0)
   const [isComposing, setIsComposing] = useState(false)
+  const filteredPromptsRef = useRef(filteredPrompts)
+  
+  // Update ref when filteredPrompts changes
+  useEffect(() => {
+    filteredPromptsRef.current = filteredPrompts
+  }, [filteredPrompts])
+
+  // Reset selected index when filtered prompts length changes
+  useEffect(() => {
+    setSelectedIndexKeyboard(prev => {
+      if (filteredPrompts.length === 0) {
+        return 0
+      } else if (prev >= filteredPrompts.length) {
+        return Math.max(0, filteredPrompts.length - 1)
+      }
+      return prev
+    })
+  }, [filteredPrompts.length])
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
     switch (e.key) {
@@ -54,8 +72,9 @@ export function useKeyboardNavigation({
   }, [filteredPrompts.length, isComposing])
 
   const handlePromptSelectEnter = useCallback(async () => {
-    if (filteredPrompts.length > 0 && filteredPrompts[selectedIndexKeyboard]) {
-      const selectedPrompt = filteredPrompts[selectedIndexKeyboard]
+    const currentPrompts = filteredPromptsRef.current
+    if (currentPrompts.length > 0 && selectedIndexKeyboard >= 0 && selectedIndexKeyboard < currentPrompts.length) {
+      const selectedPrompt = currentPrompts[selectedIndexKeyboard]
       if (selectedPrompt) {
         await onCopyPrompt(selectedPrompt)
         try {
@@ -65,7 +84,7 @@ export function useKeyboardNavigation({
         }
       }
     }
-  }, [filteredPrompts, selectedIndexKeyboard, onCopyPrompt])
+  }, [selectedIndexKeyboard, onCopyPrompt])
 
   const handlePromptSelect = useCallback((prompt: Prompt, index: number) => {
     onPromptSelect(prompt, index)
@@ -77,7 +96,7 @@ export function useKeyboardNavigation({
     setSelectedIndexKeyboard(0)
   }, [])
 
-  return {
+  return useMemo(() => ({
     selectedIndexKeyboard,
     isComposing,
     setIsComposing,
@@ -86,5 +105,13 @@ export function useKeyboardNavigation({
     handlePromptSelectEnter,
     handlePromptSelect,
     resetSelection,
-  }
+  }), [
+    selectedIndexKeyboard,
+    isComposing,
+    setIsComposing,
+    handleKeyDown,
+    handlePromptSelectEnter,
+    handlePromptSelect,
+    resetSelection,
+  ])
 }

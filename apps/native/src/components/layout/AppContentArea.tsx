@@ -33,6 +33,10 @@ interface AppContentAreaProps {
   onCancelCreateForm: () => void;
   /** 編集フォームキャンセルハンドラー */
   onCancelEditForm: () => void;
+  /** タグクリック時の検索ハンドラー */
+  onTagClick?: (tag: string) => void;
+  /** クイックアクセスキークリック時の検索ハンドラー */
+  onQuickAccessKeyClick?: (key: string) => void;
 }
 
 /**
@@ -53,8 +57,15 @@ export function AppContentArea({
   onShowCreateForm,
   onCancelCreateForm,
   onCancelEditForm,
+  onTagClick,
+  onQuickAccessKeyClick,
 }: AppContentAreaProps) {
-  const { pinnedPrompts, unpinPrompt, swapOrReplacePinnedPrompt, isLoading: isPinLoading } = useFavoritesStore();
+  const {
+    pinnedPrompts,
+    unpinPrompt,
+    swapOrReplacePinnedPrompt,
+    isLoading: isPinLoading,
+  } = useFavoritesStore();
   const { showToast } = useToast();
   const [isPinDropdownOpen, setIsPinDropdownOpen] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState<{
@@ -75,7 +86,6 @@ export function AppContentArea({
   const pinnedPosition = isPinned ? currentPinnedPosition + 1 : null;
   const paletteColor = pinnedPosition ? getPaletteColor(pinnedPosition) : null;
 
-
   /**
    * ピン留め処理（入れ替え/置き換えにも対応）
    */
@@ -83,7 +93,7 @@ export function AppContentArea({
     if (!selectedPrompt) return;
 
     const targetPrompt = pinnedPrompts[position - 1];
-    
+
     // 上書きが必要な場合は確認ダイアログを表示
     if (targetPrompt && targetPrompt.id !== selectedPrompt.id) {
       setConfirmOverwrite({
@@ -116,9 +126,15 @@ export function AppContentArea({
       const targetPrompt = pinnedPrompts[position - 1];
       if (targetPrompt && targetPrompt.id !== selectedPrompt.id) {
         if (isPinned) {
-          showToast(`プロンプトの位置を ${pinnedPosition} から ${position} に移動しました`, 'success');
+          showToast(
+            `プロンプトの位置を ${pinnedPosition} から ${position} に移動しました`,
+            'success',
+          );
         } else {
-          showToast(`プロンプトを位置 ${position} にピン留めしました（${targetPrompt.title} を置き換え）`, 'success');
+          showToast(
+            `プロンプトを位置 ${position} にピン留めしました（${targetPrompt.title} を置き換え）`,
+            'success',
+          );
         }
       } else {
         showToast(`プロンプトを位置 ${position} にピン留めしました`, 'success');
@@ -201,15 +217,32 @@ export function AppContentArea({
                 <h2 className="text-lg font-medium text-gray-900 truncate mb-1">
                   {selectedPrompt.title}
                 </h2>
+
+                {/* クイックアクセスキー */}
+                {selectedPrompt.quickAccessKey && (
+                  <div className="mb-2">
+                    <button
+                      onClick={() => onQuickAccessKeyClick?.(selectedPrompt.quickAccessKey!)}
+                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium font-mono bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 transition-colors cursor-pointer"
+                      title={`"/${selectedPrompt.quickAccessKey}" で検索`}
+                    >
+                      /{selectedPrompt.quickAccessKey}
+                    </button>
+                  </div>
+                )}
+
+                {/* タグ */}
                 {Array.isArray(selectedPrompt.tags) && selectedPrompt.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {selectedPrompt.tags.map((tag) => (
-                      <span
+                      <button
                         key={tag}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700"
+                        onClick={() => onTagClick?.(tag)}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-800 transition-colors cursor-pointer"
+                        title={`"#${tag}" で検索`}
                       >
-                        {tag}
-                      </span>
+                        #{tag}
+                      </button>
                     ))}
                   </div>
                 )}
@@ -233,7 +266,7 @@ export function AppContentArea({
                         stroke={isPinned && paletteColor ? paletteColor.fill : 'currentColor'}
                         viewBox="0 0 24 24"
                         style={{
-                          color: isPinned && paletteColor ? paletteColor.fill : '#6b7280'
+                          color: isPinned && paletteColor ? paletteColor.fill : '#6b7280',
                         }}
                       >
                         <path
