@@ -16,6 +16,8 @@ jobs:
   install:
     name: Install dependencies
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
@@ -25,13 +27,16 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}" >> $GITHUB_OUTPUT
       - name: Cache node_modules
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.cache-key.outputs.key }}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
   typecheck:
     name: Type check
@@ -47,10 +52,11 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ needs.install.outputs.cache-key }}
+          fail-on-cache-miss: true
       - name: Type check
         run: pnpm typecheck
 
@@ -68,12 +74,17 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}
-      - name: Lint
-        run: pnpm lint
+          key: ${{ needs.install.outputs.cache-key }}
+          fail-on-cache-miss: true
+      - name: Lint native app
+        run: pnpm --filter apps/native lint
+      - name: Lint web app
+        run: pnpm --filter apps/web lint
+      - name: Lint API
+        run: pnpm --filter apps/api lint
 
   build:
     name: Build
@@ -89,16 +100,17 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ needs.install.outputs.cache-key }}
+          fail-on-cache-miss: true
       - name: Build
         run: pnpm build
 
   test:
     name: Test
-    needs: build
+    needs: [install, typecheck, lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,10 +122,11 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ needs.install.outputs.cache-key }}
+          fail-on-cache-miss: true
       - name: Test
         run: pnpm test
 
@@ -135,6 +148,12 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Rust (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: dtolnay/rust-toolchain@stable
       - name: Build frontend
         run: pnpm --filter apps/native build
       - name: Build native app
