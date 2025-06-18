@@ -13,7 +13,7 @@ import {
   useToast,
 } from './components';
 import { useKeyboardNavigation, usePromptSearch } from './hooks';
-import { usePromptStore } from './stores';
+import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
 
@@ -33,6 +33,7 @@ function AppContent() {
   } = usePromptStore();
 
   const { showToast } = useToast();
+  const { pinnedPrompts, loadPinnedPrompts } = useFavoritesStore();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -54,26 +55,31 @@ function AppContent() {
     searchQueryRef.current = searchQuery;
   }, [searchQuery]);
 
-  // Load prompts on mount
+  // Load prompts and pinned prompts on mount
   useEffect(() => {
     let isMounted = true;
-    
+    const abortController = new AbortController();
+
     const loadData = async () => {
       try {
-        await loadPrompts();
+        await Promise.all([
+          loadPrompts(abortController.signal), 
+          loadPinnedPrompts(abortController.signal)
+        ]);
       } catch (error) {
-        if (isMounted) {
-          logger.error('Failed to load prompts:', error);
+        if (isMounted && !abortController.signal.aborted) {
+          logger.error('Failed to load data:', error);
         }
       }
     };
-    
+
     loadData();
-    
+
     return () => {
       isMounted = false;
+      abortController.abort();
     };
-  }, [loadPrompts]);
+  }, [loadPrompts, loadPinnedPrompts]);
 
   // 初期表示時に検索窓にフォーカス
   useEffect(() => {
@@ -86,65 +92,165 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // グローバル文字入力で検索窓にフォーカス
-  const handleGlobalKeyDown = useCallback((e: KeyboardEvent) => {
-    // CmdOrCtrl+N で新規作成
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-      e.preventDefault();
-      setShowCreateForm(true);
-      return;
-    }
+  // ピン留めプロンプトのホットキー選択処理
+  const handlePinnedPromptHotkey = useCallback(
+    (position: number) => {
+      const pinnedPrompt = pinnedPrompts[position - 1];
+      if (pinnedPrompt) {
+        setSelectedPrompt(pinnedPrompt);
+      } else {
+        showToast(`位置${position}にピン留めプロンプトがありません`, 'warning');
+      }
+    },
+    [pinnedPrompts, setSelectedPrompt, showToast],
+  );
 
-    // その他のショートカットキーは除外
-    if (e.ctrlKey || e.metaKey || e.altKey) {
-      return;
-    }
+  // Filter prompts based on search query (using custom hook for performance)
+  const filteredPrompts = usePromptSearch(prompts, searchQuery);
 
-    // 特殊キー（ナビゲーション）は除外
-    if (
-      ['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(
-        e.key,
-      )
-    ) {
-      return;
-    }
+  const handleCopyPrompt = useCallback(
+    async (prompt: Prompt) => {
+      try {
+        const result = await copyPromptToClipboard(prompt.content, prompt.id);
+        if (result.success) {
+          showToast(`「${prompt.title}」をコピーしました`, 'success');
+        } else {
+          showToast(`コピーに失敗しました: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showToast(`コピーに失敗しました: ${errorMessage}`, 'error');
+        logger.error('Failed to copy prompt:', error);
+      }
+    },
+    [showToast],
+  );
 
-    // 既に検索窓にフォーカスがある場合は何もしない
-    const activeElement = document.activeElement;
-    if (activeElement && activeElement.tagName === 'INPUT') {
-      return;
-    }
+  const handlePromptSelect = useCallback((prompt: Prompt, _index: number) => {
+    setSelectedPrompt(prompt);
+  }, []);
 
-    // フォーム要素にフォーカスがある場合は何もしない
-    if (activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
-      return;
-    }
+  // ピン留めプロンプト選択ハンドラー
+  const handlePinnedPromptSelect = useCallback(
+    (prompt: Prompt) => {
+      setSelectedPrompt(prompt);
+    },
+    [setSelectedPrompt],
+  );
 
-    // 文字入力、数字、バックスペース、削除の場合に検索窓にフォーカス
-    if (
-      e.key.length === 1 || // 通常の文字入力（英数字、記号、日本語など）
-      e.key === 'Backspace' ||
-      e.key === 'Delete'
-    ) {
-      e.preventDefault();
+  // Keyboard navigation logic
+  const keyboardNav = useKeyboardNavigation({
+    filteredPrompts,
+    onPromptSelect: handlePromptSelect,
+    onCopyPrompt: handleCopyPrompt,
+  });
 
-      // 検索窓にフォーカスを移動
-      if (sidebarRef.current) {
-        sidebarRef.current.focusSearchInput();
+  // グローバル文字入力で検索窓にフォーカス & キーボードナビゲーション
+  const handleGlobalKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // フォーム要素にフォーカスがある場合は、ピン留めホットキー以外のハンドリングを行わない
+      const activeElement = document.activeElement;
+      const isFormElement =
+        activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
 
-        // 文字入力の場合は検索クエリに追加（入力サニタイズ）
-        if (e.key.length === 1) {
-          // 危険な文字を除外（XSS対策）
-          const dangerousChars = /[<>"'&]/;
-          if (!dangerousChars.test(e.key)) {
-            setSearchQuery(searchQueryRef.current + e.key);
+      // CmdOrCtrl+N で新規作成
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowCreateForm(true);
+        return;
+      }
+
+      // CmdOrCtrl+1-9,0 でピン留めプロンプトを選択 (フォーム要素フォーカス時でも動作)
+      if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        const position = parseInt(e.key, 10);
+        handlePinnedPromptHotkey(position);
+        return;
+      }
+
+      // CmdOrCtrl+0 で位置10のピン留めプロンプトを選択 (フォーム要素フォーカス時でも動作)
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        handlePinnedPromptHotkey(10);
+        return;
+      }
+
+      // フォーム要素にフォーカスがある場合は、以下の処理はスキップ
+      if (isFormElement) {
+        return;
+      }
+
+      // その他のショートカットキーは除外
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      // キーボードナビゲーション（上下キー、エンター、エスケープ）をグローバルで処理
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        // React.KeyboardEvent形式に変換してkeyboardNavのhandleKeyDownに渡す
+        const syntheticEvent = {
+          key: e.key,
+          preventDefault: () => e.preventDefault(),
+        } as React.KeyboardEvent<HTMLDivElement>;
+        keyboardNav.handleKeyDown(syntheticEvent);
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        keyboardNav.handlePromptSelectEnter();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        // React.KeyboardEvent形式に変換してkeyboardNavのhandleKeyDownに渡す
+        const syntheticEvent = {
+          key: e.key,
+          preventDefault: () => e.preventDefault(),
+        } as React.KeyboardEvent<HTMLDivElement>;
+        keyboardNav.handleKeyDown(syntheticEvent);
+        return;
+      }
+
+      // Tab、左右キーは無視
+      if (['Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        return;
+      }
+
+      // 既に検索窓にフォーカスがある場合は何もしない
+      if (activeElement && activeElement.tagName === 'INPUT') {
+        return;
+      }
+
+      // 文字入力、数字、バックスペース、削除の場合に検索窓にフォーカス
+      if (
+        e.key.length === 1 || // 通常の文字入力（英数字、記号、日本語など）
+        e.key === 'Backspace' ||
+        e.key === 'Delete'
+      ) {
+        e.preventDefault();
+
+        // 検索窓にフォーカスを移動
+        if (sidebarRef.current) {
+          sidebarRef.current.focusSearchInput();
+
+          // 文字入力の場合は検索クエリに追加（入力サニタイズ）
+          if (e.key.length === 1) {
+            // 危険な文字を除外（XSS対策）
+            const dangerousChars = /[<>"'&]/;
+            if (!dangerousChars.test(e.key)) {
+              setSearchQuery(searchQueryRef.current + e.key);
+            }
+          } else if (e.key === 'Backspace') {
+            setSearchQuery(searchQueryRef.current.slice(0, -1));
           }
-        } else if (e.key === 'Backspace') {
-          setSearchQuery(searchQueryRef.current.slice(0, -1));
         }
       }
-    }
-  }, [sidebarRef, setSearchQuery]);
+    },
+    [sidebarRef, setSearchQuery, handlePinnedPromptHotkey, keyboardNav],
+  );
 
   useEffect(() => {
     document.addEventListener('keydown', handleGlobalKeyDown);
@@ -192,38 +298,6 @@ function AppContent() {
       setEnvironmentError(error);
     }
   }, [error]);
-
-  // Filter prompts based on search query (using custom hook for performance)
-  const filteredPrompts = usePromptSearch(prompts, searchQuery);
-
-  const handleCopyPrompt = useCallback(
-    async (prompt: Prompt) => {
-      try {
-        const result = await copyPromptToClipboard(prompt.content, prompt.id);
-        if (result.success) {
-          showToast(`「${prompt.title}」をコピーしました`, 'success');
-        } else {
-          showToast(`コピーに失敗しました: ${result.error}`, 'error');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        showToast(`コピーに失敗しました: ${errorMessage}`, 'error');
-        logger.error('Failed to copy prompt:', error);
-      }
-    },
-    [showToast],
-  );
-
-  const handlePromptSelect = useCallback((prompt: Prompt, _index: number) => {
-    setSelectedPrompt(prompt);
-  }, []);
-
-  // Keyboard navigation logic
-  const keyboardNav = useKeyboardNavigation({
-    filteredPrompts,
-    onPromptSelect: handlePromptSelect,
-    onCopyPrompt: handleCopyPrompt,
-  });
 
   // 型ガード関数（強化版：全フィールドを検証）
   const isUpdateRequest = (
@@ -274,7 +348,7 @@ function AppContent() {
   };
 
   const handleDeletePrompt = async (id: string) => {
-    const prompt = prompts.find(p => p.id === id);
+    const prompt = prompts.find((p) => p.id === id);
     if (prompt) {
       setDeleteConfirm({
         show: true,
@@ -315,11 +389,10 @@ function AppContent() {
     setShowEditForm(true);
   };
 
-
   // 検索クエリが変わったときのみ選択をリセット
   useEffect(() => {
     keyboardNav.resetSelection();
-    
+
     if (filteredPrompts.length > 0) {
       // 最初のプロンプトを自動選択
       const firstPrompt = filteredPrompts[0];
@@ -335,9 +408,7 @@ function AppContent() {
   // キーボード選択インデックスが変わったときにプレビュー更新
   useEffect(() => {
     const index = keyboardNav.selectedIndexKeyboard;
-    if (filteredPrompts.length > 0 && 
-        index >= 0 && 
-        index < filteredPrompts.length) {
+    if (filteredPrompts.length > 0 && index >= 0 && index < filteredPrompts.length) {
       const selectedPromptFromKeyboard = filteredPrompts[index];
       if (selectedPromptFromKeyboard !== undefined) {
         setSelectedPrompt(selectedPromptFromKeyboard);
@@ -352,17 +423,20 @@ function AppContent() {
         error={environmentError}
         onRetry={() => {
           setEnvironmentError(null);
-          const retryLoadPrompts = async () => {
+          const retryLoadData = async () => {
             try {
-              await loadPrompts();
+              await Promise.all([loadPrompts(), loadPinnedPrompts()]);
             } catch (error) {
-              logger.error('Retry load prompts failed:', error);
-              if (error instanceof Error && error.message.includes('Tauri environment not available')) {
+              logger.error('Retry load data failed:', error);
+              if (
+                error instanceof Error &&
+                error.message.includes('Tauri environment not available')
+              ) {
                 setEnvironmentError(error.message);
               }
             }
           };
-          retryLoadPrompts();
+          retryLoadData();
         }}
       />
     );
@@ -371,18 +445,18 @@ function AppContent() {
   return (
     <div className="app-layout bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-gray-200 header-compact px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <img src="/prompalette_logo_1080_1080.png" alt="PromPalette" className="w-8 h-8" />
-            <h1 className="text-xl font-semibold text-gray-900">PromPalette</h1>
+            <h1 className="header-title text-xl font-semibold text-gray-900">PromPalette</h1>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 md:space-x-4">
             <Button
               onClick={() => setShowCreateForm(true)}
               size="sm"
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-1 md:space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -392,8 +466,11 @@ function AppContent() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>新規作成</span>
-              <span className="text-[10px] text-gray-300 font-mono ml-1 opacity-60">⌘N</span>
+              <span className="hidden sm:inline">新規作成</span>
+              <span className="sm:hidden">新規</span>
+              <span className="text-[10px] text-gray-300 font-mono ml-1 opacity-60 mobile-hide-text">
+                ⌘N
+              </span>
             </Button>
           </div>
         </div>
@@ -418,8 +495,8 @@ function AppContent() {
           onPromptSelectEnter={keyboardNav.handlePromptSelectEnter}
           onPromptSelect={keyboardNav.handlePromptSelect}
           onCopyPrompt={handleCopyPrompt}
-          onDeletePrompt={handleDeletePrompt}
           onShowCreateForm={() => setShowCreateForm(true)}
+          onPinnedPromptSelect={handlePinnedPromptSelect}
         />
 
         {/* Content Area */}
@@ -445,7 +522,7 @@ function AppContent() {
 
       {/* ショートカットキーガイド */}
       <div className="bg-gray-50 border-t border-gray-200 px-4 py-2">
-        <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
+        <div className="flex items-center justify-center space-x-4 text-xs text-gray-500 flex-wrap">
           <div className="flex items-center space-x-1">
             <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘/Ctrl+N</kbd>
             <span>新規作成</span>

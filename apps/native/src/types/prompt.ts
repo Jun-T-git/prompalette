@@ -15,6 +15,10 @@ export interface Prompt {
   created_at: string
   /** 最終更新日時（ISO 8601形式） */
   updated_at: string
+  /** ピン留め位置（1-10、ピン留めされていない場合はnull） */
+  pinned_position?: number | null
+  /** ピン留め日時（ISO 8601形式、ピン留めされていない場合はnull） */
+  pinned_at?: string | null
 }
 
 /**
@@ -65,4 +69,54 @@ export interface SearchResult {
   total: number
   /** さらに結果があるかどうか（ページネーション用） */
   hasMore: boolean
+}
+
+/**
+ * ピン留めされたプロンプトの情報
+ * 位置情報と元のプロンプトデータを含む
+ */
+export interface PinnedPrompt extends Prompt {
+  /** ピン留め位置（1-10） */
+  position: number
+  /** ピン留め日時（ISO 8601形式） */
+  pinned_at: string
+}
+
+/**
+ * ホットキー設定
+ * 各ピン留めポジションに対応するキーボードショートカット
+ */
+export interface HotkeyConfig {
+  /** ピン留め位置（1-10） */
+  position: number
+  /** ホットキーの組み合わせ（例: "Ctrl+1", "Cmd+Shift+1"） */
+  hotkey: string
+  /** ホットキーが有効かどうか */
+  enabled: boolean
+}
+
+/**
+ * ピン留めプロンプトの作成リクエスト
+ */
+export interface PinPromptRequest {
+  /** ピン留めするプロンプトのID */
+  prompt_id: string
+  /** ピン留めする位置（1-10） */
+  position: number
+}
+
+/**
+ * ピン留め解除リクエスト
+ */
+export interface UnpinPromptRequest {
+  /** 解除する位置（1-10） */
+  position: number
+}
+
+/**
+ * ピン留めプロンプトのコピーリクエスト
+ */
+export interface CopyPinnedPromptRequest {
+  /** コピーする位置（1-10） */
+  position: number
 }

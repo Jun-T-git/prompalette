@@ -105,9 +105,25 @@
 }
 
 /* Responsive breakpoints */
+@media (max-width: 1024px) {
+  /* タブレット以下では少し狭めのサイドバー */
+  .sidebar {
+    width: 280px;
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 250px;
+  }
+  
+  /* ヘッダーでの調整 */
+  .header-compact {
+    padding: 0.75rem 1rem;
+  }
+  
+  .header-title {
+    font-size: 1.125rem;
   }
 }
 
@@ -121,5 +137,39 @@
     height: 200px;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
+  }
+  
+  /* モバイル時のヘッダー調整 */
+  .header-compact {
+    padding: 0.5rem 1rem;
+  }
+  
+  .header-title {
+    font-size: 1rem;
+  }
+  
+  /* ボタンテキストを隠す */
+  .mobile-hide-text {
+    display: none;
+  }
+}
+
+/* パレット専用のレスポンシブスタイル */
+@media (max-width: 1280px) {
+  .palette-indicator {
+    /* デスクトップ以下ではインジケーターを少し小さく */
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .palette-compact {
+    /* モバイルではさらにコンパクトに */
+    gap: 0.25rem;
+  }
+  
+  .palette-slot-compact {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }

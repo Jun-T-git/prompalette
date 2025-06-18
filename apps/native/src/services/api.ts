@@ -1,6 +1,15 @@
 import { invoke } from '@tauri-apps/api/core'
 
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
+import type { 
+  Prompt, 
+  CreatePromptRequest, 
+  UpdatePromptRequest, 
+  SearchQuery,
+  PinnedPrompt,
+  PinPromptRequest,
+  UnpinPromptRequest,
+  CopyPinnedPromptRequest
+} from '../types'
 import { logger, isTauriEnvironment } from '../utils'
 
 /**
@@ -51,12 +60,14 @@ class ApiError extends Error {
  * @template T - レスポンスデータの型
  * @param command - Tauriコマンド名
  * @param args - コマンド引数
+ * @param signal - AbortSignal for request cancellation
  * @returns コマンド実行結果
  * @throws {ApiError} コマンド実行エラー時
  */
 async function invokeCommand<T>(
   command: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<T> {
   // Tauri環境でない場合は適切なエラーメッセージを表示
   if (!isTauriEnvironment()) {
@@ -74,7 +85,17 @@ async function invokeCommand<T>(
   }
 
   try {
+    // Check for cancellation before making the request
+    if (signal?.aborted) {
+      throw new Error('Request was cancelled')
+    }
+
     const response = await invoke<TauriResponse<T>>(command, args)
+    
+    // Check for cancellation after the request
+    if (signal?.aborted) {
+      throw new Error('Request was cancelled')
+    }
     
     if (!response.success) {
       throw new Error('Command execution failed')
@@ -155,10 +176,11 @@ function transformPromptFromDatabase(rawPrompt: RawPrompt): Prompt {
 export const promptsApi = {
   /**
    * 全てのプロンプトを取得
+   * @param signal - AbortSignal for request cancellation
    * @returns プロンプトの配列
    */
-  async getAll(): Promise<Prompt[]> {
-    const rawPrompts = await invokeCommand<RawPrompt[]>('get_all_prompts')
+  async getAll(signal?: AbortSignal): Promise<Prompt[]> {
+    const rawPrompts = await invokeCommand<RawPrompt[]>('get_all_prompts', undefined, signal)
     return rawPrompts.map(transformPromptFromDatabase)
   },
 
@@ -231,6 +253,74 @@ export const promptsApi = {
     const searchQuery = query.q || ''
     const rawPrompts = await invokeCommand<RawPrompt[]>('search_prompts', { query: searchQuery })
     return rawPrompts.map(transformPromptFromDatabase)
+  },
+}
+
+/**
+ * ピン留めプロンプト関連のAPI呼び出し関数群
+ * ピン留め、解除、取得、コピー機能を提供
+ * 
+ * @example
+ * ```typescript
+ * // プロンプトをピン留め
+ * await pinnedPromptsApi.pin({ prompt_id: 'abc123', position: 1 })
+ * 
+ * // ピン留め解除
+ * await pinnedPromptsApi.unpin({ position: 1 })
+ * 
+ * // ピン留めプロンプト一覧取得
+ * const pinned = await pinnedPromptsApi.getAll()
+ * ```
+ */
+export const pinnedPromptsApi = {
+  /**
+   * プロンプトを指定位置にピン留めする
+   * @param request - ピン留めリクエストデータ
+   * @returns 成功メッセージ
+   * @throws {ApiError} ピン留め失敗時
+   */
+  async pin(request: PinPromptRequest): Promise<string> {
+    return invokeCommand<string>('pin_prompt', { 
+      promptId: request.prompt_id, 
+      position: request.position 
+    })
+  },
+
+  /**
+   * 指定位置のピン留めを解除する
+   * @param request - ピン留め解除リクエストデータ
+   * @returns 成功メッセージ
+   * @throws {ApiError} ピン留め解除失敗時
+   */
+  async unpin(request: UnpinPromptRequest): Promise<string> {
+    return invokeCommand<string>('unpin_prompt', { position: request.position })
+  },
+
+  /**
+   * ピン留めされた全プロンプトを取得
+   * @param signal - AbortSignal for request cancellation
+   * @returns ピン留めプロンプトの配列（位置順にソート済み）
+   * @throws {ApiError} 取得失敗時
+   */
+  async getAll(signal?: AbortSignal): Promise<PinnedPrompt[]> {
+    const prompts = await invokeCommand<Prompt[]>('get_pinned_prompts', undefined, signal)
+    // Promptの配列をPinnedPromptの配列に変換
+    // バックエンドから実際のposition情報を使用
+    return prompts.map((prompt) => ({
+      ...prompt,
+      position: prompt.pinned_position || 1, // バックエンドのpinned_positionフィールドを使用
+      pinned_at: prompt.pinned_at || new Date().toISOString() // バックエンドのpinned_atフィールドを使用
+    }))
+  },
+
+  /**
+   * 指定位置のピン留めプロンプトをクリップボードにコピー
+   * @param request - コピーリクエストデータ
+   * @returns 成功メッセージ
+   * @throws {ApiError} コピー失敗時
+   */
+  async copyToClipboard(request: CopyPinnedPromptRequest): Promise<string> {
+    return invokeCommand<string>('copy_pinned_prompt', { position: request.position })
   },
 }
 

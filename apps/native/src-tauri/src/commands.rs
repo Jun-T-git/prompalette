@@ -10,6 +10,10 @@ use crate::database::{
     search_prompts as db_search_prompts,
     search_prompts_fast as db_search_prompts_fast,
     update_prompt as db_update_prompt,
+    pin_prompt as db_pin_prompt,
+    unpin_prompt as db_unpin_prompt,
+    get_pinned_prompts as db_get_pinned_prompts,
+    get_pinned_prompt_content as db_get_pinned_prompt_content,
     CreatePromptRequest,
     Prompt,
     UpdatePromptRequest,
@@ -189,6 +193,163 @@ pub async fn get_app_info() -> Result<SuccessResponse<serde_json::Value>, ErrorR
         success: true,
         data: info,
     })
+}
+
+/// プロンプトをピン留めするコマンド
+/// 
+/// prompt_id: ピン留めするプロンプトのID
+/// position: ピン留め位置（1-10）
+#[tauri::command]
+pub async fn pin_prompt(promptId: String, position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+    // 入力値検証
+    if promptId.trim().is_empty() {
+        return Err(ErrorResponse {
+            error: "Prompt ID cannot be empty".to_string(),
+        });
+    }
+    
+    if position < 1 || position > 10 {
+        return Err(ErrorResponse {
+            error: "Pin position must be between 1 and 10".to_string(),
+        });
+    }
+    
+    match db_pin_prompt(&promptId, position).await {
+        Ok(_) => Ok(SuccessResponse {
+            success: true,
+            data: format!("Prompt pinned to position {}", position),
+        }),
+        Err(e) => Err(ErrorResponse {
+            error: format!("Failed to pin prompt: {}", e),
+        }),
+    }
+}
+
+/// プロンプトのピン留めを解除するコマンド
+/// 
+/// position: 解除するピン留め位置（1-10）
+#[tauri::command]
+pub async fn unpin_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+    // 入力値検証
+    if position < 1 || position > 10 {
+        return Err(ErrorResponse {
+            error: "Pin position must be between 1 and 10".to_string(),
+        });
+    }
+    
+    match db_unpin_prompt(position).await {
+        Ok(_) => Ok(SuccessResponse {
+            success: true,
+            data: format!("Prompt unpinned from position {}", position),
+        }),
+        Err(e) => Err(ErrorResponse {
+            error: format!("Failed to unpin prompt: {}", e),
+        }),
+    }
+}
+
+/// ピン留めされたプロンプトを全て取得するコマンド
+#[tauri::command]
+pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    match db_get_pinned_prompts().await {
+        Ok(prompts) => Ok(SuccessResponse {
+            success: true,
+            data: prompts,
+        }),
+        Err(e) => Err(ErrorResponse {
+            error: format!("Failed to get pinned prompts: {}", e),
+        }),
+    }
+}
+
+/// 指定されたピン留め位置のプロンプトをクリップボードにコピーするコマンド
+/// 
+/// position: コピーするピン留め位置（1-10）
+#[tauri::command]
+pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+    // 入力値検証
+    if position < 1 || position > 10 {
+        return Err(ErrorResponse {
+            error: "Pin position must be between 1 and 10".to_string(),
+        });
+    }
+    
+    match db_get_pinned_prompt_content(position).await {
+        Ok(Some(content)) => {
+            // クリップボードにコピー（プラットフォーム別対応）
+            let copy_result = if cfg!(target_os = "macos") {
+                // macOS: pbcopy
+                std::process::Command::new("pbcopy")
+                    .stdin(std::process::Stdio::piped())
+                    .spawn()
+                    .and_then(|mut child| {
+                        if let Some(stdin) = child.stdin.as_mut() {
+                            use std::io::Write;
+                            stdin.write_all(content.as_bytes())?;
+                        }
+                        child.wait()
+                    })
+                    .map(|status| status.success())
+                    .unwrap_or(false)
+            } else if cfg!(target_os = "windows") {
+                // Windows: clip
+                std::process::Command::new("cmd")
+                    .args(["/C", "echo", &content, "|", "clip"])
+                    .output()
+                    .map(|output| output.status.success())
+                    .unwrap_or(false)
+            } else {
+                // Linux: xclip または xsel を試行
+                std::process::Command::new("xclip")
+                    .args(["-selection", "clipboard"])
+                    .stdin(std::process::Stdio::piped())
+                    .spawn()
+                    .and_then(|mut child| {
+                        if let Some(stdin) = child.stdin.as_mut() {
+                            use std::io::Write;
+                            stdin.write_all(content.as_bytes())?;
+                        }
+                        child.wait()
+                    })
+                    .map(|status| status.success())
+                    .unwrap_or_else(|_| {
+                        // xclip が失敗した場合は xsel を試行
+                        std::process::Command::new("xsel")
+                            .args(["--clipboard", "--input"])
+                            .stdin(std::process::Stdio::piped())
+                            .spawn()
+                            .and_then(|mut child| {
+                                if let Some(stdin) = child.stdin.as_mut() {
+                                    use std::io::Write;
+                                    stdin.write_all(content.as_bytes())?;
+                                }
+                                child.wait()
+                            })
+                            .map(|status| status.success())
+                            .unwrap_or(false)
+                    })
+            };
+            
+            if copy_result {
+                Ok(SuccessResponse {
+                    success: true,
+                    data: format!("Prompt from position {} copied to clipboard", position),
+                })
+            } else {
+                // クリップボード操作に失敗した場合は内容を返す
+                Ok(SuccessResponse {
+                    success: true,
+                    data: format!("Clipboard operation failed. Content: {}", content),
+                })
+            }
+        }
+        Ok(None) => Err(ErrorResponse {
+            error: format!("No prompt found at pin position {}", position),
+        }),
+        Err(e) => Err(ErrorResponse {
+            error: format!("Failed to get pinned prompt: {}", e),
+        }),
+    }
 }
 
 #[cfg(test)]

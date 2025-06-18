@@ -5,6 +5,9 @@ import { promptsApi } from '../services'
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest, SearchQuery } from '../types'
 import { logger } from '../utils'
 
+// 操作ロック管理用のマップ（操作タイプごとにロック）
+const operationLocks = new Map<string, boolean>()
+
 /**
  * プロンプト管理のグローバル状態インターフェース
  * Zustandストアで管理されるアプリケーション状態とアクションを定義
@@ -59,7 +62,7 @@ interface PromptState {
   searchPrompts: (query: SearchQuery) => Promise<void>
   
   /** 全プロンプトを読み込み */
-  loadPrompts: () => Promise<void>
+  loadPrompts: (signal?: AbortSignal) => Promise<void>
 }
 
 /**
@@ -107,6 +110,13 @@ export const usePromptStore = create<PromptState>()(
        * 新しいプロンプトを作成
        */
       createPrompt: async (request) => {
+        const lockKey = 'create'
+        if (operationLocks.get(lockKey)) {
+          logger.warn('Create operation already in progress')
+          return
+        }
+        
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Creating prompt:', request)
@@ -120,6 +130,8 @@ export const usePromptStore = create<PromptState>()(
         } catch (error) {
           logger.error('Failed to create prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+        } finally {
+          operationLocks.set(lockKey, false)
         }
       },
 
@@ -127,6 +139,13 @@ export const usePromptStore = create<PromptState>()(
        * 既存プロンプトを更新
        */
       updatePrompt: async (request) => {
+        const lockKey = `update_${request.id}`
+        if (operationLocks.get(lockKey)) {
+          logger.warn(`Update operation already in progress for prompt ${request.id}`)
+          return
+        }
+        
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Updating prompt:', request)
@@ -145,6 +164,8 @@ export const usePromptStore = create<PromptState>()(
         } catch (error) {
           logger.error('Failed to update prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+        } finally {
+          operationLocks.set(lockKey, false)
         }
       },
 
@@ -152,6 +173,13 @@ export const usePromptStore = create<PromptState>()(
        * 指定したプロンプトを削除
        */
       deletePrompt: async (id) => {
+        const lockKey = `delete_${id}`
+        if (operationLocks.get(lockKey)) {
+          logger.warn(`Delete operation already in progress for prompt ${id}`)
+          return
+        }
+        
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Deleting prompt:', id)
@@ -170,6 +198,8 @@ export const usePromptStore = create<PromptState>()(
         } catch (error) {
           logger.error('Failed to delete prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+        } finally {
+          operationLocks.set(lockKey, false)
         }
       },
 
@@ -177,6 +207,13 @@ export const usePromptStore = create<PromptState>()(
        * 条件を指定してプロンプトを検索
        */
       searchPrompts: async (query) => {
+        const lockKey = 'search'
+        if (operationLocks.get(lockKey)) {
+          logger.warn('Search operation already in progress')
+          return
+        }
+        
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Searching prompts:', query)
@@ -189,25 +226,47 @@ export const usePromptStore = create<PromptState>()(
         } catch (error) {
           logger.error('Failed to search prompts:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+        } finally {
+          operationLocks.set(lockKey, false)
         }
       },
 
       /**
        * 全プロンプトをサーバーから読み込み
        */
-      loadPrompts: async () => {
+      loadPrompts: async (signal?: AbortSignal) => {
+        const lockKey = 'load'
+        if (operationLocks.get(lockKey)) {
+          logger.warn('Load operation already in progress')
+          return
+        }
+        
+        operationLocks.set(lockKey, true)
         set({ isLoading: true, error: null })
         try {
           logger.debug('Loading prompts from database')
-          const prompts = await promptsApi.getAll()
+          const prompts = await promptsApi.getAll(signal)
+          
+          // Check for cancellation after API call
+          if (signal?.aborted) {
+            logger.debug('Load prompts operation was cancelled')
+            return
+          }
+          
           set({ 
             prompts,
             isLoading: false 
           })
           logger.info(`Loaded ${prompts.length} prompts from database`)
         } catch (error) {
+          if (signal?.aborted) {
+            logger.debug('Load prompts operation was cancelled')
+            return
+          }
           logger.error('Failed to load prompts:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+        } finally {
+          operationLocks.set(lockKey, false)
         }
       },
     }),

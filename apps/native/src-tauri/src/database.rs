@@ -19,6 +19,8 @@ pub struct Prompt {
     pub tags: Option<String>, // JSON文字列として保存
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub pinned_position: Option<u8>, // ピン留め位置 (1-10)
+    pub pinned_at: Option<chrono::DateTime<chrono::Utc>>, // ピン留め日時
 }
 
 /// プロンプト作成リクエスト
@@ -114,13 +116,18 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
             content TEXT NOT NULL,
             tags TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            pinned_position INTEGER,
+            pinned_at DATETIME
         );
         "#,
     )
     .execute(pool)
     .await
     .map_err(|e| format!("Failed to create prompts table: {}", e))?;
+    
+    // 既存テーブルにピン関連カラムを追加（マイグレーション）
+    run_migrations(pool).await?;
     
     // インデックス作成（パフォーマンス最適化）
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_prompts_updated ON prompts(updated_at);")
@@ -129,6 +136,28 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_prompts_title ON prompts(title);")
         .execute(pool)
         .await?;
+    sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_pinned_position ON prompts(pinned_position) WHERE pinned_position IS NOT NULL;")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_prompts_pinned_at ON prompts(pinned_at) WHERE pinned_at IS NOT NULL;")
+        .execute(pool)
+        .await?;
+    
+    Ok(())
+}
+
+/// データベースマイグレーション実行
+/// 既存のテーブルにピン関連カラムを追加
+async fn run_migrations(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    // pinned_positionカラムの追加
+    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_position INTEGER;")
+        .execute(pool)
+        .await; // エラーは無視（既に存在する場合）
+    
+    // pinned_atカラムの追加
+    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_at DATETIME;")
+        .execute(pool)
+        .await; // エラーは無視（既に存在する場合）
     
     Ok(())
 }
@@ -153,8 +182,8 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     
     let prompt = sqlx::query_as::<_, Prompt>(
         r#"
-        INSERT INTO prompts (id, title, content, tags, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO prompts (id, title, content, tags, created_at, updated_at, pinned_position, pinned_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)
         RETURNING *
         "#,
     )
@@ -323,6 +352,115 @@ pub async fn delete_prompt(id: &str) -> Result<bool, Box<dyn std::error::Error>>
     Ok(result.rows_affected() > 0)
 }
 
+/// プロンプトをピン留めする
+/// 
+/// position: 1-10の範囲でピン留め位置を指定
+/// 既に同じ位置にピン留めされているプロンプトがある場合は、そのピン留めを解除
+pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std::error::Error>> {
+    if position < 1 || position > 10 {
+        return Err("Pin position must be between 1 and 10".into());
+    }
+    
+    let pool = get_db_pool();
+    let now = chrono::Utc::now();
+    
+    // プロンプトが存在するかチェック
+    let existing = get_prompt(prompt_id).await?;
+    if existing.is_none() {
+        return Err("Prompt not found".into());
+    }
+    
+    // トランザクション開始
+    let mut tx = pool.begin().await?;
+    
+    // 同じ位置にピン留めされているプロンプトのピン留めを解除
+    sqlx::query(
+        "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
+    )
+    .bind(position as i32)
+    .execute(&mut *tx)
+    .await?;
+    
+    // 指定されたプロンプトをピン留め
+    let result = sqlx::query(
+        "UPDATE prompts SET pinned_position = $1, pinned_at = $2 WHERE id = $3"
+    )
+    .bind(position as i32)
+    .bind(now)
+    .bind(prompt_id)
+    .execute(&mut *tx)
+    .await?;
+    
+    if result.rows_affected() == 0 {
+        return Err("Failed to pin prompt".into());
+    }
+    
+    // トランザクション確定
+    tx.commit().await?;
+    
+    Ok(())
+}
+
+/// プロンプトのピン留めを解除する
+/// 
+/// position: 解除するピン留め位置（1-10）
+pub async fn unpin_prompt(position: u8) -> Result<(), Box<dyn std::error::Error>> {
+    if position < 1 || position > 10 {
+        return Err("Pin position must be between 1 and 10".into());
+    }
+    
+    let pool = get_db_pool();
+    
+    let result = sqlx::query(
+        "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
+    )
+    .bind(position as i32)
+    .execute(pool)
+    .await?;
+    
+    if result.rows_affected() == 0 {
+        return Err("No prompt found at the specified pin position".into());
+    }
+    
+    Ok(())
+}
+
+/// ピン留めされたプロンプトを全て取得する
+/// 
+/// ピン留め位置の昇順で返す（1, 2, 3, ...）
+pub async fn get_pinned_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
+    let pool = get_db_pool();
+    
+    let prompts = sqlx::query_as::<_, Prompt>(
+        "SELECT * FROM prompts WHERE pinned_position IS NOT NULL ORDER BY pinned_position ASC"
+    )
+    .fetch_all(pool)
+    .await?;
+    
+    Ok(prompts)
+}
+
+/// 指定されたピン留め位置のプロンプトをクリップボードにコピーする
+/// 
+/// position: コピーするピン留め位置（1-10）
+/// プロンプトの内容をクリップボードにコピーし、成功/失敗を返す
+pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    if position < 1 || position > 10 {
+        return Err("Pin position must be between 1 and 10".into());
+    }
+    
+    let pool = get_db_pool();
+    
+    let prompt: Option<(String,)> = sqlx::query_as(
+        "SELECT content FROM prompts WHERE pinned_position = $1"
+    )
+    .bind(position as i32)
+    .fetch_optional(pool)
+    .await?;
+    
+    Ok(prompt.map(|(content,)| content))
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -342,7 +480,9 @@ mod tests {
                 content TEXT NOT NULL,
                 tags TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                pinned_position INTEGER,
+                pinned_at DATETIME
             );
             "#,
         )
@@ -475,5 +615,117 @@ mod tests {
         
         // 結果が20件に制限されることを確認
         assert_eq!(count.0, 20);
+    }
+
+    #[tokio::test]
+    async fn test_pin_prompt_functionality() {
+        let pool = create_test_pool().await;
+        
+        // テストプロンプトを作成
+        let prompt_id = "test_pin_prompt";
+        sqlx::query(
+            "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
+        )
+        .bind(prompt_id)
+        .bind("Test Pin Title")
+        .bind("Test pin content")
+        .bind("[]")
+        .execute(&pool)
+        .await
+        .unwrap();
+        
+        // ピン留め機能をテスト（位置1）
+        let result: (Option<i32>, Option<String>) = sqlx::query_as(
+            "UPDATE prompts SET pinned_position = $1, pinned_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING pinned_position, pinned_at"
+        )
+        .bind(1)
+        .bind(prompt_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(result.0, Some(1));
+        assert!(result.1.is_some()); // pinned_at が設定されていることを確認
+        
+        // ピン留めされたプロンプトを取得
+        let pinned_prompts: Vec<(String, i32)> = sqlx::query_as(
+            "SELECT id, pinned_position FROM prompts WHERE pinned_position IS NOT NULL ORDER BY pinned_position"
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(pinned_prompts.len(), 1);
+        assert_eq!(pinned_prompts[0].0, prompt_id);
+        assert_eq!(pinned_prompts[0].1, 1);
+        
+        // ピン留め解除をテスト
+        let unpin_result = sqlx::query(
+            "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
+        )
+        .bind(1)
+        .execute(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(unpin_result.rows_affected(), 1);
+        
+        // ピン留めが解除されていることを確認
+        let pinned_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM prompts WHERE pinned_position IS NOT NULL"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(pinned_count.0, 0);
+    }
+
+    #[tokio::test]
+    async fn test_unique_pin_position_constraint() {
+        let pool = create_test_pool().await;
+        
+        // ユニークインデックスを作成
+        sqlx::query("CREATE UNIQUE INDEX idx_prompts_pinned_position_test ON prompts(pinned_position) WHERE pinned_position IS NOT NULL;")
+            .execute(&pool)
+            .await
+            .unwrap();
+        
+        // 2つのプロンプトを作成
+        for i in 1..=2 {
+            let prompt_id = format!("test_prompt_{}", i);
+            sqlx::query(
+                "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
+            )
+            .bind(&prompt_id)
+            .bind(&format!("Test Title {}", i))
+            .bind(&format!("Test content {}", i))
+            .bind("[]")
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        
+        // 最初のプロンプトをピン留め
+        sqlx::query(
+            "UPDATE prompts SET pinned_position = $1, pinned_at = CURRENT_TIMESTAMP WHERE id = $2"
+        )
+        .bind(1)
+        .bind("test_prompt_1")
+        .execute(&pool)
+        .await
+        .unwrap();
+        
+        // 同じ位置に2番目のプロンプトをピン留めしようとするとエラーになることを確認
+        let second_pin_result = sqlx::query(
+            "UPDATE prompts SET pinned_position = $1, pinned_at = CURRENT_TIMESTAMP WHERE id = $2"
+        )
+        .bind(1)
+        .bind("test_prompt_2")
+        .execute(&pool)
+        .await;
+        
+        // SQLite UNIQUE制約違反が発生することを確認
+        assert!(second_pin_result.is_err());
     }
 }
