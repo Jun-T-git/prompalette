@@ -1,0 +1,62 @@
+name: Auto PR to Next Stage
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+
+jobs:
+  create-pr-to-staging:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Create PR from develop to staging
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if PR already exists
+          existing_pr=$(gh pr list --base staging --head develop --json number --jq '.[0].number')
+          
+          if [ "$existing_pr" = "null" ] || [ -z "$existing_pr" ]; then
+            gh pr create \
+              --base staging \
+              --head develop \
+              --title "chore: develop → staging 自動PR" \
+              --body "developブランチの変更をstagingブランチへ自動同期"
+            echo "Created PR from develop to staging"
+          else
+            echo "PR from develop to staging already exists (#$existing_pr)"
+          fi
+
+  create-pr-to-main:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Create PR from staging to main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if PR already exists
+          existing_pr=$(gh pr list --base main --head staging --json number --jq '.[0].number')
+          
+          if [ "$existing_pr" = "null" ] || [ -z "$existing_pr" ]; then
+            gh pr create \
+              --base main \
+              --head staging \
+              --title "chore: staging → main 自動PR" \
+              --body "stagingブランチの変更をmainブランチへ自動同期"
+            echo "Created PR from staging to main"
+          else
+            echo "PR from staging to main already exists (#$existing_pr)"
+          fi
