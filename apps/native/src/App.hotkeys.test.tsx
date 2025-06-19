@@ -47,6 +47,7 @@ vi.mock('./hooks', () => ({
     handlePromptSelectEnter: vi.fn(),
     handlePromptSelect: vi.fn(),
     resetSelection: vi.fn(),
+    setSelectedIndexKeyboard: vi.fn(),
   })),
   usePromptSearch: vi.fn(() => ({
     results: [],
@@ -65,6 +66,20 @@ vi.mock('./hooks', () => ({
     completion: '',
     fullText: '',
     type: null
+  })),
+  useSimpleKeyboard: vi.fn(() => ({
+    isReady: true,
+    currentContext: 'global',
+    userLevel: 'intermediate',
+    platform: 'darwin',
+    announce: vi.fn(),
+    setFocus: vi.fn(),
+    setContext: vi.fn(),
+    setUserLevel: vi.fn(),
+    setEnabled: vi.fn(),
+    executeShortcut: vi.fn(),
+    trapFocus: vi.fn(() => () => {}),
+    getDebugInfo: vi.fn(() => ({})),
   })),
 }));
 

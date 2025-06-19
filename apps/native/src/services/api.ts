@@ -307,13 +307,30 @@ export const pinnedPromptsApi = {
    */
   async getAll(signal?: AbortSignal): Promise<PinnedPrompt[]> {
     const prompts = await invokeCommand<Prompt[]>('get_pinned_prompts', undefined, signal)
+    
+    // デバッグ: バックエンドから返される生データを確認
+    console.log('Raw pinned prompts from backend:', prompts)
+    prompts.forEach((prompt, index) => {
+      console.log(`Prompt ${index}:`, {
+        id: prompt.id,
+        title: prompt.title,
+        pinned_position: prompt.pinned_position,
+        pinned_at: prompt.pinned_at
+      })
+    })
+    
     // Promptの配列をPinnedPromptの配列に変換
     // バックエンドから実際のposition情報を使用
-    return prompts.map((prompt) => ({
-      ...prompt,
-      position: prompt.pinned_position || 1, // バックエンドのpinned_positionフィールドを使用
-      pinned_at: prompt.pinned_at || new Date().toISOString() // バックエンドのpinned_atフィールドを使用
-    }))
+    const result = prompts
+      .filter(prompt => prompt.pinned_position != null) // pinned_positionがnullでないもののみ
+      .map((prompt) => ({
+        ...prompt,
+        position: prompt.pinned_position!, // 確実にnumberである
+        pinned_at: prompt.pinned_at || new Date().toISOString() // バックエンドのpinned_atフィールドを使用
+      }))
+    
+    console.log('Filtered and mapped pinned prompts:', result)
+    return result
   },
 
   /**

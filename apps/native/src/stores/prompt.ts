@@ -253,10 +253,19 @@ export const usePromptStore = create<PromptState>()(
             return
           }
           
+          console.log('=== PROMPT STORE DEBUG ===');
+          console.log('Loaded prompts from API:', prompts);
+          console.log('Prompts length:', prompts.length);
+          console.log('About to set prompts in store');
+          
           set({ 
             prompts,
             isLoading: false 
           })
+          
+          console.log('Store state after set:', get().prompts);
+          console.log('=== END PROMPT STORE DEBUG ===');
+          
           logger.info(`Loaded ${prompts.length} prompts from database`)
         } catch (error) {
           if (signal?.aborted) {

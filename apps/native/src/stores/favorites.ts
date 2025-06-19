@@ -244,12 +244,31 @@ export const useFavoritesStore = create<FavoritesState>()(
           }
           
           // 10個の位置配列を作成し、ピン留めされたプロンプトを適切な位置に配置
+          console.log('=== FAVORITES STORE DEBUG ===');
+          console.log('Loaded pinned prompts from API:', pinnedPrompts);
+          console.log('Number of pinned prompts:', pinnedPrompts.length);
+          
           const positionedPrompts = createEmptyPinnedPrompts()
-          pinnedPrompts.forEach(prompt => {
+          console.log('Empty positioned prompts array:', positionedPrompts);
+          
+          pinnedPrompts.forEach((prompt, index) => {
+            console.log(`Processing prompt ${index}:`, {
+              title: prompt.title,
+              id: prompt.id,
+              position: prompt.position
+            });
+            
             if (prompt.position >= 1 && prompt.position <= 10) {
-              positionedPrompts[prompt.position - 1] = prompt
+              const arrayIndex = prompt.position - 1;
+              console.log(`Placing prompt "${prompt.title}" at array index ${arrayIndex} (position ${prompt.position})`);
+              positionedPrompts[arrayIndex] = prompt;
+            } else {
+              console.warn(`Invalid position ${prompt.position} for prompt "${prompt.title}"`);
             }
-          })
+          });
+          
+          console.log('Final positioned prompts array:', positionedPrompts);
+          console.log('=== END FAVORITES STORE DEBUG ===');
           
           set({ 
             pinnedPrompts: positionedPrompts,
