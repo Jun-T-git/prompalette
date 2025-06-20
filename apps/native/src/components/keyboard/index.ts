@@ -2,5 +2,4 @@
  * キーボード関連UIコンポーネント エクスポート
  */
 
-export * from './ShortcutDisplay';
-export * from './KeyboardHelpModal';
+// Currently no keyboard components to export

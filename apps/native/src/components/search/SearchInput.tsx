@@ -375,6 +375,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
         className="pl-10 pr-10"
+        data-search-input="true"
+        type="search"
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleSearchKeyDown}

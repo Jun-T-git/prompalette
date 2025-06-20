@@ -64,6 +64,7 @@ const shortcutCategories: ShortcutCategory[] = [
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+
   // モーダルが開いたときにフォーカスを設定
   useEffect(() => {
     if (isOpen && dialogRef.current) {

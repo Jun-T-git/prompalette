@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-import { useFormKeyboard } from '../../hooks'
 import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '../../types'
-import type { ShortcutActionMap } from '../../types/keyboard-v2'
 import { validatePromptTitle, validatePromptContent, validateTags, validateQuickAccessKey, parseTagsString } from '../../utils'
 import { Button, Input, Textarea } from '../common'
 
@@ -19,6 +17,8 @@ export function PromptForm({
   onCancel,
   isLoading = false,
 }: PromptFormProps) {
+  
+  
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
@@ -89,173 +89,22 @@ export function PromptForm({
   // 保存可能かどうかのチェック
   const canSave = Boolean(formData.title.trim() && formData.content.trim() && !isLoading)
 
-  // 保存して閉じる処理
-  const handleSaveAndClose = async () => {
-    const submitEvent = { preventDefault: () => {} } as React.FormEvent
-    await handleSubmit(submitEvent)
-  }
-
-  // フォーム用キーボードアクション定義
-  const keyboardActions: ShortcutActionMap = {
-    savePrompt: async () => {
-      if (canSave) {
-        const submitEvent = { preventDefault: () => {} } as React.FormEvent
-        await handleSubmit(submitEvent)
-      }
-    },
-    saveAndClose: async () => {
-      if (canSave) {
-        await handleSaveAndClose()
-      }
-    },
-    cancelEdit: () => {
-      onCancel()
-    },
-    closeDialog: () => {
-      onCancel()
-    },
-    confirmAction: async () => {
-      // フォーカスされている要素に応じて適切なアクションを実行
-      const activeElement = document.activeElement
-      if (activeElement?.getAttribute('type') === 'submit') {
-        if (canSave) {
-          const submitEvent = { preventDefault: () => {} } as React.FormEvent
-          await handleSubmit(submitEvent)
-        }
-      }
-    },
-    focusNextField: () => {
-      const currentElement = document.activeElement
-      const fields = [titleRef, contentRef, tagsRef, quickAccessKeyRef]
-      const currentIndex = fields.findIndex(ref => ref.current === currentElement)
-      
-      if (currentIndex >= 0 && currentIndex < fields.length - 1) {
-        const nextField = fields[currentIndex + 1]
-        if (nextField?.current) {
-          setFocus(nextField.current, true)
-        }
-      }
-    },
-    focusPrevField: () => {
-      const currentElement = document.activeElement
-      const fields = [titleRef, contentRef, tagsRef, quickAccessKeyRef]
-      const currentIndex = fields.findIndex(ref => ref.current === currentElement)
-      
-      if (currentIndex > 0) {
-        const prevField = fields[currentIndex - 1]
-        if (prevField?.current) {
-          setFocus(prevField.current, true)
-        }
-      }
-    },
-    indentText: () => {
-      if (contentRef.current && document.activeElement === contentRef.current) {
-        insertTextAtCursor(contentRef.current, '\t')
-      }
-    },
-    unindentText: () => {
-      if (contentRef.current && document.activeElement === contentRef.current) {
-        removeIndentAtCursor(contentRef.current)
-      }
-    }
-  }
-
-  // フォーム用キーボード管理
-  const { setFocus, announce } = useFormKeyboard(keyboardActions, {
-    userLevel: 'intermediate',
-    enabled: true,
-    debug: false
-  })
-
-  // テキストエリアでのインデント操作
-  const insertTextAtCursor = (textarea: HTMLTextAreaElement, text: string) => {
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const value = textarea.value
-
-    const newValue = value.substring(0, start) + text + value.substring(end)
-    textarea.value = newValue
-    
-    // React の状態を更新
-    handleInputChange('content', newValue)
-    
-    // カーソル位置を調整
-    const newCursorPos = start + text.length
-    textarea.setSelectionRange(newCursorPos, newCursorPos)
-    
-    // フォーカスを維持
-    textarea.focus()
-  }
-
-  const removeIndentAtCursor = (textarea: HTMLTextAreaElement) => {
-    const start = textarea.selectionStart
-    const value = textarea.value
-    const lineStart = value.lastIndexOf('\n', start - 1) + 1
-    const lineText = value.substring(lineStart, start)
-
-    let removedChars = 0
-    let newValue = value
-
-    if (lineText.startsWith('\t')) {
-      newValue = value.substring(0, lineStart) + value.substring(lineStart + 1)
-      removedChars = 1
-    } else if (lineText.startsWith('    ')) {
-      newValue = value.substring(0, lineStart) + value.substring(lineStart + 4)
-      removedChars = 4
-    } else if (lineText.startsWith('  ')) {
-      newValue = value.substring(0, lineStart) + value.substring(lineStart + 2)
-      removedChars = 2
-    } else if (lineText.startsWith(' ')) {
-      newValue = value.substring(0, lineStart) + value.substring(lineStart + 1)
-      removedChars = 1
-    }
-
-    if (removedChars > 0) {
-      textarea.value = newValue
-      handleInputChange('content', newValue)
-      
-      const newCursorPos = Math.max(lineStart, start - removedChars)
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-      textarea.focus()
-    }
-  }
-
-  // focusField関数を再定義
-  const focusField = (fieldName: 'title' | 'content' | 'tags' | 'quickAccessKey') => {
-    const fieldRef = {
-      title: titleRef,
-      content: contentRef,
-      tags: tagsRef,
-      quickAccessKey: quickAccessKeyRef
-    }[fieldName]
-    
-    if (fieldRef.current) {
-      setFocus(fieldRef.current, false)
-      
-      // textareaの場合は末尾にカーソル移動
-      if (fieldName === 'content' && fieldRef.current instanceof HTMLTextAreaElement) {
-        const length = fieldRef.current.value.length
-        fieldRef.current.setSelectionRange(length, length)
-      }
-    }
-  }
-
-  // 初期フォーカス設定
+  // 初期フォーカス設定（シンプル版）
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (initialData) {
+      if (initialData && contentRef.current) {
         // 編集時はコンテンツフィールドの末尾にフォーカス
-        focusField('content')
-        announce(`「${initialData.title}」の編集モードに入りました`)
-      } else {
+        contentRef.current.focus();
+        const length = contentRef.current.value.length;
+        contentRef.current.setSelectionRange(length, length);
+      } else if (!initialData && titleRef.current) {
         // 新規作成時はタイトルフィールドにフォーカス
-        focusField('title')
-        announce('新規プロンプト作成フォームが開きました')
+        titleRef.current.focus();
       }
-    }, 100)
+    }, 100);
 
-    return () => clearTimeout(timer)
-  }, [initialData, announce])
+    return () => clearTimeout(timer);
+  }, [initialData]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -335,10 +184,7 @@ export function PromptForm({
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              announce('編集をキャンセルしました')
-              onCancel()
-            }}
+            onClick={onCancel}
             disabled={isLoading}
             aria-label="編集をキャンセルしてフォームを閉じます。ショートカット: エスケープ"
           >

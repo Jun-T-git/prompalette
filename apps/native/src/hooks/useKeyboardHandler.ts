@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 
 import type { ShortcutRegistry } from '../commands/ShortcutRegistry';
-import { isEssentialShortcut, isInputElementTag } from '../constants/keyboard';
 import type { Modifier, ContextId } from '../types/keyboard.types';
 
 export interface KeyboardHandlerOptions {
@@ -35,30 +34,26 @@ export const useKeyboardHandler = (
       return true;
     }
 
-    const target = event.target as HTMLElement;
-    const isInputElement = isInputElementTag(target.tagName);
+    const modifiers = parseModifiers(event);
+    const activeContext = options.contextProvider?.activeContext || 'global';
+    const shortcut = registryRef.current.findShortcutByKey(
+      event.key,
+      modifiers,
+      activeContext
+    );
 
-    // In input elements, only allow essential shortcuts
-    if (isInputElement) {
-      const modifiers = parseModifiers(event);
-      const activeContext = options.contextProvider?.activeContext || 'global';
-      const shortcut = registryRef.current.findShortcutByKey(
-        event.key,
-        modifiers,
-        activeContext
-      );
-
-      // If no shortcut found or it's not essential, ignore the event
-      if (!shortcut || !isEssentialShortcut(shortcut.id)) {
-        return true;
-      }
+    // Only intervene for registered app shortcuts - let everything else be native
+    if (!shortcut) {
+      return true; // Let browser handle it natively
     }
-
-    return false;
+    
+    return false; // Let shortcut system handle it
   }, [options.isShortcutsBlocked, options.contextProvider, parseModifiers]);
 
   const handleKeyDown = useCallback(async (event: KeyboardEvent) => {
-    if (shouldIgnoreEvent(event)) {
+    const shouldIgnore = shouldIgnoreEvent(event);
+    
+    if (shouldIgnore) {
       return;
     }
 
@@ -91,7 +86,7 @@ export const useKeyboardHandler = (
       handleKeyDown(event);
     };
 
-    window.addEventListener('keydown', handleKeyDownEvent);
+    window.addEventListener('keydown', handleKeyDownEvent, { capture: false, passive: false });
 
     return () => {
       window.removeEventListener('keydown', handleKeyDownEvent);

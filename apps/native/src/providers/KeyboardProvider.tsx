@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useEffect } from 'react';
 
 import {
   NewPromptCommand,
@@ -18,16 +18,14 @@ import {
 } from '../commands/NavigationCommands';
 import { ShortcutRegistry } from '../commands/ShortcutRegistry';
 import { useIMEComposition } from '../hooks/useIMEComposition';
-import { useKeyboardContext } from '../hooks/useKeyboardContext';
 import { useKeyboardHandler } from '../hooks/useKeyboardHandler';
 import { AppActionAdapter, type AppStores } from '../services/AppActionAdapter';
 import type { ContextId, KeyboardShortcut } from '../types/keyboard.types';
+import { getKeyboardContextFromUI, logContextChange, type UIState } from '../utils/keyboardContext';
 
 interface KeyboardContextValue {
-  // Context management
+  // Context management (now derived from UI state)
   activeContext: ContextId;
-  pushContext: (context: ContextId) => void;
-  popContext: () => void;
   
   // IME composition
   isComposing: boolean;
@@ -46,18 +44,36 @@ const KeyboardContext = createContext<KeyboardContextValue | null>(null);
 interface KeyboardProviderProps {
   children: React.ReactNode;
   stores: AppStores;
+  // UI state for context derivation
+  uiState: UIState;
 }
 
 export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({ 
   children, 
-  stores 
+  stores,
+  uiState
 }) => {
-  // Initialize core hooks
-  const keyboardContext = useKeyboardContext();
+  // Derive context from UI state (Single Source of Truth)
+  const activeContext = useMemo(() => {
+    return getKeyboardContextFromUI(uiState);
+  }, [uiState]);
+  
+  // Debug logging for context changes
+  const previousContext = useRef<ContextId | null>(null);
+  useEffect(() => {
+    logContextChange(previousContext.current, activeContext, uiState);
+    previousContext.current = activeContext;
+  }, [activeContext, uiState]);
+  
   const imeComposition = useIMEComposition();
   
+  // Create simple context provider object for the adapter
+  const contextProvider = useMemo(() => ({
+    activeContext
+  }), [activeContext]);
+  
   // Create adapter and registry
-  const adapter = useMemo(() => new AppActionAdapter(stores, keyboardContext), [stores, keyboardContext]);
+  const adapter = useMemo(() => new AppActionAdapter(stores, contextProvider), [stores, contextProvider]);
   const registry = useMemo(() => {
     const reg = new ShortcutRegistry();
     
@@ -70,13 +86,11 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
   // Initialize keyboard handler
   useKeyboardHandler(registry, {
     isShortcutsBlocked: () => imeComposition.isShortcutsBlocked,
-    contextProvider: keyboardContext,
+    contextProvider,
   });
 
   const contextValue: KeyboardContextValue = {
-    activeContext: keyboardContext.activeContext,
-    pushContext: keyboardContext.pushContext,
-    popContext: keyboardContext.popContext,
+    activeContext,
     isComposing: imeComposition.isComposing,
     getCompositionProps: imeComposition.getCompositionProps,
     registry,
@@ -85,10 +99,10 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
   // Debug: expose keyboard context to window for E2E testing (development only)
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-      (window as unknown as Record<string, unknown>).__keyboardContext = keyboardContext.activeContext;
+      (window as unknown as Record<string, unknown>).__keyboardContext = activeContext;
       (window as unknown as Record<string, unknown>).__keyboardProvider = contextValue;
     }
-  }, [keyboardContext.activeContext, contextValue]);
+  }, [activeContext, contextValue]);
 
   return (
     <KeyboardContext.Provider value={contextValue}>

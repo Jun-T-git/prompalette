@@ -15,7 +15,9 @@ export const createRealAppStores = (
   searchQuery: string,
   // Navigation state
   filteredPrompts: Prompt[],
-  selectedPrompt: Prompt | null
+  selectedPrompt: Prompt | null,
+  // Focus management function
+  handleFormClose?: () => void
 ): AppStores => {
   return {
     promptStore: {
@@ -32,23 +34,29 @@ export const createRealAppStores = (
         }
       },
       navigateUp: () => {
-        if (!filteredPrompts || filteredPrompts.length === 0) return;
+        if (!filteredPrompts || filteredPrompts.length === 0) {
+          return;
+        }
         
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : 0;
         const newIndex = currentIndex > 0 ? currentIndex - 1 : filteredPrompts.length - 1;
         const newPrompt = filteredPrompts[newIndex];
+        
         if (newPrompt) {
           setSelectedPrompt(newPrompt);
         }
       },
       navigateDown: () => {
-        if (!filteredPrompts || filteredPrompts.length === 0) return;
+        if (!filteredPrompts || filteredPrompts.length === 0) {
+          return;
+        }
         
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : -1;
         const newIndex = currentIndex < filteredPrompts.length - 1 ? currentIndex + 1 : 0;
         const newPrompt = filteredPrompts[newIndex];
+        
         if (newPrompt) {
           setSelectedPrompt(newPrompt);
         }
@@ -141,6 +149,11 @@ export const createRealAppStores = (
         setShowEditForm(false);
         setShowHelpModal(false);
         setShowSettings(false);
+        
+        // Always trigger focus management when closing via keyboard - this is likely a form close
+        if (handleFormClose) {
+          handleFormClose();
+        }
       },
       hideWindow: async () => {
         // Hide window to background (keep app running)

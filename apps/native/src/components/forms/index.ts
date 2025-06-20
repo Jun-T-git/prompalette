@@ -2,4 +2,4 @@
  * フォーム関連コンポーネント エクスポート
  */
 
-export * from './AccessiblePromptForm';
+// Currently no forms to export
