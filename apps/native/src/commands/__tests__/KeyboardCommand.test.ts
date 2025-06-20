@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import type { KeyboardContext, CommandResult } from '../../types/keyboard.types';
-import { KeyboardCommand, BaseKeyboardCommand } from '../KeyboardCommand';
+import { BaseKeyboardCommand } from '../KeyboardCommand';
 
 describe('KeyboardCommand', () => {
   describe('BaseKeyboardCommand', () => {
@@ -26,7 +26,6 @@ describe('KeyboardCommand', () => {
 
     it('should execute when canExecute returns true', async () => {
       const command = new TestCommand();
-      const context: KeyboardContext = { id: 'list', priority: 1 };
 
       const result = await command.execute();
       expect(result.success).toBe(true);

@@ -109,7 +109,6 @@ test.describe('🛡️ Keyboard Regression Detection', () => {
     }
     
     // Record clipboard or look for copy indication
-    const beforeEnter = await page.evaluate(() => document.title);
     
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);

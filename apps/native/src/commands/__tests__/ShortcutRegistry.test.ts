@@ -152,7 +152,7 @@ describe('ShortcutRegistry', () => {
         },
       ];
 
-      shortcuts.forEach((shortcut, index) => {
+      shortcuts.forEach((shortcut, _index) => {
         const command = new MockCommand(
           shortcut.id,
           async () => ({ success: true }),

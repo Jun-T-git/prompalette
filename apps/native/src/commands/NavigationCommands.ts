@@ -83,7 +83,7 @@ export class ConfirmCommand extends BaseKeyboardCommand {
 }
 
 export class CancelCommand extends BaseKeyboardCommand {
-  private lastCancelledAction: any = null;
+  private lastCancelledAction: unknown = null;
 
   constructor(private cancel: CancelFunction) {
     super('cancel');

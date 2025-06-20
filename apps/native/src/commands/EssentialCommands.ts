@@ -37,7 +37,7 @@ export class SearchFocusCommand extends BaseKeyboardCommand {
 }
 
 export class SaveCommand extends BaseKeyboardCommand {
-  private lastSavedData: any = null;
+  private lastSavedData: unknown = null;
 
   constructor(private save: AppFunction) {
     super('save');

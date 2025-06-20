@@ -130,6 +130,7 @@ describe('App Keyboard Integration (Real Components)', () => {
     const mockSetSelectedPrompt = vi.fn();
     
     // Mock the store to capture setSelectedPrompt calls
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     vi.mocked(require('../../stores/prompt').usePromptStore).mockReturnValue({
       prompts: [
         { id: '1', title: 'Test Prompt 1', content: 'Content 1', tags: [] },

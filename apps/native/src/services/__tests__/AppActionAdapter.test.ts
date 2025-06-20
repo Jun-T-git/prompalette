@@ -16,6 +16,7 @@ const mockPromptStore = {
   selectFirst: vi.fn(),
   selectLast: vi.fn(),
   copySelectedPrompt: vi.fn(),
+  copySelectedPromptAndClose: vi.fn(),
 };
 
 const mockModalStore = {
@@ -23,6 +24,7 @@ const mockModalStore = {
   openSettings: vi.fn(),
   openNewPrompt: vi.fn(),
   closeModal: vi.fn(),
+  hideWindow: vi.fn(),
 };
 
 const mockSearchStore = {
@@ -112,12 +114,12 @@ describe('AppActionAdapter', () => {
       mockPromptStore.selectedPromptIndex = 1;
       
       await adapter.confirm();
-      expect(mockPromptStore.copySelectedPrompt).toHaveBeenCalled();
+      expect(mockPromptStore.copySelectedPromptAndClose).toHaveBeenCalled();
     });
 
     it('should handle cancel action', async () => {
       await adapter.cancel();
-      expect(mockModalStore.closeModal).toHaveBeenCalled();
+      expect(mockModalStore.hideWindow).toHaveBeenCalled();
     });
 
     it('should clear search when canceling with active search', async () => {

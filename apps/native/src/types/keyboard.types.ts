@@ -39,6 +39,6 @@ export interface KeyboardShortcut {
 
 export interface CommandResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }

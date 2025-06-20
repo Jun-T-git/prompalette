@@ -1,5 +1,6 @@
 import type { AppStores } from '../services/AppActionAdapter';
 import { usePromptStore } from '../stores/prompt';
+import type { Prompt } from '../types';
 
 // Real app store adapter that connects to actual Zustand stores
 export const createRealAppStores = (
@@ -8,13 +9,13 @@ export const createRealAppStores = (
   setShowEditForm: (show: boolean) => void,
   setShowHelpModal: (show: boolean) => void,
   setShowSettings: (show: boolean) => void,
-  setSelectedPrompt: (prompt: any) => void,
-  sidebarRef: React.RefObject<any>,
+  setSelectedPrompt: (prompt: Prompt | null) => void,
+  sidebarRef: React.RefObject<{ focusSearchInput: () => void }>,
   setSearchQuery: (query: string) => void,
   searchQuery: string,
   // Navigation state
-  filteredPrompts: any[],
-  selectedPrompt: any
+  filteredPrompts: Prompt[],
+  selectedPrompt: Prompt | null
 ): AppStores => {
   return {
     promptStore: {
@@ -36,7 +37,10 @@ export const createRealAppStores = (
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : 0;
         const newIndex = currentIndex > 0 ? currentIndex - 1 : filteredPrompts.length - 1;
-        setSelectedPrompt(filteredPrompts[newIndex]);
+        const newPrompt = filteredPrompts[newIndex];
+        if (newPrompt) {
+          setSelectedPrompt(newPrompt);
+        }
       },
       navigateDown: () => {
         if (!filteredPrompts || filteredPrompts.length === 0) return;
@@ -44,16 +48,25 @@ export const createRealAppStores = (
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : -1;
         const newIndex = currentIndex < filteredPrompts.length - 1 ? currentIndex + 1 : 0;
-        setSelectedPrompt(filteredPrompts[newIndex]);
+        const newPrompt = filteredPrompts[newIndex];
+        if (newPrompt) {
+          setSelectedPrompt(newPrompt);
+        }
       },
       selectFirst: () => {
         if (filteredPrompts && filteredPrompts.length > 0) {
-          setSelectedPrompt(filteredPrompts[0]);
+          const firstPrompt = filteredPrompts[0];
+          if (firstPrompt) {
+            setSelectedPrompt(firstPrompt);
+          }
         }
       },
       selectLast: () => {
         if (filteredPrompts && filteredPrompts.length > 0) {
-          setSelectedPrompt(filteredPrompts[filteredPrompts.length - 1]);
+          const lastPrompt = filteredPrompts[filteredPrompts.length - 1];
+          if (lastPrompt) {
+            setSelectedPrompt(lastPrompt);
+          }
         }
       },
       copySelectedPrompt: async () => {
@@ -84,6 +97,23 @@ export const createRealAppStores = (
             }
           } catch (error) {
             console.error('Failed to copy to clipboard:', error);
+            
+            // Log error for debugging (silent failure for better UX)
+            if (error instanceof Error) {
+              console.error('Clipboard copy failed:', error.message);
+              // TODO: Future enhancement - implement non-blocking toast notification
+            }
+            
+            // Still hide the window even if copy failed
+            if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+              try {
+                const { getCurrentWindow } = await import('@tauri-apps/api/window');
+                const appWindow = getCurrentWindow();
+                await appWindow.hide();
+              } catch (hideError) {
+                console.error('Failed to hide window after copy error:', hideError);
+              }
+            }
           }
         }
       },
@@ -102,7 +132,7 @@ export const createRealAppStores = (
       openNewPrompt: () => {
         setShowCreateForm(true);
       },
-      openEditPrompt: (prompt: any) => {
+      openEditPrompt: (prompt: Prompt) => {
         setSelectedPrompt(prompt);
         setShowEditForm(true);
       },

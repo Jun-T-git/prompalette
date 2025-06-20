@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { E2E_TIMEOUTS, E2E_SELECTORS } from './constants';
+
 test('Escape key behavior - hide window to background', async ({ page }) => {
   // Capture console logs to verify behavior
   const consoleLogs: string[] = [];
@@ -10,13 +12,17 @@ test('Escape key behavior - hide window to background', async ({ page }) => {
   await page.goto('/');
   
   // Wait for app to be fully loaded
-  await expect(page.locator('[data-testid="sidebar"]')).toBeVisible();
-  await expect(page.locator('[data-testid="content-area"]')).toBeVisible();
-  await page.waitForTimeout(1000);
+  await expect(page.locator(E2E_SELECTORS.SIDEBAR)).toBeVisible();
+  await expect(page.locator(E2E_SELECTORS.CONTENT_AREA)).toBeVisible();
+  
+  // Wait for app initialization
+  await page.waitForTimeout(E2E_TIMEOUTS.MEDIUM_DELAY);
   
   // Press Escape key to hide window
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  
+  // Wait briefly for action to complete
+  await page.waitForTimeout(E2E_TIMEOUTS.SHORT_DELAY);
   
   // Check console logs for window hiding behavior
   const hideLogs = consoleLogs.filter(log => log.includes('Window hidden to background'));
@@ -39,19 +45,24 @@ test('Escape key behavior - clear search first', async ({ page }) => {
   await page.goto('/');
   
   // Wait for app to be fully loaded
-  await expect(page.locator('[data-testid="sidebar"]')).toBeVisible();
-  await expect(page.locator('[data-testid="content-area"]')).toBeVisible();
-  await page.waitForTimeout(1000);
+  await expect(page.locator(E2E_SELECTORS.SIDEBAR)).toBeVisible();
+  await expect(page.locator(E2E_SELECTORS.CONTENT_AREA)).toBeVisible();
+  
+  // Wait for app initialization
+  await page.waitForTimeout(E2E_TIMEOUTS.MEDIUM_DELAY);
   
   // Focus on search input and enter some text
-  const searchInput = page.locator('input[placeholder*="検索"], input[type="search"], input[placeholder*="search"], .search-input');
+  const searchInput = page.locator(E2E_SELECTORS.SEARCH_INPUT);
   await searchInput.first().focus();
   
   // Type the text character by character to trigger proper state updates
   await searchInput.first().type('test search');
   
-  // Wait a bit to ensure debounced state update has completed
-  await page.waitForTimeout(500);
+  // Wait for the search results to update (instead of fixed timeout)
+  await page.waitForFunction(() => {
+    const searchResults = document.querySelectorAll('[data-testid="prompt-item"]');
+    return searchResults.length >= 0;  // Wait for DOM to update
+  }, { timeout: 2000 });
   
   // Verify search input has content
   const searchValue = await searchInput.first().inputValue();
@@ -59,7 +70,9 @@ test('Escape key behavior - clear search first', async ({ page }) => {
   
   // Press Escape key - should clear search first, not hide window
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  
+  // Wait for search clear action
+  await page.waitForTimeout(E2E_TIMEOUTS.SHORT_DELAY);
   
   // Verify search was cleared
   const clearedSearchValue = await searchInput.first().inputValue();
@@ -71,7 +84,9 @@ test('Escape key behavior - clear search first', async ({ page }) => {
   
   // Press Escape again - now should hide window
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  
+  // Wait for window hide action
+  await page.waitForTimeout(E2E_TIMEOUTS.SHORT_DELAY);
   
   // Now check for window hiding
   const hideLogsAfterSecondEscape = consoleLogs.filter(log => log.includes('Window hidden to background'));

@@ -7,6 +7,7 @@ import {
   ShowHelpCommand,
   ShowSettingsCommand
 } from '../commands/EssentialCommands';
+import type { KeyboardCommand } from '../commands/KeyboardCommand';
 import { 
   NavigateUpCommand, 
   NavigateDownCommand, 
@@ -81,11 +82,11 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
     registry,
   };
 
-  // Debug: expose keyboard context to window for E2E testing
+  // Debug: expose keyboard context to window for E2E testing (development only)
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).__keyboardContext = keyboardContext.activeContext;
-      (window as any).__keyboardProvider = contextValue;
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      (window as unknown as Record<string, unknown>).__keyboardContext = keyboardContext.activeContext;
+      (window as unknown as Record<string, unknown>).__keyboardProvider = contextValue;
     }
   }, [keyboardContext.activeContext, contextValue]);
 
@@ -106,7 +107,7 @@ export const useKeyboard = (): KeyboardContextValue => {
 
 // Helper function to register default shortcuts
 function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppActionAdapter) {
-  const shortcuts: Array<{ shortcut: KeyboardShortcut, command: any }> = [
+  const shortcuts: Array<{ shortcut: KeyboardShortcut, command: KeyboardCommand }> = [
     // Navigation shortcuts
     {
       shortcut: {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { useKeyboard } from '../providers/KeyboardProvider';
+import type { Modifier } from '../types/keyboard.types';
 
 // Debug panel to show real-time keyboard system status
 export const KeyboardDebugPanel: React.FC = () => {
@@ -20,7 +21,7 @@ export const KeyboardDebugPanel: React.FC = () => {
       setLastKeyEvent(keyDesc);
       
       // Check if shortcut exists
-      const shortcut = registry.findShortcutByKey(event.key, modifiers as any, activeContext);
+      const shortcut = registry.findShortcutByKey(event.key, modifiers as Modifier[], activeContext);
       console.log('🔧 Keyboard Debug:', {
         key: event.key,
         modifiers,
@@ -115,7 +116,7 @@ export const KeyboardDebugPanel: React.FC = () => {
         <strong>Shortcut Registry Test:</strong>
         <div style={{ fontSize: '11px', marginTop: '4px' }}>
           {testShortcuts.map(({ key, modifiers, expected }) => {
-            const found = registry.findShortcutByKey(key, modifiers as any, activeContext);
+            const found = registry.findShortcutByKey(key, modifiers as Modifier[], activeContext);
             const status = found?.id === expected ? '✅' : '❌';
             return (
               <div key={`${key}-${modifiers.join('+')}`} style={{ 

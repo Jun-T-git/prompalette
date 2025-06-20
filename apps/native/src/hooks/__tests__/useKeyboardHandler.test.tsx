@@ -1,7 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { NavigateUpCommand } from '../../commands/NavigationCommands';
 import { ShortcutRegistry } from '../../commands/ShortcutRegistry';
 import type { KeyboardShortcut } from '../../types/keyboard.types';
 import { useKeyboardHandler } from '../useKeyboardHandler';
@@ -12,7 +11,6 @@ const mockRegistry = {
   execute: vi.fn(),
 } as unknown as ShortcutRegistry;
 
-const mockNavigateUp = vi.fn();
 
 describe('useKeyboardHandler', () => {
   beforeEach(() => {

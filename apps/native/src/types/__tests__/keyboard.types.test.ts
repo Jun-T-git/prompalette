@@ -5,7 +5,6 @@ import type {
   KeyboardContext,
   ContextId,
   Modifier,
-  ActionType,
   CommandResult,
 } from '../keyboard.types';
 

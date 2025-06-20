@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { E2E_TIMEOUTS, E2E_SELECTORS } from './constants';
+
 test('Enter key behavior in list context', async ({ page }) => {
   // Capture console logs to verify behavior
   const consoleLogs: string[] = [];
@@ -10,12 +12,14 @@ test('Enter key behavior in list context', async ({ page }) => {
   await page.goto('/');
   
   // Wait for app to be fully loaded
-  await expect(page.locator('[data-testid="sidebar"]')).toBeVisible();
-  await expect(page.locator('[data-testid="content-area"]')).toBeVisible();
-  await page.waitForTimeout(1000);
+  await expect(page.locator(E2E_SELECTORS.SIDEBAR)).toBeVisible();
+  await expect(page.locator(E2E_SELECTORS.CONTENT_AREA)).toBeVisible();
+  
+  // Wait for prompts to load by checking the prompt list container
+  const promptList = page.locator(E2E_SELECTORS.PROMPT_LIST);
+  await expect(promptList).toBeVisible({ timeout: E2E_TIMEOUTS.PAGE_LOAD });
   
   // Click on prompt list to ensure we're in the list context
-  const promptList = page.locator('[data-testid="prompt-list"]');
   await promptList.click();
   
   // Verify that a prompt is selected 
@@ -24,7 +28,9 @@ test('Enter key behavior in list context', async ({ page }) => {
   
   // Press Enter key
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(500);
+  
+  // Wait for clipboard operation and window hide by checking console output
+  await page.waitForTimeout(E2E_TIMEOUTS.SHORT_DELAY);
   
   // Check console logs for copy and hide behavior
   const copyLogs = consoleLogs.filter(log => log.includes('Copied prompt:'));

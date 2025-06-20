@@ -1,6 +1,8 @@
+import type { Prompt } from '../types';
+
 export interface PromptStore {
   selectedPromptIndex: number;
-  filteredPrompts: Array<{ id: string; title: string; content: string }>;
+  filteredPrompts: Prompt[];
   selectPrompt: (index: number) => void;
   navigateUp: () => void;
   navigateDown: () => void;
@@ -15,7 +17,7 @@ export interface ModalStore {
   openHelp: () => void;
   openSettings: () => void;
   openNewPrompt: () => void;
-  openEditPrompt?: (prompt: any) => void;
+  openEditPrompt?: (prompt: Prompt) => void;
   closeModal: () => void;
   hideWindow: () => Promise<void>;
   hasOpenModal: () => boolean;

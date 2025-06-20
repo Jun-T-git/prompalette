@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 
 import type { ShortcutRegistry } from '../commands/ShortcutRegistry';
+import { isEssentialShortcut, isInputElementTag } from '../constants/keyboard';
 import type { Modifier, ContextId } from '../types/keyboard.types';
 
 export interface KeyboardHandlerOptions {
@@ -9,9 +10,6 @@ export interface KeyboardHandlerOptions {
     activeContext: ContextId;
   };
 }
-
-const ESSENTIAL_SHORTCUTS = ['search_focus', 'show_help', 'show_settings', 'cancel', 'navigate_up', 'navigate_down', 'confirm'];
-const INPUT_ELEMENTS = ['INPUT', 'TEXTAREA', 'SELECT'];
 
 export const useKeyboardHandler = (
   registry: ShortcutRegistry,
@@ -38,7 +36,7 @@ export const useKeyboardHandler = (
     }
 
     const target = event.target as HTMLElement;
-    const isInputElement = INPUT_ELEMENTS.includes(target.tagName);
+    const isInputElement = isInputElementTag(target.tagName);
 
     // In input elements, only allow essential shortcuts
     if (isInputElement) {
@@ -51,7 +49,7 @@ export const useKeyboardHandler = (
       );
 
       // If no shortcut found or it's not essential, ignore the event
-      if (!shortcut || !ESSENTIAL_SHORTCUTS.includes(shortcut.id)) {
+      if (!shortcut || !isEssentialShortcut(shortcut.id)) {
         return true;
       }
     }

@@ -14,9 +14,6 @@ const createMockStores = (): AppStores => {
   ];
 
   let selectedIndex = 0;
-  let isHelpOpen = false;
-  let isSettingsOpen = false;
-  let isNewPromptOpen = false;
   let searchQuery = '';
 
   return {

@@ -45,7 +45,7 @@ export class ShortcutRegistry {
     context: ContextId
   ): KeyboardShortcut | null {
     // First, look for shortcuts in the specific context
-    for (const [_, shortcut] of this.shortcuts) {
+    for (const shortcut of this.shortcuts.values()) {
       if (
         shortcut.key === key &&
         shortcut.context === context &&
@@ -56,7 +56,7 @@ export class ShortcutRegistry {
     }
     
     // If not found, look for global shortcuts (available in all contexts)
-    for (const [_, shortcut] of this.shortcuts) {
+    for (const shortcut of this.shortcuts.values()) {
       if (
         shortcut.key === key &&
         shortcut.context === 'global' &&
