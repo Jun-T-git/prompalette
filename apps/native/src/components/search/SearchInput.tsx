@@ -234,11 +234,16 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
       }
       
       if (e.key === 'Escape') {
-        e.preventDefault()
-        setShowSuggestions(false)
-        setSuggestionIndex(-1)
-        setActiveDropdown(null)
-        return
+        // Only prevent default if suggestions are visible
+        if (showSuggestions) {
+          e.preventDefault()
+          setShowSuggestions(false)
+          setSuggestionIndex(-1)
+          setActiveDropdown(null)
+          return
+        }
+        // If no suggestions visible, let the event propagate to global handler
+        // This allows the global Escape handler to clear search or hide window
       }
     }
 
@@ -256,9 +261,9 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
       }
       
       // 変換確定後のEnter: プロンプト選択実行
-      e.preventDefault()
-      e.stopPropagation()
       onPromptSelect?.()
+      // Note: Don't call e.preventDefault() or e.stopPropagation() here
+      // to allow the global keyboard handler to process the "confirm" action
       return
     }
 

@@ -2,6 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
 import './App.css';
+import { createRealAppStores } from './adapters/RealAppStoreAdapter';
 import type { AppSidebarRef } from './components';
 import {
   AppContentArea,
@@ -13,10 +14,34 @@ import {
   ToastProvider,
   useToast,
 } from './components';
-import { useKeyboardNavigation, usePromptSearch, useSimpleKeyboard } from './hooks';
+import { KeyboardDebugPanel } from './debug/KeyboardDebugPanel';
+import { usePromptSearch } from './hooks';
+import { KeyboardProvider, useKeyboard } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
+
+// Component to handle keyboard context switching
+const KeyboardContextManager: React.FC<{
+  showCreateForm: boolean;
+  showEditForm: boolean;
+  showHelpModal: boolean;
+  showSettings: boolean;
+}> = ({ showCreateForm, showEditForm, showHelpModal, showSettings }) => {
+  const { pushContext } = useKeyboard();
+  
+  useEffect(() => {
+    if (!showCreateForm && !showEditForm && !showHelpModal && !showSettings) {
+      pushContext('list');
+    } else if (showCreateForm || showEditForm) {
+      pushContext('form');
+    } else {
+      pushContext('modal');
+    }
+  }, [showCreateForm, showEditForm, showHelpModal, showSettings, pushContext]);
+  
+  return null;
+};
 
 function AppContent() {
   const {
@@ -177,12 +202,19 @@ function AppContent() {
     [setSelectedPrompt],
   );
 
-  // Keyboard navigation logic
-  const keyboardNav = useKeyboardNavigation({
+  // Create stores for new keyboard system
+  const keyboardStores = useMemo(() => createRealAppStores(
+    setShowCreateForm,
+    setShowEditForm,
+    setShowHelpModal,
+    setShowSettings,
+    setSelectedPrompt,
+    sidebarRef,
+    setSearchQuery,
+    searchQuery,
     filteredPrompts,
-    onPromptSelect: handlePromptSelect,
-    onCopyPrompt: handleCopyPrompt,
-  });
+    selectedPrompt
+  ), [searchQuery, filteredPrompts, selectedPrompt]);
 
 
 
@@ -198,7 +230,6 @@ function AppContent() {
           if (sidebarRef.current) {
             sidebarRef.current.selectSearchInput();
           }
-          keyboardNav.resetSelection();
         });
 
         unlistenShortcutFailed = await listen<string>('shortcut-registration-failed', (event) => {
@@ -315,119 +346,21 @@ function AppContent() {
     setShowEditForm(true);
   };
 
-  // 新しいキーボードシステム - 統一されたアクション定義
-  const keyboardActions = useMemo(() => ({
-    showHelp: () => {
-      setShowHelpModal(true);
+  // Simple keyboard navigation for compatibility
+  const keyboardNav = {
+    selectedIndexKeyboard: -1,
+    isComposing: false,
+    handleKeyDown: () => {},
+    setIsComposing: (_value: boolean) => {},
+    handlePromptSelectEnter: () => {
+      // Enter key handling is now managed by the new KeyboardProvider
+      // Do nothing here to avoid conflict
     },
-    openSettings: () => {
-      setShowSettings(true);
-    },
-    createNewPrompt: () => {
-      setShowCreateForm(true);
-    },
-    editPrompt: () => {
-      if (selectedPrompt) {
-        handleEditPrompt(selectedPrompt);
-      }
-    },
-    deletePrompt: () => {
-      if (selectedPrompt) {
-        handleDeletePrompt(selectedPrompt.id);
-      }
-    },
-    copyPrompt: () => {
-      if (selectedPrompt) {
-        handleCopyPrompt(selectedPrompt);
-      }
-    },
-    focusSearch: () => {
-      if (sidebarRef.current) {
-        sidebarRef.current.focusSearchInput();
-      }
-    },
-    selectQuickAccess: (_context: unknown, params?: Record<string, unknown>) => {
-      console.log('selectQuickAccess called with params:', params);
-      const slot = params?.slot as number;
-      console.log('Extracted slot:', slot);
-      if (slot) {
-        // 最新のpinnedPromptsを直接ストアから取得
-        const currentPinnedPrompts = useFavoritesStore.getState().pinnedPrompts;
-        console.log('Current pinned prompts from store:', currentPinnedPrompts);
-        
-        const pinnedPrompt = currentPinnedPrompts[slot - 1];
-        console.log('pinnedPrompt at position', slot - 1, ':', pinnedPrompt);
-        
-        if (pinnedPrompt) {
-          setSelectedPrompt(pinnedPrompt);
-        } else {
-          showToast(`位置${slot}にピン留めプロンプトがありません`, 'warning');
-        }
-      } else {
-        console.error('No valid slot parameter provided:', params);
-      }
-    },
-    selectNextPrompt: () => {
-      const currentFilteredPrompts = filteredPromptsRef.current;
-      console.log('selectNextPrompt called, filteredPrompts length:', currentFilteredPrompts.length);
-      console.log('prompts length:', prompts.length);
-      
-      if (currentFilteredPrompts.length > 0) {
-        const syntheticEvent = {
-          key: 'ArrowDown',
-          preventDefault: () => {},
-        } as React.KeyboardEvent<HTMLDivElement>;
-        keyboardNav.handleKeyDown(syntheticEvent);
-      }
-    },
-    selectPrevPrompt: () => {
-      const currentFilteredPrompts = filteredPromptsRef.current;
-      console.log('selectPrevPrompt called, filteredPrompts length:', currentFilteredPrompts.length);
-      console.log('prompts length:', prompts.length);
-      
-      if (currentFilteredPrompts.length > 0) {
-        const syntheticEvent = {
-          key: 'ArrowUp', 
-          preventDefault: () => {},
-        } as React.KeyboardEvent<HTMLDivElement>;
-        keyboardNav.handleKeyDown(syntheticEvent);
-      }
-    },
-    confirmAction: () => {
-      // Enterキーでプロンプト選択
-      keyboardNav.handlePromptSelectEnter();
-    },
-    closeDialog: () => {
-      // 各種モーダルを閉じる優先順位
-      if (showHelpModal) {
-        setShowHelpModal(false);
-      } else if (showCreateForm) {
-        setShowCreateForm(false);
-      } else if (showEditForm) {
-        setShowEditForm(false);
-        setSelectedPrompt(null);
-      } else if (showSettings) {
-        setShowSettings(false);
-      } else if (deleteConfirm.show) {
-        handleCancelDelete();
-      } else {
-        // 検索をクリア
-        if (searchQuery) {
-          setSearchQuery('');
-        }
-      }
-    }
-  }), [selectedPrompt, showHelpModal, showCreateForm, showEditForm, showSettings, deleteConfirm.show, searchQuery, handleEditPrompt, handleDeletePrompt, handleCopyPrompt, keyboardNav, sidebarRef, handleCancelDelete, prompts, setSelectedPrompt, showToast]);
+    handlePromptSelect: handlePromptSelect,
+    resetSelection: () => {},
+  };
 
-  // キーボードシステムを初期化（デバッグ有効）
-  const { getDebugInfo } = useSimpleKeyboard(keyboardActions, true);
-  
-  // デバッグ情報をコンソールに表示
-  useEffect(() => {
-    if (typeof getDebugInfo === 'function') {
-      console.log('Keyboard System Debug Info:', getDebugInfo());
-    }
-  }, [getDebugInfo]);
+  // New keyboard system is handled by KeyboardProvider
 
   // タグクリック時の検索処理
   const handleTagClick = useCallback((tag: string) => {
@@ -458,8 +391,6 @@ function AppContent() {
 
   // 検索クエリが変わったときのみ選択をリセット
   useEffect(() => {
-    keyboardNav.resetSelection();
-
     if (filteredPrompts.length > 0) {
       // 最初のプロンプトを自動選択
       const firstPrompt = filteredPrompts[0];
@@ -471,17 +402,6 @@ function AppContent() {
       setSelectedPrompt(null);
     }
   }, [searchQuery, filteredPrompts]);
-
-  // キーボード選択インデックスが変わったときにプレビュー更新
-  useEffect(() => {
-    const index = keyboardNav.selectedIndexKeyboard;
-    if (filteredPrompts.length > 0 && index >= 0 && index < filteredPrompts.length) {
-      const selectedPromptFromKeyboard = filteredPrompts[index];
-      if (selectedPromptFromKeyboard !== undefined) {
-        setSelectedPrompt(selectedPromptFromKeyboard);
-      }
-    }
-  }, [keyboardNav.selectedIndexKeyboard, filteredPrompts]);
 
   // 環境エラーがある場合は専用画面を表示
   if (environmentError) {
@@ -510,7 +430,14 @@ function AppContent() {
   }
 
   return (
-    <div className="app-layout bg-gray-50">
+    <KeyboardProvider stores={keyboardStores}>
+      <KeyboardContextManager 
+        showCreateForm={showCreateForm}
+        showEditForm={showEditForm}
+        showHelpModal={showHelpModal}
+        showSettings={showSettings}
+      />
+      <div className="app-layout bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 header-compact px-6 py-4">
         <div className="flex items-center justify-between">
@@ -583,8 +510,8 @@ function AppContent() {
           isComposing={keyboardNav.isComposing}
           onSearchFocusChange={() => {}}
           onKeyDown={keyboardNav.handleKeyDown}
-          onCompositionStart={keyboardNav.setIsComposing.bind(null, true)}
-          onCompositionEnd={keyboardNav.setIsComposing.bind(null, false)}
+          onCompositionStart={() => keyboardNav.setIsComposing(true)}
+          onCompositionEnd={() => keyboardNav.setIsComposing(false)}
           onPromptSelectEnter={keyboardNav.handlePromptSelectEnter}
           onPromptSelect={keyboardNav.handlePromptSelect}
           onCopyPrompt={handleCopyPrompt}
@@ -755,7 +682,9 @@ function AppContent() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      <KeyboardDebugPanel />
+    </KeyboardProvider>
   );
 }
 

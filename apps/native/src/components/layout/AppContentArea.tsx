@@ -182,7 +182,7 @@ export function AppContentArea({
   };
 
   return (
-    <div className="content-area bg-white">
+    <div className="content-area bg-white" data-testid="content-area">
       {error && (
         <div className="p-4 bg-red-50 border-b border-red-200">
           <div className="text-red-800">{error}</div>
@@ -190,7 +190,7 @@ export function AppContentArea({
       )}
 
       {showCreateForm ? (
-        <div className="p-6">
+        <div className="p-6" data-testid="create-form">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">新規プロンプト作成</h2>
           <PromptForm
             onSubmit={onCreatePrompt}
@@ -199,7 +199,7 @@ export function AppContentArea({
           />
         </div>
       ) : showEditForm && selectedPrompt ? (
-        <div className="p-6">
+        <div className="p-6" data-testid="edit-form">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">プロンプト編集</h2>
           <PromptForm
             initialData={selectedPrompt}

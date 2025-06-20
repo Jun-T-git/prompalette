@@ -12,6 +12,18 @@ import type {
 } from '../types'
 import { logger, isTauriEnvironment } from '../utils'
 
+import { mockPromptsApi, mockPinnedPromptsApi, mockHealthApi } from './mockApi'
+
+/**
+ * E2Eテスト環境かどうかを判定
+ */
+function isE2ETestEnvironment(): boolean {
+  return typeof window !== 'undefined' && 
+         window.location.hostname === 'localhost' && 
+         window.location.port === '1420' &&
+         !('__TAURI_INTERNALS__' in window)
+}
+
 /**
  * Tauri invoke関数を安全に取得
  */
@@ -182,6 +194,9 @@ export const promptsApi = {
    * @returns プロンプトの配列
    */
   async getAll(signal?: AbortSignal): Promise<Prompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.getAll()
+    }
     const rawPrompts = await invokeCommand<RawPrompt[]>('get_all_prompts', undefined, signal)
     return rawPrompts.map(transformPromptFromDatabase)
   },
@@ -193,6 +208,9 @@ export const promptsApi = {
    * @throws {ApiError} プロンプトが見つからない場合
    */
   async getById(id: string): Promise<Prompt | null> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.getById(id)
+    }
     const rawPrompt = await invokeCommand<RawPrompt | null>('get_prompt', { id })
     return rawPrompt ? transformPromptFromDatabase(rawPrompt) : null
   },
@@ -204,6 +222,9 @@ export const promptsApi = {
    * @throws {ApiError} 作成失敗時
    */
   async create(request: CreatePromptRequest): Promise<Prompt> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.create(request)
+    }
     const rawPrompt = await invokeCommand<RawPrompt>('create_prompt', { request })
     return transformPromptFromDatabase(rawPrompt)
   },
@@ -215,6 +236,9 @@ export const promptsApi = {
    * @throws {ApiError} 更新失敗時またはプロンプトが見つからない場合
    */
   async update(request: UpdatePromptRequest): Promise<Prompt | null> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.update(request)
+    }
     const rawPrompt = await invokeCommand<RawPrompt | null>('update_prompt', { 
       id: request.id, 
       request: {
@@ -234,6 +258,9 @@ export const promptsApi = {
    * @throws {ApiError} 削除失敗時またはプロンプトが見つからない場合
    */
   async delete(id: string): Promise<boolean> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.delete(id)
+    }
     return invokeCommand<boolean>('delete_prompt', { id })
   },
 
@@ -253,6 +280,9 @@ export const promptsApi = {
    * ```
    */
   async search(query: SearchQuery): Promise<Prompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.search(query)
+    }
     const searchQuery = query.q || ''
     const rawPrompts = await invokeCommand<RawPrompt[]>('search_prompts', { query: searchQuery })
     return rawPrompts.map(transformPromptFromDatabase)
@@ -283,6 +313,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} ピン留め失敗時
    */
   async pin(request: PinPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.pin(request)
+    }
     return invokeCommand<string>('pin_prompt', { 
       promptId: request.prompt_id, 
       position: request.position 
@@ -296,6 +329,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} ピン留め解除失敗時
    */
   async unpin(request: UnpinPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.unpin(request)
+    }
     return invokeCommand<string>('unpin_prompt', { position: request.position })
   },
 
@@ -306,6 +342,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} 取得失敗時
    */
   async getAll(signal?: AbortSignal): Promise<PinnedPrompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.getAll()
+    }
     const prompts = await invokeCommand<Prompt[]>('get_pinned_prompts', undefined, signal)
     
     // デバッグ: バックエンドから返される生データを確認
@@ -340,6 +379,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} コピー失敗時
    */
   async copyToClipboard(request: CopyPinnedPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.copyToClipboard(request)
+    }
     return invokeCommand<string>('copy_pinned_prompt', { position: request.position })
   },
 }
@@ -355,6 +397,9 @@ export const healthApi = {
    * @throws {ApiError} アプリ情報取得失敗時
    */
   async getAppInfo(): Promise<{ name: string; version: string; description: string }> {
+    if (isE2ETestEnvironment()) {
+      return mockHealthApi.getAppInfo()
+    }
     return invokeCommand('get_app_info')
   },
 
@@ -364,6 +409,9 @@ export const healthApi = {
    * @throws {ApiError} データベース初期化失敗時
    */
   async initDatabase(): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockHealthApi.initDatabase()
+    }
     return invokeCommand('init_database')
   },
 }

@@ -8,6 +8,10 @@
  * @returns Tauri環境の場合true
  */
 export function isTauriEnvironment(): boolean {
+  // E2Eテスト環境では常にtrueを返す
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '1420') {
+    return true
+  }
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 

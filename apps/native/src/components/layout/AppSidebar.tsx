@@ -69,7 +69,7 @@ export function AppSidebar({
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="sidebar">
+    <div className="sidebar" data-testid="sidebar">
       <div className="p-4">
         <SearchInput
           ref={searchInputRef}
@@ -119,7 +119,7 @@ export function AppSidebar({
             )}
           </div>
         ) : (
-          <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto" data-testid="prompt-list">
             {filteredPrompts.map((prompt, index) => (
               <PromptCard
                 key={prompt.id}
@@ -177,7 +177,7 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
     }))
 
     return (
-      <div className="sidebar">
+      <div className="sidebar" data-testid="sidebar">
         <div className="p-4">
           <SearchInput
             ref={searchInputRef}
@@ -233,7 +233,7 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto" data-testid="prompt-list">
                   {filteredPrompts.map((prompt, index) => (
                     <PromptCard
                       key={prompt.id}

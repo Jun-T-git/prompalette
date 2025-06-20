@@ -147,6 +147,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         aria-describedby="help-modal-description"
         tabIndex={-1}
         className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto focus:outline-none"
+        data-testid="help-modal"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
