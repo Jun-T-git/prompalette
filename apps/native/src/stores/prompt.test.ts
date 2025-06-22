@@ -221,7 +221,11 @@ describe('usePromptStore', () => {
       const { result } = renderHook(() => usePromptStore())
 
       await act(async () => {
-        await result.current.createPrompt(newPromptRequest)
+        try {
+          await result.current.createPrompt(newPromptRequest)
+        } catch (error) {
+          // Expected to throw
+        }
       })
 
       expect(result.current.prompts).toEqual([])
@@ -237,7 +241,11 @@ describe('usePromptStore', () => {
       const { result } = renderHook(() => usePromptStore())
 
       await act(async () => {
-        await result.current.createPrompt(newPromptRequest)
+        try {
+          await result.current.createPrompt(newPromptRequest)
+        } catch (error) {
+          // Expected to throw
+        }
       })
 
       expect(result.current.error).toBe('Unknown error')
@@ -278,7 +286,11 @@ describe('usePromptStore', () => {
       const { result } = renderHook(() => usePromptStore())
 
       await act(async () => {
-        await result.current.updatePrompt(updateRequest)
+        try {
+          await result.current.updatePrompt(updateRequest)
+        } catch (error) {
+          // Expected to throw
+        }
       })
 
       expect(result.current.isLoading).toBe(false)
@@ -441,7 +453,11 @@ describe('usePromptStore', () => {
         apiMethods[i]!.mockRejectedValue(new Error('API Error'))
         
         await act(async () => {
-          await operations[i]!()
+          try {
+            await operations[i]!()
+          } catch (error) {
+            // Expected to throw
+          }
         })
 
         const state = usePromptStore.getState()

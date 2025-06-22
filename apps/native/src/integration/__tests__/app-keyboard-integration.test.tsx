@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import App from '../../App';
+import { usePromptStore } from '../../stores/prompt';
 
 // Mock Tauri APIs
 vi.mock('@tauri-apps/api/event', () => ({
@@ -10,22 +11,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 vi.mock('../../stores/prompt', () => ({
-  usePromptStore: () => ({
-    prompts: [
-      { id: '1', title: 'Test Prompt 1', content: 'Content 1', tags: [] },
-      { id: '2', title: 'Test Prompt 2', content: 'Content 2', tags: [] },
-    ],
-    selectedPrompt: null,
-    searchQuery: '',
-    isLoading: false,
-    error: null,
-    setSelectedPrompt: vi.fn(),
-    setSearchQuery: vi.fn(),
-    createPrompt: vi.fn(),
-    updatePrompt: vi.fn(),
-    deletePrompt: vi.fn(),
-    loadPrompts: vi.fn(),
-  }),
+  usePromptStore: vi.fn(),
 }));
 
 vi.mock('../../stores/favorites', () => ({
@@ -78,6 +64,24 @@ vi.mock('../../components', () => ({
 describe('App Keyboard Integration (Real Components)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Default mock implementation
+    vi.mocked(usePromptStore).mockReturnValue({
+      prompts: [
+        { id: '1', title: 'Test Prompt 1', content: 'Content 1', tags: [] },
+        { id: '2', title: 'Test Prompt 2', content: 'Content 2', tags: [] },
+      ],
+      selectedPrompt: null,
+      searchQuery: '',
+      isLoading: false,
+      error: null,
+      setSelectedPrompt: vi.fn(),
+      setSearchQuery: vi.fn(),
+      createPrompt: vi.fn(),
+      updatePrompt: vi.fn(),
+      deletePrompt: vi.fn(),
+      loadPrompts: vi.fn(),
+    });
   });
 
   it('should open help modal with Cmd+? in real App component', async () => {
@@ -130,8 +134,7 @@ describe('App Keyboard Integration (Real Components)', () => {
     const mockSetSelectedPrompt = vi.fn();
     
     // Mock the store to capture setSelectedPrompt calls
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    vi.mocked(require('../../stores/prompt').usePromptStore).mockReturnValue({
+    vi.mocked(usePromptStore).mockReturnValue({
       prompts: [
         { id: '1', title: 'Test Prompt 1', content: 'Content 1', tags: [] },
         { id: '2', title: 'Test Prompt 2', content: 'Content 2', tags: [] },

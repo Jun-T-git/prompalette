@@ -16,6 +16,7 @@ import {
 } from './components';
 import { KeyboardDebugPanel } from './debug/KeyboardDebugPanel';
 import { usePromptSearch } from './hooks';
+import { useSmartSelection } from './hooks/useSmartSelection';
 import { KeyboardProvider } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
@@ -48,11 +49,6 @@ function AppContent() {
   const [showSettings, setShowSettings] = useState(false);
   const [environmentError, setEnvironmentError] = useState<string | null>(null);
   
-  // Smart selection management state
-  const [selectionIntent, setSelectionIntent] = useState<{
-    type: 'preserve' | 'select-new' | 'select-edited' | 'auto';
-    targetId?: string;
-  } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     show: boolean;
     promptId: string | null;
@@ -99,7 +95,7 @@ function AppContent() {
   // 初期表示時に検索窓にフォーカス
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100); // 少し遅延させてDOMがレンダリングされてからフォーカス
@@ -123,6 +119,18 @@ function AppContent() {
   useEffect(() => {
     filteredPromptsRef.current = filteredPrompts;
   }, [filteredPrompts]);
+
+  // Smart selection management using custom hook
+  const {
+    setSelectionIntentForNewPrompt,
+    setSelectionIntentForEditedPrompt,
+    setSelectionIntentForPreserve,
+  } = useSmartSelection({
+    filteredPrompts,
+    selectedPrompt,
+    searchQuery,
+    setSelectedPrompt,
+  });
 
   const handleCopyPrompt = useCallback(
     async (prompt: Prompt) => {
@@ -200,7 +208,7 @@ function AppContent() {
       try {
         unlistenFocus = await listen<void>('focus-search', () => {
           // refを使用して検索フィールドにフォーカス
-          if (sidebarRef.current) {
+          if (sidebarRef.current && typeof sidebarRef.current.selectSearchInput === 'function') {
             sidebarRef.current.selectSearchInput();
           }
         });
@@ -254,12 +262,12 @@ function AppContent() {
       if (isUpdateRequest(data)) {
         resultPrompt = await updatePrompt(data);
         // Set intent to select the updated prompt
-        setSelectionIntent({ type: 'select-edited', targetId: data.id });
+        setSelectionIntentForEditedPrompt(data.id);
       } else {
         resultPrompt = await createPrompt(data);
         // Set intent to select the newly created prompt
         if (resultPrompt && resultPrompt.id) {
-          setSelectionIntent({ type: 'select-new', targetId: resultPrompt.id });
+          setSelectionIntentForNewPrompt(resultPrompt.id);
         }
       }
       setShowCreateForm(false);
@@ -273,11 +281,11 @@ function AppContent() {
     try {
       if (isUpdateRequest(data)) {
         await updatePrompt(data);
-        setSelectionIntent({ type: 'select-edited', targetId: data.id });
+        setSelectionIntentForEditedPrompt(data.id);
       } else {
         const resultPrompt = await createPrompt(data);
         if (resultPrompt && resultPrompt.id) {
-          setSelectionIntent({ type: 'select-new', targetId: resultPrompt.id });
+          setSelectionIntentForNewPrompt(resultPrompt.id);
         }
       }
       setShowEditForm(false);
@@ -330,21 +338,7 @@ function AppContent() {
     setShowEditForm(true);
   };
 
-  // Simple keyboard navigation for compatibility
-  const keyboardNav = {
-    selectedIndexKeyboard: -1,
-    isComposing: false,
-    handleKeyDown: () => {},
-    setIsComposing: (_value: boolean) => {},
-    handlePromptSelectEnter: () => {
-      // Enter key handling is now managed by the new KeyboardProvider
-      // Do nothing here to avoid conflict
-    },
-    handlePromptSelect: handlePromptSelect,
-    resetSelection: () => {},
-  };
-
-  // New keyboard system is handled by KeyboardProvider
+  // Keyboard system is handled by KeyboardProvider
 
   // タグクリック時の検索処理
   const handleTagClick = useCallback((tag: string) => {
@@ -353,7 +347,7 @@ function AppContent() {
     
     // 検索窓にフォーカスを当てる
     setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100);
@@ -366,62 +360,13 @@ function AppContent() {
     
     // 検索窓にフォーカスを当てる
     setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100);
   }, [setSearchQuery]);
 
 
-  // Smart selection management with user intent awareness
-  useEffect(() => {
-    if (filteredPrompts.length === 0) {
-      // Clear selection when no results
-      if (searchQuery) {
-        setSelectedPrompt(null);
-      }
-      setSelectionIntent(null); // Clear any pending intent
-      return;
-    }
-
-    // Handle explicit selection intent
-    if (selectionIntent) {
-      switch (selectionIntent.type) {
-        case 'select-new':
-        case 'select-edited':
-          if (selectionIntent.targetId) {
-            const targetPrompt = filteredPrompts.find(p => p.id === selectionIntent.targetId);
-            if (targetPrompt) {
-              setSelectedPrompt(targetPrompt);
-              setSelectionIntent(null);
-              return;
-            } else {
-              // Target prompt not found in filtered list, fall back to first prompt
-              setSelectedPrompt(filteredPrompts[0] || null);
-              setSelectionIntent(null);
-              return;
-            }
-          }
-          break;
-        case 'preserve':
-          // Try to preserve current selection if it's valid
-          if (selectedPrompt && filteredPrompts.some(p => p.id === selectedPrompt.id)) {
-            setSelectionIntent(null);
-            return;
-          }
-          break;
-      }
-      setSelectionIntent(null);
-    }
-
-    // Default behavior: only reset if current selection is not in filtered list
-    const isCurrentSelectionValid = selectedPrompt && 
-      filteredPrompts.some(p => p.id === selectedPrompt.id);
-    
-    if (!isCurrentSelectionValid) {
-      setSelectedPrompt(filteredPrompts[0] || null);
-    }
-  }, [filteredPrompts, selectedPrompt, selectionIntent, searchQuery, setSelectedPrompt]);
 
   // 環境エラーがある場合は専用画面を表示
   if (environmentError) {
@@ -527,15 +472,15 @@ function AppContent() {
           prompts={prompts}
           filteredPrompts={filteredPrompts}
           selectedPrompt={selectedPrompt}
-          selectedIndexKeyboard={keyboardNav.selectedIndexKeyboard}
+          selectedIndexKeyboard={-1}
           isLoading={isLoading}
-          isComposing={keyboardNav.isComposing}
+          isComposing={false}
           onSearchFocusChange={() => {}}
-          onKeyDown={keyboardNav.handleKeyDown}
-          onCompositionStart={() => keyboardNav.setIsComposing(true)}
-          onCompositionEnd={() => keyboardNav.setIsComposing(false)}
-          onPromptSelectEnter={keyboardNav.handlePromptSelectEnter}
-          onPromptSelect={keyboardNav.handlePromptSelect}
+          onKeyDown={() => {}}
+          onCompositionStart={() => {}}
+          onCompositionEnd={() => {}}
+          onPromptSelectEnter={() => {}}
+          onPromptSelect={handlePromptSelect}
           onCopyPrompt={handleCopyPrompt}
           onShowCreateForm={() => setShowCreateForm(true)}
           onPinnedPromptSelect={handlePinnedPromptSelect}
@@ -556,12 +501,12 @@ function AppContent() {
           onShowCreateForm={() => setShowCreateForm(true)}
           onCancelCreateForm={() => {
             // Set intent to preserve current selection
-            setSelectionIntent({ type: 'preserve' });
+            setSelectionIntentForPreserve();
             setShowCreateForm(false);
           }}
           onCancelEditForm={() => {
             // Set intent to preserve current selection
-            setSelectionIntent({ type: 'preserve' });
+            setSelectionIntentForPreserve();
             setShowEditForm(false);
             // Keep the selected prompt to maintain keyboard navigation state
             handleFormClose();

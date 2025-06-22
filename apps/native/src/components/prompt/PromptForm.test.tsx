@@ -20,8 +20,8 @@ describe('PromptForm', () => {
     expect(screen.getByLabelText('プロンプト内容 *')).toBeInTheDocument()
     expect(screen.getByLabelText('タグ')).toBeInTheDocument()
     expect(screen.getByLabelText('クイックアクセスキー')).toBeInTheDocument()
-    expect(screen.getByText('作成')).toBeInTheDocument()
-    expect(screen.getByText('キャンセル')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /作成/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /キャンセル/ })).toBeInTheDocument()
   })
 
   it('loads initial data when provided', () => {
@@ -72,7 +72,7 @@ describe('PromptForm', () => {
     const handleCancel = vi.fn()
     render(<PromptForm onSubmit={vi.fn()} onCancel={handleCancel} />)
 
-    fireEvent.click(screen.getByText('キャンセル'))
+    fireEvent.click(screen.getByRole("button", { name: /キャンセル/ }))
 
     expect(handleCancel).toHaveBeenCalled()
   })
@@ -141,7 +141,7 @@ describe('PromptForm', () => {
       <PromptForm onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={true} />
     )
 
-    expect(screen.getByText('キャンセル')).toBeDisabled()
+    expect(screen.getByRole("button", { name: /キャンセル/ })).toBeDisabled()
     expect(screen.getByText('読み込み中...')).toBeDisabled()
   })
 
