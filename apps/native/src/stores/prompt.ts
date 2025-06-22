@@ -50,10 +50,10 @@ interface PromptState {
   // === 非同期アクション（Phase 1.1でAPI統合予定） ===
   
   /** 新しいプロンプトを作成 */
-  createPrompt: (request: CreatePromptRequest) => Promise<void>
+  createPrompt: (request: CreatePromptRequest) => Promise<Prompt>
   
   /** 既存プロンプトを更新 */
-  updatePrompt: (request: UpdatePromptRequest) => Promise<void>
+  updatePrompt: (request: UpdatePromptRequest) => Promise<Prompt>
   
   /** プロンプトを削除 */
   deletePrompt: (id: string) => Promise<void>
@@ -113,7 +113,7 @@ export const usePromptStore = create<PromptState>()(
         const lockKey = 'create'
         if (operationLocks.get(lockKey)) {
           logger.warn('Create operation already in progress')
-          return
+          throw new Error('Create operation already in progress')
         }
         
         operationLocks.set(lockKey, true)
@@ -127,9 +127,11 @@ export const usePromptStore = create<PromptState>()(
             isLoading: false 
           })
           logger.info('Prompt created successfully:', newPrompt.id)
+          return newPrompt
         } catch (error) {
           logger.error('Failed to create prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+          throw error
         } finally {
           operationLocks.set(lockKey, false)
         }
@@ -142,7 +144,7 @@ export const usePromptStore = create<PromptState>()(
         const lockKey = `update_${request.id}`
         if (operationLocks.get(lockKey)) {
           logger.warn(`Update operation already in progress for prompt ${request.id}`)
-          return
+          throw new Error(`Update operation already in progress for prompt ${request.id}`)
         }
         
         operationLocks.set(lockKey, true)
@@ -158,12 +160,14 @@ export const usePromptStore = create<PromptState>()(
               isLoading: false 
             })
             logger.info('Prompt updated successfully:', updatedPrompt.id)
+            return updatedPrompt
           } else {
             throw new Error('Prompt not found')
           }
         } catch (error) {
           logger.error('Failed to update prompt:', error)
           set({ error: error instanceof Error ? error.message : 'Unknown error', isLoading: false })
+          throw error
         } finally {
           operationLocks.set(lockKey, false)
         }
@@ -257,6 +261,7 @@ export const usePromptStore = create<PromptState>()(
             prompts,
             isLoading: false 
           })
+          
           logger.info(`Loaded ${prompts.length} prompts from database`)
         } catch (error) {
           if (signal?.aborted) {

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
@@ -6,7 +6,7 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   helperText?: string
 }
 
-export function Textarea({
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({
   label,
   error,
   helperText,
@@ -14,7 +14,7 @@ export function Textarea({
   id,
   rows = 4,
   ...props
-}: TextareaProps) {
+}, ref) {
   const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`
   
   const textareaClasses = [
@@ -39,6 +39,7 @@ export function Textarea({
       )}
       
       <textarea
+        ref={ref}
         id={textareaId}
         rows={rows}
         className={textareaClasses}
@@ -54,4 +55,4 @@ export function Textarea({
       )}
     </div>
   )
-}
+})
