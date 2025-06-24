@@ -245,11 +245,15 @@ export const useFavoritesStore = create<FavoritesState>()(
           
           // 10個の位置配列を作成し、ピン留めされたプロンプトを適切な位置に配置
           const positionedPrompts = createEmptyPinnedPrompts()
-          pinnedPrompts.forEach(prompt => {
+          
+          pinnedPrompts.forEach((prompt) => {
             if (prompt.position >= 1 && prompt.position <= 10) {
-              positionedPrompts[prompt.position - 1] = prompt
+              const arrayIndex = prompt.position - 1;
+              positionedPrompts[arrayIndex] = prompt;
+            } else {
+              console.warn(`Invalid position ${prompt.position} for prompt "${prompt.title}"`);
             }
-          })
+          });
           
           set({ 
             pinnedPrompts: positionedPrompts,

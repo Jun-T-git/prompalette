@@ -2,6 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
 import './App.css';
+import { createRealAppStores } from './adapters/RealAppStoreAdapter';
 import type { AppSidebarRef } from './components';
 import {
   AppContentArea,
@@ -13,10 +14,15 @@ import {
   ToastProvider,
   useToast,
 } from './components';
-import { useKeyboardNavigation, usePromptSearch } from './hooks';
+import { KeyboardDebugPanel } from './debug/KeyboardDebugPanel';
+import { usePromptSearch } from './hooks';
+import { useSmartSelection } from './hooks/useSmartSelection';
+import { KeyboardProvider } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
+
+// KeyboardContextManager removed - context is now derived directly from UI state
 
 function AppContent() {
   const {
@@ -34,12 +40,15 @@ function AppContent() {
   } = usePromptStore();
 
   const { showToast } = useToast();
-  const { pinnedPrompts, loadPinnedPrompts } = useFavoritesStore();
+  const { loadPinnedPrompts } = useFavoritesStore();
+  
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [environmentError, setEnvironmentError] = useState<string | null>(null);
+  
   const [deleteConfirm, setDeleteConfirm] = useState<{
     show: boolean;
     promptId: string | null;
@@ -86,7 +95,7 @@ function AppContent() {
   // 初期表示時に検索窓にフォーカス
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100); // 少し遅延させてDOMがレンダリングされてからフォーカス
@@ -94,27 +103,34 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ピン留めプロンプトのホットキー選択処理
-  const handlePinnedPromptHotkey = useCallback(
-    (position: number) => {
-      const pinnedPrompt = pinnedPrompts[position - 1];
-      if (pinnedPrompt) {
-        setSelectedPrompt(pinnedPrompt);
-      } else {
-        showToast(`位置${position}にピン留めプロンプトがありません`, 'warning');
-      }
-    },
-    [pinnedPrompts, setSelectedPrompt, showToast],
-  );
 
   // Filter prompts based on search query (using custom hook for performance)
   const { results: searchResults } = usePromptSearch(prompts, searchQuery);
   
   // Extract prompts from search results for keyboard navigation
-  const filteredPrompts = useMemo(() => 
-    searchResults?.map(result => result.item) || [], 
-    [searchResults]
-  );
+  const filteredPrompts = useMemo(() => {
+    return searchResults?.map(result => result.item) || [];
+  }, [searchResults, searchQuery, prompts.length]);
+
+  // filteredPromptsの最新値を参照するためのRef
+  const filteredPromptsRef = useRef(filteredPrompts);
+
+  // filteredPromptsRefを最新状態に同期
+  useEffect(() => {
+    filteredPromptsRef.current = filteredPrompts;
+  }, [filteredPrompts]);
+
+  // Smart selection management using custom hook
+  const {
+    setSelectionIntentForNewPrompt,
+    setSelectionIntentForEditedPrompt,
+    setSelectionIntentForPreserve,
+  } = useSmartSelection({
+    filteredPrompts,
+    selectedPrompt,
+    searchQuery,
+    setSelectedPrompt,
+  });
 
   const handleCopyPrompt = useCallback(
     async (prompt: Prompt) => {
@@ -146,141 +162,42 @@ function AppContent() {
     [setSelectedPrompt],
   );
 
-  // Keyboard navigation logic
-  const keyboardNav = useKeyboardNavigation({
-    filteredPrompts,
-    onPromptSelect: handlePromptSelect,
-    onCopyPrompt: handleCopyPrompt,
-  });
-
-  // グローバル文字入力で検索窓にフォーカス & キーボードナビゲーション
-  const handleGlobalKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      // フォーム要素にフォーカスがある場合は、ピン留めホットキー以外のハンドリングを行わない
+  // Helper function for consistent focus management after form close
+  const handleFormClose = useCallback(() => {
+    // Force a clean context transition with proper timing
+    setTimeout(() => {
       const activeElement = document.activeElement;
-      const isFormElement =
-        activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
-
-      // CmdOrCtrl+N で新規作成
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        setShowCreateForm(true);
-        return;
+      
+      // Clear any lingering focus from form elements
+      if (activeElement instanceof HTMLElement && 
+          (activeElement.tagName === 'INPUT' || 
+           activeElement.tagName === 'TEXTAREA' ||
+           activeElement.tagName === 'BUTTON')) {
+        activeElement.blur();
       }
-
-      // CmdOrCtrl+1-9,0 でピン留めプロンプトを選択 (フォーム要素フォーカス時でも動作)
-      if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
-        e.preventDefault();
-        const position = parseInt(e.key, 10);
-        handlePinnedPromptHotkey(position);
-        return;
+      
+      // Ensure body can receive focus and keyboard events
+      if (!document.body.hasAttribute('tabindex')) {
+        document.body.setAttribute('tabindex', '-1');
       }
+      document.body.focus();
+    }, 50);
+  }, []);
 
-      // CmdOrCtrl+0 で位置10のピン留めプロンプトを選択 (フォーム要素フォーカス時でも動作)
-      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        handlePinnedPromptHotkey(10);
-        return;
-      }
-
-      // フォーム要素にフォーカスがある場合は、以下の処理はスキップ
-      if (isFormElement) {
-        return;
-      }
-
-      // ? キーでヘルプモーダルを表示
-      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        setShowHelpModal(true);
-        return;
-      }
-
-      // その他のショートカットキーは除外
-      if (e.ctrlKey || e.metaKey || e.altKey) {
-        return;
-      }
-
-      // キーボードナビゲーション（上下キー、エンター、エスケープ）をグローバルで処理
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        // React.KeyboardEvent形式に変換してkeyboardNavのhandleKeyDownに渡す
-        const syntheticEvent = {
-          key: e.key,
-          preventDefault: () => e.preventDefault(),
-        } as React.KeyboardEvent<HTMLDivElement>;
-        keyboardNav.handleKeyDown(syntheticEvent);
-        return;
-      }
-
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        keyboardNav.handlePromptSelectEnter();
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        
-        // ヘルプモーダルが開いている場合は閉じる
-        if (showHelpModal) {
-          setShowHelpModal(false);
-          return;
-        }
-        
-        // React.KeyboardEvent形式に変換してkeyboardNavのhandleKeyDownに渡す
-        const syntheticEvent = {
-          key: e.key,
-          preventDefault: () => e.preventDefault(),
-        } as React.KeyboardEvent<HTMLDivElement>;
-        keyboardNav.handleKeyDown(syntheticEvent);
-        return;
-      }
-
-      // Tab、左右キーは無視
-      if (['Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        return;
-      }
-
-      // 既に検索窓にフォーカスがある場合は何もしない
-      if (activeElement && activeElement.tagName === 'INPUT') {
-        return;
-      }
-
-      // 文字入力、数字、バックスペース、削除の場合に検索窓にフォーカス
-      if (
-        e.key.length === 1 || // 通常の文字入力（英数字、記号、日本語など）
-        e.key === 'Backspace' ||
-        e.key === 'Delete'
-      ) {
-        e.preventDefault();
-
-        // 検索窓にフォーカスを移動
-        if (sidebarRef.current) {
-          sidebarRef.current.focusSearchInput();
-
-          // 文字入力の場合は検索クエリに追加（入力サニタイズ）
-          if (e.key.length === 1) {
-            // 危険な文字を除外（XSS対策）
-            const dangerousChars = /[<>"'&]/;
-            if (!dangerousChars.test(e.key)) {
-              setSearchQuery(searchQueryRef.current + e.key);
-            }
-          } else if (e.key === 'Backspace') {
-            setSearchQuery(searchQueryRef.current.slice(0, -1));
-          }
-        }
-      }
-    },
-    [sidebarRef, setSearchQuery, handlePinnedPromptHotkey, keyboardNav, showHelpModal],
-  );
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleGlobalKeyDown);
-
-    return () => {
-      document.removeEventListener('keydown', handleGlobalKeyDown);
-    };
-  }, [handleGlobalKeyDown]); // 依存配列にhandleGlobalKeyDownを追加
+  // Create stores for new keyboard system (after handleFormClose is defined)
+  const keyboardStores = useMemo(() => createRealAppStores(
+    setShowCreateForm,
+    setShowEditForm,
+    setShowHelpModal,
+    setShowSettings,
+    setSelectedPrompt,
+    sidebarRef,
+    setSearchQuery,
+    searchQuery,
+    filteredPrompts,
+    selectedPrompt,
+    handleFormClose
+  ), [searchQuery, filteredPrompts, selectedPrompt, handleFormClose]);
 
   // グローバルショートカットでの検索フォーカス
   useEffect(() => {
@@ -291,10 +208,9 @@ function AppContent() {
       try {
         unlistenFocus = await listen<void>('focus-search', () => {
           // refを使用して検索フィールドにフォーカス
-          if (sidebarRef.current) {
+          if (sidebarRef.current && typeof sidebarRef.current.selectSearchInput === 'function') {
             sidebarRef.current.selectSearchInput();
           }
-          keyboardNav.resetSelection();
         });
 
         unlistenShortcutFailed = await listen<string>('shortcut-registration-failed', (event) => {
@@ -342,10 +258,17 @@ function AppContent() {
 
   const handleCreatePrompt = async (data: CreatePromptRequest | UpdatePromptRequest) => {
     try {
+      let resultPrompt;
       if (isUpdateRequest(data)) {
-        await updatePrompt(data);
+        resultPrompt = await updatePrompt(data);
+        // Set intent to select the updated prompt
+        setSelectionIntentForEditedPrompt(data.id);
       } else {
-        await createPrompt(data);
+        resultPrompt = await createPrompt(data);
+        // Set intent to select the newly created prompt
+        if (resultPrompt && resultPrompt.id) {
+          setSelectionIntentForNewPrompt(resultPrompt.id);
+        }
       }
       setShowCreateForm(false);
     } catch (error) {
@@ -358,11 +281,15 @@ function AppContent() {
     try {
       if (isUpdateRequest(data)) {
         await updatePrompt(data);
+        setSelectionIntentForEditedPrompt(data.id);
       } else {
-        await createPrompt(data);
+        const resultPrompt = await createPrompt(data);
+        if (resultPrompt && resultPrompt.id) {
+          setSelectionIntentForNewPrompt(resultPrompt.id);
+        }
       }
       setShowEditForm(false);
-      setSelectedPrompt(null);
+      handleFormClose();
     } catch (error) {
       logger.error('Failed to update prompt:', error);
       showToast('プロンプトの更新に失敗しました', 'error');
@@ -411,6 +338,8 @@ function AppContent() {
     setShowEditForm(true);
   };
 
+  // Keyboard system is handled by KeyboardProvider
+
   // タグクリック時の検索処理
   const handleTagClick = useCallback((tag: string) => {
     const tagQuery = `#${tag}`;
@@ -418,7 +347,7 @@ function AppContent() {
     
     // 検索窓にフォーカスを当てる
     setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100);
@@ -431,38 +360,13 @@ function AppContent() {
     
     // 検索窓にフォーカスを当てる
     setTimeout(() => {
-      if (sidebarRef.current) {
+      if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
     }, 100);
   }, [setSearchQuery]);
 
-  // 検索クエリが変わったときのみ選択をリセット
-  useEffect(() => {
-    keyboardNav.resetSelection();
 
-    if (filteredPrompts.length > 0) {
-      // 最初のプロンプトを自動選択
-      const firstPrompt = filteredPrompts[0];
-      if (firstPrompt) {
-        setSelectedPrompt(firstPrompt);
-      }
-    } else if (searchQuery && filteredPrompts.length === 0) {
-      // 検索結果なしの場合はプレビューをクリア
-      setSelectedPrompt(null);
-    }
-  }, [searchQuery, filteredPrompts]);
-
-  // キーボード選択インデックスが変わったときにプレビュー更新
-  useEffect(() => {
-    const index = keyboardNav.selectedIndexKeyboard;
-    if (filteredPrompts.length > 0 && index >= 0 && index < filteredPrompts.length) {
-      const selectedPromptFromKeyboard = filteredPrompts[index];
-      if (selectedPromptFromKeyboard !== undefined) {
-        setSelectedPrompt(selectedPromptFromKeyboard);
-      }
-    }
-  }, [keyboardNav.selectedIndexKeyboard, filteredPrompts]);
 
   // 環境エラーがある場合は専用画面を表示
   if (environmentError) {
@@ -490,8 +394,17 @@ function AppContent() {
     );
   }
 
+  // Create UI state object for keyboard context derivation
+  const uiState = {
+    showCreateForm,
+    showEditForm,
+    showHelpModal,
+    showSettings,
+  };
+
   return (
-    <div className="app-layout bg-gray-50">
+    <KeyboardProvider stores={keyboardStores} uiState={uiState}>
+      <div className="app-layout bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 header-compact px-6 py-4">
         <div className="flex items-center justify-between">
@@ -501,6 +414,31 @@ function AppContent() {
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
+            <Button
+              onClick={() => setShowSettings(true)}
+              size="sm"
+              variant="ghost"
+              className="flex items-center space-x-1 md:space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span className="hidden md:inline">設定</span>
+              <span className="text-[10px] text-gray-300 font-mono ml-1 opacity-60 mobile-hide-text">
+                ⌘,
+              </span>
+            </Button>
             <Button
               onClick={() => setShowCreateForm(true)}
               size="sm"
@@ -534,15 +472,15 @@ function AppContent() {
           prompts={prompts}
           filteredPrompts={filteredPrompts}
           selectedPrompt={selectedPrompt}
-          selectedIndexKeyboard={keyboardNav.selectedIndexKeyboard}
+          selectedIndexKeyboard={-1}
           isLoading={isLoading}
-          isComposing={keyboardNav.isComposing}
+          isComposing={false}
           onSearchFocusChange={() => {}}
-          onKeyDown={keyboardNav.handleKeyDown}
-          onCompositionStart={keyboardNav.setIsComposing.bind(null, true)}
-          onCompositionEnd={keyboardNav.setIsComposing.bind(null, false)}
-          onPromptSelectEnter={keyboardNav.handlePromptSelectEnter}
-          onPromptSelect={keyboardNav.handlePromptSelect}
+          onKeyDown={() => {}}
+          onCompositionStart={() => {}}
+          onCompositionEnd={() => {}}
+          onPromptSelectEnter={() => {}}
+          onPromptSelect={handlePromptSelect}
           onCopyPrompt={handleCopyPrompt}
           onShowCreateForm={() => setShowCreateForm(true)}
           onPinnedPromptSelect={handlePinnedPromptSelect}
@@ -561,10 +499,17 @@ function AppContent() {
           onEditPrompt={handleEditPrompt}
           onDeletePrompt={handleDeletePrompt}
           onShowCreateForm={() => setShowCreateForm(true)}
-          onCancelCreateForm={() => setShowCreateForm(false)}
+          onCancelCreateForm={() => {
+            // Set intent to preserve current selection
+            setSelectionIntentForPreserve();
+            setShowCreateForm(false);
+          }}
           onCancelEditForm={() => {
+            // Set intent to preserve current selection
+            setSelectionIntentForPreserve();
             setShowEditForm(false);
-            setSelectedPrompt(null);
+            // Keep the selected prompt to maintain keyboard navigation state
+            handleFormClose();
           }}
           onTagClick={handleTagClick}
           onQuickAccessKeyClick={handleQuickAccessKeyClick}
@@ -575,7 +520,7 @@ function AppContent() {
       <div className="bg-gray-50 border-t border-gray-200 px-4 py-2">
         <div className="flex items-center justify-center space-x-4 text-xs text-gray-500 flex-wrap">
           <div className="flex items-center space-x-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘/Ctrl+N</kbd>
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘N</kbd>
             <span>新規作成</span>
           </div>
           <div className="flex items-center space-x-1">
@@ -583,12 +528,12 @@ function AppContent() {
             <span>コピー&amp;閉じる</span>
           </div>
           <div className="flex items-center space-x-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Esc</kbd>
-            <span>閉じる</span>
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘,</kbd>
+            <span>設定</span>
           </div>
           <div className="flex items-center space-x-1">
-            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑↓</kbd>
-            <span>選択</span>
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Esc</kbd>
+            <span>閉じる</span>
           </div>
           <div className="flex items-center space-x-1">
             <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">?</kbd>
@@ -614,7 +559,106 @@ function AppContent() {
         isOpen={showHelpModal}
         onClose={() => setShowHelpModal(false)}
       />
-    </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] m-4 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">設定</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-60px)]">
+              <div className="p-6">
+                <p className="text-gray-600 mb-4">
+                  キーボードショートカットのカスタマイズと設定ができます。
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">主要ショートカット</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>新規プロンプト作成</span>
+                        <span className="font-mono">⌘ N</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>プロンプト編集</span>
+                        <span className="font-mono">⌘ E</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>プロンプト削除</span>
+                        <span className="font-mono">⌘ D</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>検索にフォーカス</span>
+                        <span className="font-mono">⌘ F</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>ピン留めプロンプト選択</span>
+                        <span className="font-mono">⌘ 1-9,0</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>プロンプトのピン留め</span>
+                        <span className="font-mono">⌘ ⇧ 1-9,0</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>設定を開く</span>
+                        <span className="font-mono">⌘ ,</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>ヘルプを表示</span>
+                        <span className="font-mono">/</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">ナビゲーション</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>次のプロンプト</span>
+                        <span className="font-mono">↓</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>前のプロンプト</span>
+                        <span className="font-mono">↑</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>プロンプト選択・コピー</span>
+                        <span className="font-mono">Enter</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>ウィンドウを閉じる</span>
+                        <span className="font-mono">Esc</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm">💡 スマートショートカット機能</h4>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>• 検索窓にフォーカスがあっても、重要なショートカットは使用可能です</p>
+                        <p>• 新規作成（⌘N）、編集（⌘E）、設定（⌘,）、ピン留め選択（⌘1-9,0）は常に有効</p>
+                        <p>• テキスト編集と競合するショートカット（⌘D, ⌘C）は自動で無効化</p>
+                        <p>• 文字を入力すると自動的に検索が開始されます</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+      <KeyboardDebugPanel />
+    </KeyboardProvider>
   );
 }
 

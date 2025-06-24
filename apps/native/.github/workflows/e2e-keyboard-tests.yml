@@ -1,0 +1,56 @@
+name: E2E Keyboard Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/native/src/**'
+      - 'apps/native/e2e/**'
+      - 'apps/native/package.json'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/native/src/**'
+      - 'apps/native/e2e/**'
+
+jobs:
+  e2e-keyboard:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'apps/native/package-lock.json'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: Install dependencies
+      working-directory: apps/native
+      run: npm ci
+      
+    - name: Install Playwright Browsers
+      working-directory: apps/native
+      run: npx playwright install --with-deps
+      
+    - name: Build app
+      working-directory: apps/native
+      run: npm run build
+      
+    - name: Run E2E keyboard tests
+      working-directory: apps/native
+      run: npm run test:e2e
+      
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: playwright-report
+        path: apps/native/playwright-report/
+        retention-days: 30
