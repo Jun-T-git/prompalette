@@ -30,6 +30,10 @@ export interface SearchStore {
   hasActiveSearch?: () => boolean;
 }
 
+export interface PaletteStore {
+  selectPinnedPrompt: (position: number) => void;
+}
+
 export interface FormStore {
   saveForm: () => Promise<void>;
   cancelForm: () => void;
@@ -40,6 +44,7 @@ export interface AppStores {
   modalStore: ModalStore;
   searchStore: SearchStore;
   formStore: FormStore;
+  paletteStore: PaletteStore;
 }
 
 export interface ContextProvider {
@@ -186,5 +191,9 @@ export class AppActionAdapter {
       totalPrompts: filteredPrompts.length,
       selectedPromptIndex,
     };
+  }
+
+  async selectPalette(position: number): Promise<void> {
+    this.stores.paletteStore.selectPinnedPrompt(position);
   }
 }

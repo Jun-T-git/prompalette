@@ -1,4 +1,5 @@
 import type { AppStores } from '../services/AppActionAdapter';
+import { useFavoritesStore } from '../stores/favorites';
 import { usePromptStore } from '../stores/prompt';
 import type { Prompt } from '../types';
 
@@ -193,6 +194,16 @@ export const createRealAppStores = (
       cancelForm: () => {
         setShowCreateForm(false);
         setShowEditForm(false);
+      },
+    },
+    paletteStore: {
+      selectPinnedPrompt: (position: number) => {
+        const { pinnedPrompts } = useFavoritesStore.getState();
+        const pinnedPrompt = pinnedPrompts[position - 1]; // position is 1-based
+        
+        if (pinnedPrompt) {
+          setSelectedPrompt(pinnedPrompt);
+        }
       },
     },
   };

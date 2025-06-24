@@ -3,6 +3,7 @@ import type { CommandResult, KeyboardContext } from '../types/keyboard.types';
 import { BaseKeyboardCommand } from './KeyboardCommand';
 
 export type AppFunction = () => Promise<void> | void;
+export type SelectPaletteFunction = (position: number) => Promise<void> | void;
 
 export class NewPromptCommand extends BaseKeyboardCommand {
   constructor(private newPrompt: AppFunction) {
@@ -111,6 +112,25 @@ export class ShowSettingsCommand extends BaseKeyboardCommand {
   canExecute(_context: KeyboardContext): boolean {
     // Always available - essential shortcut
     return true;
+  }
+}
+
+export class SelectPaletteCommand extends BaseKeyboardCommand {
+  constructor(
+    private selectPalette: SelectPaletteFunction,
+    private position: number
+  ) {
+    super(`select_palette_${position}`);
+  }
+
+  protected async doExecute(): Promise<CommandResult> {
+    await this.selectPalette(this.position);
+    return { success: true, data: { action: 'select_palette', position: this.position } };
+  }
+
+  canExecute(context: KeyboardContext): boolean {
+    // Available everywhere except form editing to avoid conflicts
+    return context.id !== 'form';
   }
 }
 
