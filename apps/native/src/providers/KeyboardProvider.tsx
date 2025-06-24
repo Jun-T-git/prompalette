@@ -5,6 +5,7 @@ import {
   NewPromptCommand,
   SaveCommand,
   SearchFocusCommand,
+  SelectPaletteCommand,
   ShowHelpCommand,
   ShowSettingsCommand,
 } from '../commands/EssentialCommands';
@@ -265,6 +266,26 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
       command: new ShowSettingsCommand(adapter.showSettings.bind(adapter)),
     },
   ];
+
+  // Add palette selection shortcuts (Cmd+1 through Cmd+9, Cmd+0)
+  const paletteKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+  paletteKeys.forEach((key, index) => {
+    const position = index + 1; // positions 1-10
+    shortcuts.push({
+      shortcut: {
+        id: `select_palette_${position}`,
+        key,
+        modifiers: ['cmd'],
+        context: 'global',
+        action: 'SELECT_PALETTE',
+        customizable: true,
+      },
+      command: new SelectPaletteCommand(
+        (pos: number) => adapter.selectPalette(pos),
+        position
+      ),
+    });
+  });
 
   shortcuts.forEach(({ shortcut, command }) => {
     registry.register(shortcut, command);
