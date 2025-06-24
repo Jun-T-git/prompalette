@@ -53,7 +53,7 @@ const shortcutCategories: ShortcutCategory[] = [
   },
   {
     title: 'その他',
-    shortcuts: [{ key: 'h', description: 'このヘルプを表示' }],
+    shortcuts: [{ key: '⌘/Ctrl + H', description: 'このヘルプを表示' }],
   },
 ];
 

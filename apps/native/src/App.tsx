@@ -544,7 +544,7 @@ function AppContent() {
               <span>閉じる</span>
             </div>
             <div className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">?</kbd>
+              <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘H</kbd>
               <span>ヘルプ</span>
             </div>
           </div>
