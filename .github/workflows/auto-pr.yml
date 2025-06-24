@@ -6,6 +6,10 @@ on:
       - develop
       - staging
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   create-pr-to-staging:
     if: github.ref == 'refs/heads/develop'
