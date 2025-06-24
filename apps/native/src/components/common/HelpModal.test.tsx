@@ -48,7 +48,7 @@ describe('HelpModal', () => {
     expect(screen.getByText('閉じる/選択解除')).toBeInTheDocument();
     
     // ヘルプ
-    expect(screen.getByText('?')).toBeInTheDocument();
+    expect(screen.getByText('⌘/Ctrl + H')).toBeInTheDocument();
     expect(screen.getByText('このヘルプを表示')).toBeInTheDocument();
   });
 

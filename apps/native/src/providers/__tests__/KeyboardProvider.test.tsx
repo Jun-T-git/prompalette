@@ -113,9 +113,9 @@ describe('KeyboardProvider', () => {
       </KeyboardProvider>
     );
 
-    // Test Cmd+N key (uppercase N as registered in shortcuts)
+    // Test Cmd+n key (lowercase as registered in shortcuts)
     fireEvent.keyDown(document, {
-      key: 'N',
+      key: 'n',
       code: 'KeyN',
       metaKey: true,
     });

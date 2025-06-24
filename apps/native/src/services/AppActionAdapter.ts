@@ -18,6 +18,7 @@ export interface ModalStore {
   openSettings: () => void;
   openNewPrompt: () => void;
   openEditPrompt?: (prompt: Prompt) => void;
+  openDeleteConfirm?: (promptId: string, promptTitle: string) => void;
   closeModal: () => void;
   hideWindow: () => Promise<void>;
   hasOpenModal: () => boolean;
@@ -140,13 +141,19 @@ export class AppActionAdapter {
 
   async deletePrompt(): Promise<void> {
     const selectedPrompt = this.getSelectedPrompt();
-    if (!selectedPrompt || !this.stores.promptStore.deletePrompt) {
+    if (!selectedPrompt) {
       return;
     }
 
-    const confirmed = confirm(`プロンプト「${selectedPrompt.title}」を削除しますか？`);
-    if (confirmed) {
-      return this.stores.promptStore.deletePrompt(selectedPrompt.id);
+    // Use modal confirmation if available, otherwise fallback to browser confirm
+    if (this.stores.modalStore.openDeleteConfirm) {
+      this.stores.modalStore.openDeleteConfirm(selectedPrompt.id, selectedPrompt.title);
+    } else if (this.stores.promptStore.deletePrompt) {
+      // Fallback for environments where modal is not available
+      const confirmed = confirm(`プロンプト「${selectedPrompt.title}」を削除しますか？`);
+      if (confirmed) {
+        return this.stores.promptStore.deletePrompt(selectedPrompt.id);
+      }
     }
   }
 

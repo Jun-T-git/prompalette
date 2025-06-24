@@ -1,7 +1,8 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import type { ShortcutRegistry } from '../commands/ShortcutRegistry';
-import type { Modifier, ContextId } from '../types/keyboard.types';
+import type { ContextId, Modifier } from '../types/keyboard.types';
+import { logger } from '../utils/logger';
 
 export interface KeyboardHandlerOptions {
   isShortcutsBlocked?: () => boolean;
@@ -12,74 +13,75 @@ export interface KeyboardHandlerOptions {
 
 export const useKeyboardHandler = (
   registry: ShortcutRegistry,
-  options: KeyboardHandlerOptions = {}
+  options: KeyboardHandlerOptions = {},
 ) => {
   const registryRef = useRef(registry);
   registryRef.current = registry;
 
   const parseModifiers = useCallback((event: KeyboardEvent): Modifier[] => {
     const modifiers: Modifier[] = [];
-    
+
     if (event.metaKey) modifiers.push('cmd');
     if (event.ctrlKey) modifiers.push('ctrl');
     if (event.shiftKey) modifiers.push('shift');
     if (event.altKey) modifiers.push('option');
-    
+
     return modifiers;
   }, []);
 
-  const shouldIgnoreEvent = useCallback((event: KeyboardEvent): boolean => {
-    // Check if shortcuts are blocked (e.g., during IME composition)
-    if (options.isShortcutsBlocked?.()) {
-      return true;
-    }
-
-    const modifiers = parseModifiers(event);
-    const activeContext = options.contextProvider?.activeContext || 'global';
-    const shortcut = registryRef.current.findShortcutByKey(
-      event.key,
-      modifiers,
-      activeContext
-    );
-
-    // Only intervene for registered app shortcuts - let everything else be native
-    if (!shortcut) {
-      return true; // Let browser handle it natively
-    }
-    
-    return false; // Let shortcut system handle it
-  }, [options.isShortcutsBlocked, options.contextProvider, parseModifiers]);
-
-  const handleKeyDown = useCallback(async (event: KeyboardEvent) => {
-    const shouldIgnore = shouldIgnoreEvent(event);
-    
-    if (shouldIgnore) {
-      return;
-    }
-
-    const modifiers = parseModifiers(event);
-    const activeContext = options.contextProvider?.activeContext || 'global';
-    
-    const shortcut = registryRef.current.findShortcutByKey(
-      event.key,
-      modifiers,
-      activeContext
-    );
-
-    if (shortcut) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      try {
-        await registryRef.current.execute(shortcut.id, {
-          id: activeContext,
-          priority: 1, // Will be properly calculated by context provider
-        });
-      } catch (error) {
-        console.error('Keyboard shortcut execution failed:', error);
+  const shouldIgnoreEvent = useCallback(
+    (event: KeyboardEvent): boolean => {
+      // Check if shortcuts are blocked (e.g., during IME composition)
+      if (options.isShortcutsBlocked?.()) {
+        return true;
       }
-    }
-  }, [shouldIgnoreEvent, parseModifiers, options.contextProvider]);
+
+      const modifiers = parseModifiers(event);
+      const activeContext = options.contextProvider?.activeContext || 'global';
+      const shortcut = registryRef.current.findShortcutByKey(event.key, modifiers, activeContext);
+
+      // Only intervene for registered app shortcuts - let everything else be native
+      if (!shortcut) {
+        return true; // Let browser handle it natively
+      }
+
+      return false; // Let shortcut system handle it
+    },
+    [options.isShortcutsBlocked, options.contextProvider, parseModifiers],
+  );
+
+  const handleKeyDown = useCallback(
+    async (event: KeyboardEvent) => {
+      const shouldIgnore = shouldIgnoreEvent(event);
+
+      if (shouldIgnore) {
+        return;
+      }
+
+      const modifiers = parseModifiers(event);
+      const activeContext = options.contextProvider?.activeContext || 'global';
+
+      const shortcut = registryRef.current.findShortcutByKey(event.key, modifiers, activeContext);
+
+      logger.debug(`Key down: ${event.key}, Modifiers: ${modifiers.join('+')}, Context: ${activeContext}`);
+      logger.debug('Shortcut found:', shortcut);
+
+      if (shortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+          await registryRef.current.execute(shortcut.id, {
+            id: activeContext,
+            priority: 1, // Will be properly calculated by context provider
+          });
+        } catch (error) {
+          logger.error('Keyboard shortcut execution failed:', error);
+        }
+      }
+    },
+    [shouldIgnoreEvent, parseModifiers, options.contextProvider],
+  );
 
   useEffect(() => {
     const handleKeyDownEvent = (event: KeyboardEvent) => {
@@ -98,3 +100,4 @@ export const useKeyboardHandler = (
     handleKeyDown,
   };
 };
+
