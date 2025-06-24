@@ -1,4 +1,4 @@
-import type { KeyboardContext, CommandResult } from '../types/keyboard.types';
+import type { CommandResult, KeyboardContext } from '../types/keyboard.types';
 
 import { BaseKeyboardCommand } from './KeyboardCommand';
 
@@ -12,6 +12,22 @@ export class NewPromptCommand extends BaseKeyboardCommand {
   protected async doExecute(): Promise<CommandResult> {
     await this.newPrompt();
     return { success: true, data: { action: 'new_prompt' } };
+  }
+
+  canExecute(context: KeyboardContext): boolean {
+    // Available everywhere except form editing to avoid conflicts
+    return context.id !== 'form';
+  }
+}
+
+export class EditPromptCommand extends BaseKeyboardCommand {
+  constructor(private editPrompt: AppFunction) {
+    super('edit_prompt');
+  }
+
+  protected async doExecute(): Promise<CommandResult> {
+    await this.editPrompt();
+    return { success: true, data: { action: 'edit_prompt' } };
   }
 
   canExecute(context: KeyboardContext): boolean {
@@ -46,7 +62,7 @@ export class SaveCommand extends BaseKeyboardCommand {
   protected async doExecute(): Promise<CommandResult> {
     // Store current state for potential undo
     this.lastSavedData = { timestamp: Date.now() };
-    
+
     await this.save();
     return { success: true, data: { action: 'save' } };
   }
@@ -97,3 +113,4 @@ export class ShowSettingsCommand extends BaseKeyboardCommand {
     return true;
   }
 }
+

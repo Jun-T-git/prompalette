@@ -28,9 +28,7 @@ const shortcutCategories: ShortcutCategory[] = [
   },
   {
     title: 'プロンプト作成',
-    shortcuts: [
-      { key: '⌘/Ctrl + N', description: '新規プロンプト作成' },
-    ],
+    shortcuts: [{ key: '⌘/Ctrl + N', description: '新規プロンプト作成' }],
   },
   {
     title: 'プロンプト選択',
@@ -55,15 +53,12 @@ const shortcutCategories: ShortcutCategory[] = [
   },
   {
     title: 'その他',
-    shortcuts: [
-      { key: '?', description: 'このヘルプを表示' },
-    ],
+    shortcuts: [{ key: 'h', description: 'このヘルプを表示' }],
   },
 ];
 
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-
 
   // モーダルが開いたときにフォーカスを設定
   useEffect(() => {
@@ -96,9 +91,9 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Tab') {
         const focusableElements = dialogRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
-        
+
         if (!focusableElements || focusableElements.length === 0) return;
 
         const firstElement = focusableElements[0] as HTMLElement;
@@ -184,9 +179,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           <div className="space-y-6">
             {shortcutCategories.map((category) => (
               <div key={category.title}>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">
-                  {category.title}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">{category.title}</h3>
                 <div className="grid gap-3">
                   {category.shortcuts.map((shortcut) => (
                     <div

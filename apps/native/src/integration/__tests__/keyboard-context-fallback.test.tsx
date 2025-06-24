@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KeyboardProvider, useKeyboard } from '../../providers/KeyboardProvider';
 import type { AppStores } from '../../services/AppActionAdapter';
@@ -14,9 +14,7 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     mockStores = {
       promptStore: {
         selectedPromptIndex: 0,
-        filteredPrompts: [
-          { id: '1', title: 'Test Prompt', content: 'Content' }
-        ],
+        filteredPrompts: [{ id: '1', title: 'Test Prompt', content: 'Content' }],
         selectPrompt: vi.fn(),
         navigateUp: vi.fn(),
         navigateDown: vi.fn(),
@@ -46,7 +44,7 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
 
   const TestContextApp: React.FC = () => {
     const { activeContext, pushContext } = useKeyboard();
-    
+
     return (
       <div>
         <div data-testid="current-context">{activeContext}</div>
@@ -64,12 +62,12 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     render(
       <KeyboardProvider stores={mockStores}>
         <TestContextApp />
-      </KeyboardProvider>
+      </KeyboardProvider>,
     );
 
     // Set context to 'list'
     fireEvent.click(screen.getByTestId('set-list'));
-    
+
     // Test global shortcut: Escape (cancel/close)
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
@@ -82,8 +80,8 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
       expect(mockStores.modalStore.openNewPrompt).toHaveBeenCalled();
     });
 
-    // Test global shortcut: Cmd+? (help)
-    fireEvent.keyDown(document, { key: '?', metaKey: true });
+    // Test global shortcut: Cmd+h (help)
+    fireEvent.keyDown(document, { key: 'h', metaKey: true });
     await waitFor(() => {
       expect(mockStores.modalStore.openHelp).toHaveBeenCalled();
     });
@@ -93,20 +91,20 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     render(
       <KeyboardProvider stores={mockStores}>
         <TestContextApp />
-      </KeyboardProvider>
+      </KeyboardProvider>,
     );
 
     // Set context to 'form'
     fireEvent.click(screen.getByTestId('set-form'));
-    
+
     // Test global shortcut: Escape (cancel/close)
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
       expect(mockStores.modalStore.closeModal).toHaveBeenCalled();
     });
 
-    // Test global shortcut: Cmd+? (help)
-    fireEvent.keyDown(document, { key: '?', metaKey: true });
+    // Test global shortcut: Cmd+h (help)
+    fireEvent.keyDown(document, { key: 'h', metaKey: true });
     await waitFor(() => {
       expect(mockStores.modalStore.openHelp).toHaveBeenCalled();
     });
@@ -116,12 +114,12 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     render(
       <KeyboardProvider stores={mockStores}>
         <TestContextApp />
-      </KeyboardProvider>
+      </KeyboardProvider>,
     );
 
     // Set context to 'list'
     fireEvent.click(screen.getByTestId('set-list'));
-    
+
     // Test list-specific shortcut: ArrowDown (navigation)
     fireEvent.keyDown(document, { key: 'ArrowDown' });
     await waitFor(() => {
@@ -131,7 +129,7 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     // Switch to form context
     fireEvent.click(screen.getByTestId('set-form'));
     vi.clearAllMocks();
-    
+
     // Test form-specific shortcut: Cmd+S (save)
     fireEvent.keyDown(document, { key: 'S', metaKey: true });
     await waitFor(() => {
@@ -147,7 +145,7 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
     render(
       <KeyboardProvider stores={mockStores}>
         <TestContextApp />
-      </KeyboardProvider>
+      </KeyboardProvider>,
     );
 
     // In list context, Enter should copy prompt
@@ -161,27 +159,27 @@ describe.skip('Keyboard Context Fallback Integration - Complex test disabled for
   it('should detect when global shortcuts fail in non-global context', async () => {
     // This test specifically checks the bug we found
     const consoleSpy = vi.spyOn(console, 'log');
-    
+
     render(
       <KeyboardProvider stores={mockStores}>
         <TestContextApp />
-      </KeyboardProvider>
+      </KeyboardProvider>,
     );
 
     // Set context to 'list' (not global)
     fireEvent.click(screen.getByTestId('set-list'));
-    
+
     // Try Escape key
     fireEvent.keyDown(document, { key: 'Escape' });
-    
+
     // Wait for the command to execute
     await waitFor(() => {
       expect(mockStores.modalStore.closeModal).toHaveBeenCalled();
     });
 
     // Should not see "No shortcut found" message
-    const noShortcutLogs = consoleSpy.mock.calls.filter(call => 
-      call[0]?.includes?.('No shortcut found')
+    const noShortcutLogs = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('No shortcut found'),
     );
     expect(noShortcutLogs).toHaveLength(0);
 
