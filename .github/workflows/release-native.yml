@@ -70,12 +70,18 @@ jobs:
         run: |
           pnpm --filter apps/native tauri build --target universal-apple-darwin
 
+      - name: List build artifacts
+        run: |
+          echo "=== Listing bundle directory ==="
+          find apps/native/src-tauri/target -name "*.dmg" -type f || echo "No DMG files found"
+          
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-universal
           path: |
-            apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            apps/native/src-tauri/target/*/release/bundle/dmg/*.dmg
+            apps/native/src-tauri/target/*/bundle/dmg/*.dmg
           retention-days: 7
 
   # ========================================

@@ -173,10 +173,23 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-/// データベース接続プール取得
+/// データベース接続プール取得（内部使用用）
 /// データベースが初期化されていない場合はパニック
-pub fn get_db_pool() -> &'static SqlitePool {
+/// 
+/// # Safety
+/// この関数は内部使用のみ。新規コードでは`try_get_db_pool()`を使用すること。
+fn get_db_pool() -> &'static SqlitePool {
     DB_POOL.get().expect("Database not initialized. Call init_database() first.")
+}
+
+/// データベース接続プール取得（安全版）
+/// 
+/// # Returns
+/// * `Ok(&SqlitePool)` - データベースプールが初期化済みの場合
+/// * `Err(String)` - データベースが初期化されていない場合
+pub fn try_get_db_pool() -> Result<&'static SqlitePool, String> {
+    DB_POOL.get()
+        .ok_or_else(|| "Database not initialized. Call init_database() first.".to_string())
 }
 
 /// プロンプト作成
@@ -743,5 +756,27 @@ mod tests {
         
         // SQLite UNIQUE制約違反が発生することを確認
         assert!(second_pin_result.is_err());
+    }
+    
+    #[test]
+    fn test_try_get_db_pool_before_init() {
+        // DB_POOLが初期化されていない場合のテスト
+        // 注意: このテストは他のテストが実行される前に実行される必要がある
+        // ただし、現在の実装ではDB_POOLはグローバルなので、
+        // 他のテストで初期化されている可能性がある
+        
+        // try_get_db_poolがエラーを返すか、または成功するか確認
+        let result = try_get_db_pool();
+        // どちらの結果でもパニックしないことを確認
+        match result {
+            Ok(_) => {
+                // 他のテストで初期化済み
+                assert!(true);
+            }
+            Err(msg) => {
+                // 期待されるエラーメッセージ
+                assert!(msg.contains("Database not initialized"));
+            }
+        }
     }
 }

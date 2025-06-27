@@ -14,7 +14,14 @@
       {
         "title": "prompalette",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "center": true,
+        "closable": true,
+        "minimizable": true,
+        "maximizable": true,
+        "resizable": true,
+        "skipTaskbar": false,
+        "visible": true
       }
     ],
     "security": {
@@ -42,6 +49,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.15"
+    }
   }
 }
