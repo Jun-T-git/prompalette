@@ -1,6 +1,6 @@
-/**
+/*!
  * データベース操作モジュール
- * SQLiteを使用したプロンプトデータの永続化
+ * `SQLite`を使用したプロンプトデータの永続化
  */
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -114,7 +114,7 @@ pub async fn init_database() -> Result<(), Box<dyn std::error::Error>> {
 async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
     // プロンプトテーブル作成
     sqlx::query(
-        r#"
+        r"
         CREATE TABLE IF NOT EXISTS prompts (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -126,11 +126,11 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
             pinned_position INTEGER,
             pinned_at DATETIME
         );
-        "#,
+        ",
     )
     .execute(pool)
     .await
-    .map_err(|e| format!("Failed to create prompts table: {}", e))?;
+    .map_err(|e| format!("Failed to create prompts table: {e}"))?;
     
     // 既存テーブルにピン関連カラムを追加（マイグレーション）
     run_migrations(pool).await?;
@@ -192,11 +192,11 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     };
     
     let prompt = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         INSERT INTO prompts (id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL)
         RETURNING *
-        "#,
+        ",
     )
     .bind(&id)
     .bind(&request.title)
@@ -239,14 +239,14 @@ pub async fn get_all_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Error>
 /// プロンプト検索（既存API - 後方互換性維持）
 pub async fn search_prompts(query: &str) -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
     let pool = get_db_pool();
-    let search_term = format!("%{}%", query);
+    let search_term = format!("%{query}%");
     
     let prompts = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         SELECT * FROM prompts 
         WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
         ORDER BY updated_at DESC
-        "#,
+        ",
     )
     .bind(&search_term)
     .fetch_all(pool)
@@ -271,8 +271,8 @@ pub async fn search_prompts_fast(query: &str) -> Result<Vec<Prompt>, Box<dyn std
         return Ok(vec![]);
     }
     
-    let search_term = format!("%{}%", query);
-    let prefix_term = format!("{}%", query);
+    let search_term = format!("%{query}%");
+    let prefix_term = format!("{query}%");
     
     // 優先度付き検索クエリ
     let prompts = sqlx::query_as::<_, Prompt>(
@@ -337,12 +337,12 @@ pub async fn update_prompt(
     let now = chrono::Utc::now();
     
     let updated_prompt = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         UPDATE prompts 
         SET title = $1, content = $2, tags = $3, quick_access_key = $4, updated_at = $5
         WHERE id = $6
         RETURNING *
-        "#,
+        ",
     )
     .bind(&title)
     .bind(&content)
@@ -373,7 +373,7 @@ pub async fn delete_prompt(id: &str) -> Result<bool, Box<dyn std::error::Error>>
 /// position: 1-10の範囲でピン留め位置を指定
 /// 既に同じ位置にピン留めされているプロンプトがある場合は、そのピン留めを解除
 pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -393,7 +393,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
     sqlx::query(
         "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .execute(&mut *tx)
     .await?;
     
@@ -401,7 +401,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
     let result = sqlx::query(
         "UPDATE prompts SET pinned_position = $1, pinned_at = $2 WHERE id = $3"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .bind(now)
     .bind(prompt_id)
     .execute(&mut *tx)
@@ -421,7 +421,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
 /// 
 /// position: 解除するピン留め位置（1-10）
 pub async fn unpin_prompt(position: u8) -> Result<(), Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -430,7 +430,7 @@ pub async fn unpin_prompt(position: u8) -> Result<(), Box<dyn std::error::Error>
     let result = sqlx::query(
         "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .execute(pool)
     .await?;
     
@@ -461,7 +461,7 @@ pub async fn get_pinned_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Err
 /// position: コピーするピン留め位置（1-10）
 /// プロンプトの内容をクリップボードにコピーし、成功/失敗を返す
 pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -470,7 +470,7 @@ pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, B
     let prompt: Option<(String,)> = sqlx::query_as(
         "SELECT content FROM prompts WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .fetch_optional(pool)
     .await?;
     
@@ -481,7 +481,7 @@ pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, B
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio;
+    
 
     /// テスト用のデータベースプールを作成
     async fn create_test_pool() -> SqlitePool {
@@ -489,7 +489,7 @@ mod tests {
         
         // テーブル作成
         sqlx::query(
-            r#"
+            r"
             CREATE TABLE prompts (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -500,7 +500,7 @@ mod tests {
                 pinned_position INTEGER,
                 pinned_at DATETIME
             );
-            "#,
+            ",
         )
         .execute(&pool)
         .await
@@ -553,8 +553,8 @@ mod tests {
         
         // 直接SQLクエリで検証
         let query = "test";
-        let search_term = format!("%{}%", query);
-        let prefix_term = format!("{}%", query);
+        let search_term = format!("%{query}%");
+        let prefix_term = format!("{query}%");
         
         let rows: Vec<(String, i32)> = sqlx::query_as(
             r#"
@@ -602,7 +602,7 @@ mod tests {
         
         // 25件のテストデータを挿入
         for i in 0..25 {
-            let id = format!("test_{}", i);
+            let id = format!("test_{i}");
             sqlx::query(
                 "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
             )
@@ -709,13 +709,13 @@ mod tests {
         
         // 2つのプロンプトを作成
         for i in 1..=2 {
-            let prompt_id = format!("test_prompt_{}", i);
+            let prompt_id = format!("test_prompt_{i}");
             sqlx::query(
                 "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
             )
             .bind(&prompt_id)
-            .bind(&format!("Test Title {}", i))
-            .bind(&format!("Test content {}", i))
+            .bind(format!("Test Title {i}"))
+            .bind(format!("Test content {i}"))
             .bind("[]")
             .execute(&pool)
             .await
