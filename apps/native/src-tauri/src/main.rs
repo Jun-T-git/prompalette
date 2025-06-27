@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    prompalette_lib::run()
+    prompalette_lib::run();
 }

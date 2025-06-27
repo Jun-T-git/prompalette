@@ -1,0 +1,1 @@
+export { HotkeyTest } from './HotkeyTest';

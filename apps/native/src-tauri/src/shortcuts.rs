@@ -1,7 +1,7 @@
 /**
  * グローバルショートカット管理モジュール
  * 
- * PromPaletteのキーボードショートカット機能を提供
+ * `PromPaletteのキーボードショートカット機能を提供`
  * - Ctrl+Shift+P: クイックランチャー表示
  * 
  * パフォーマンス目標:
@@ -37,18 +37,18 @@ pub async fn register_global_shortcuts(app: AppHandle) -> Result<(), ShortcutErr
             if let Some(window) = app_handle.get_webview_window("main") {
                 // ウィンドウを最前面に表示
                 if let Err(e) = window.show() {
-                    eprintln!("Failed to show window: {}", e);
+                    eprintln!("Failed to show window: {e}");
                 }
                 if let Err(e) = window.set_focus() {
-                    eprintln!("Failed to focus window: {}", e);
+                    eprintln!("Failed to focus window: {e}");
                 }
                 if let Err(e) = window.unminimize() {
-                    eprintln!("Failed to unminimize window: {}", e);
+                    eprintln!("Failed to unminimize window: {e}");
                 }
                 
                 // フロントエンドに検索フォーカスイベント送信
                 if let Err(e) = app_handle.emit("focus-search", ()) {
-                    eprintln!("Failed to emit focus-search event: {}", e);
+                    eprintln!("Failed to emit focus-search event: {e}");
                 }
             }
         })
@@ -75,9 +75,9 @@ pub async fn unregister_global_shortcuts(app: AppHandle) -> Result<(), ShortcutE
     app.global_shortcut()
         .unregister_all()
         .map_err(|e| {
-            eprintln!("Failed to unregister global shortcuts: {}", e);
+            eprintln!("Failed to unregister global shortcuts: {e}");
             ShortcutError {
-                error: format!("ショートカットキーの解除に失敗しました: {}", e)
+                error: format!("ショートカットキーの解除に失敗しました: {e}")
             }
         })?;
 
@@ -118,9 +118,9 @@ pub async fn hide_main_window(app: AppHandle) -> Result<(), ShortcutError> {
     if let Some(window) = app.get_webview_window("main") {
         // ウィンドウを隠す
         if let Err(e) = window.hide() {
-            eprintln!("Failed to hide window: {}", e);
+            eprintln!("Failed to hide window: {e}");
             return Err(ShortcutError {
-                error: format!("ウィンドウの非表示に失敗しました: {}", e)
+                error: format!("ウィンドウの非表示に失敗しました: {e}")
             });
         }
     }

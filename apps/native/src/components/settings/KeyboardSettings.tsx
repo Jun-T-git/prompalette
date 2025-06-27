@@ -90,6 +90,26 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = () => {
           </div>
         </div>
 
+        {/* グローバルホットキー */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">グローバルホットキー</h4>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>アプリ起動（どこからでも）</span>
+              <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs">⌘⇧P</kbd>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>パレット即時ペースト（どこからでも）</span>
+              <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs">
+                ⌘⌃1-9,0
+              </kbd>
+            </div>
+            <div className="text-xs text-gray-600 mt-2">
+              ※ パレット即時ペーストは他のアプリでも動作します
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
             💡 ヒント: ショートカットのカスタマイズ機能は今後のアップデートで追加予定です。
