@@ -45,10 +45,7 @@
     ],
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "10.15",
-      "dmg": {
-        "enabled": true
-      }
+      "minimumSystemVersion": "10.15"
     }
   }
 }
