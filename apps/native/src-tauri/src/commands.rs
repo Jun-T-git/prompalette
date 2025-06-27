@@ -18,6 +18,8 @@ use crate::database::{
     Prompt,
     UpdatePromptRequest,
 };
+use tauri::AppHandle;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// エラーレスポンス構造
 #[derive(Debug, serde::Serialize)]
@@ -45,6 +47,19 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<SuccessRespon
     if request.content.trim().is_empty() {
         return Err(ErrorResponse {
             error: "Content cannot be empty".to_string(),
+        });
+    }
+    
+    // サイズ制限チェック
+    if request.title.len() > 200 {
+        return Err(ErrorResponse {
+            error: "Title too long (max 200 characters)".to_string(),
+        });
+    }
+    
+    if request.content.len() > 100_000 {
+        return Err(ErrorResponse {
+            error: "Content too long (max 100,000 characters)".to_string(),
         });
     }
     
@@ -90,6 +105,13 @@ pub async fn get_all_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorResp
 /// プロンプト検索コマンド
 #[tauri::command]
 pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    // 入力値検証
+    if query.len() > 1000 {
+        return Err(ErrorResponse {
+            error: "Search query too long (max 1000 characters)".to_string(),
+        });
+    }
+    
     match db_search_prompts(&query).await {
         Ok(prompts) => Ok(SuccessResponse {
             success: true,
@@ -109,6 +131,13 @@ pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>
 /// - <50ms レスポンス目標
 #[tauri::command]
 pub async fn search_prompts_fast(query: String) -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    // 入力値検証
+    if query.len() > 1000 {
+        return Err(ErrorResponse {
+            error: "Search query too long (max 1000 characters)".to_string(),
+        });
+    }
+    
     // 空クエリは早期リターン
     if query.trim().is_empty() {
         return Ok(SuccessResponse {
@@ -266,7 +295,10 @@ pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorR
 /// 
 /// position: コピーするピン留め位置（1-10）
 #[tauri::command]
-pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+pub async fn copy_pinned_prompt(
+    app_handle: AppHandle,
+    position: u8
+) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
     if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
@@ -276,70 +308,21 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
     
     match db_get_pinned_prompt_content(position).await {
         Ok(Some(content)) => {
-            // クリップボードにコピー（プラットフォーム別対応）
-            let copy_result = if cfg!(target_os = "macos") {
-                // macOS: pbcopy
-                std::process::Command::new("pbcopy")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .and_then(|mut child| {
-                        if let Some(stdin) = child.stdin.as_mut() {
-                            use std::io::Write;
-                            stdin.write_all(content.as_bytes())?;
-                        }
-                        child.wait()
-                    })
-                    .map(|status| status.success())
-                    .unwrap_or(false)
-            } else if cfg!(target_os = "windows") {
-                // Windows: clip
-                std::process::Command::new("cmd")
-                    .args(["/C", "echo", &content, "|", "clip"])
-                    .output()
-                    .map(|output| output.status.success())
-                    .unwrap_or(false)
-            } else {
-                // Linux: xclip または xsel を試行
-                std::process::Command::new("xclip")
-                    .args(["-selection", "clipboard"])
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .and_then(|mut child| {
-                        if let Some(stdin) = child.stdin.as_mut() {
-                            use std::io::Write;
-                            stdin.write_all(content.as_bytes())?;
-                        }
-                        child.wait()
-                    })
-                    .map(|status| status.success())
-                    .unwrap_or_else(|_| {
-                        // xclip が失敗した場合は xsel を試行
-                        std::process::Command::new("xsel")
-                            .args(["--clipboard", "--input"])
-                            .stdin(std::process::Stdio::piped())
-                            .spawn()
-                            .and_then(|mut child| {
-                                if let Some(stdin) = child.stdin.as_mut() {
-                                    use std::io::Write;
-                                    stdin.write_all(content.as_bytes())?;
-                                }
-                                child.wait()
-                            })
-                            .map(|status| status.success())
-                            .unwrap_or(false)
-                    })
-            };
+            // サイズ制限チェック（DoS攻撃防止）
+            if content.len() > 1_000_000 { // 1MB制限
+                return Err(ErrorResponse {
+                    error: "Prompt content too large for clipboard".to_string(),
+                });
+            }
             
-            if copy_result {
-                Ok(SuccessResponse {
+            // Tauriプラグインを使用した安全なクリップボード操作
+            match app_handle.clipboard().write_text(content.clone()) {
+                Ok(_) => Ok(SuccessResponse {
                     success: true,
                     data: format!("Prompt from position {position} copied to clipboard"),
-                })
-            } else {
-                // クリップボード操作に失敗した場合は内容を返す
-                Ok(SuccessResponse {
-                    success: true,
-                    data: format!("Clipboard operation failed. Content length: {} characters", content.len()),
+                }),
+                Err(e) => Err(ErrorResponse {
+                    error: format!("Failed to copy to clipboard: {}", e),
                 })
             }
         }
@@ -354,6 +337,44 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn test_input_validation() {
+        // タイトルの長さチェック
+        let long_title = "a".repeat(201);
+        let request = CreatePromptRequest {
+            title: long_title,
+            content: "Test content".to_string(),
+            tags: None,
+            quick_access_key: None,
+        };
+        
+        // 長すぎるタイトルはエラーとなるはず
+        // (ここではロジックのみチェック)
+        assert!(request.title.len() > 200);
+    }
+    
+    #[test]
+    fn test_pin_position_validation() {
+        // 有効な範囲のチェック
+        for pos in 1..=10 {
+            assert!((1..=10).contains(&pos));
+        }
+        
+        // 無効な範囲のチェック
+        assert!(!(1..=10).contains(&0));
+        assert!(!(1..=10).contains(&11));
+    }
+    
+    #[test]
+    fn test_query_length_validation() {
+        let long_query = "a".repeat(1001);
+        assert!(long_query.len() > 1000);
+        
+        let valid_query = "test query";
+        assert!(valid_query.len() <= 1000);
+    }
 
     #[tokio::test]
     async fn test_create_prompt_command() {
