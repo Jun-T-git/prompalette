@@ -345,7 +345,7 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       '@testing-library/jest-dom':
-        specifier: ^6.2.0
+        specifier: ^6.4.2
         version: 6.6.3
       '@testing-library/react':
         specifier: ^14.1.2
@@ -387,7 +387,7 @@ importers:
         specifier: ^5.0.12
         version: 5.4.19(@types/node@20.19.0)
       vitest:
-        specifier: ^1.2.2
+        specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.0)(jsdom@23.2.0)
 
 packages:

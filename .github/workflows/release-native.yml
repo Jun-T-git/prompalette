@@ -1,0 +1,212 @@
+name: Release Native App
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+          - prerelease
+          - release
+
+permissions:
+  contents: write
+
+env:
+  PNPM_VERSION: 8
+  NODE_VERSION: 20
+
+jobs:
+  # ========================================
+  # ビルド: macOS向けネイティブアプリ
+  # ========================================
+  build-native:
+    name: Build Native App
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run --filter "./packages/**" build
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./apps/native/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build Tauri app (Universal)
+        run: |
+          pnpm --filter apps/native tauri build --target universal-apple-darwin
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: |
+            apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          retention-days: 7
+
+  # ========================================
+  # Stagingプレリリース
+  # ========================================
+  prerelease:
+    name: Pre-release (Staging)
+    needs: build-native
+    if: |
+      github.ref == 'refs/heads/staging' || 
+      (github.event_name == 'workflow_dispatch' && inputs.release_type == 'prerelease')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          echo "## 🚧 Staging Pre-release v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}" > notes.md
+          echo "" >> notes.md
+          echo "### 📅 Build Information" >> notes.md
+          echo "- **Version**: ${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}" >> notes.md
+          echo "- **Commit**: ${{ github.sha }}" >> notes.md
+          echo "- **Build**: #${{ github.run_number }}" >> notes.md
+          echo "- **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> notes.md
+          echo "" >> notes.md
+          echo "### ⚠️ Notice" >> notes.md
+          echo "This is a pre-release build for testing purposes. It may contain bugs or incomplete features." >> notes.md
+          echo "" >> notes.md
+          echo "### 📦 Installation" >> notes.md
+          echo "1. Download the .dmg file below" >> notes.md
+          echo "2. Open the downloaded file" >> notes.md
+          echo "3. Drag PromPalette to your Applications folder" >> notes.md
+
+      - name: Create pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          tag_name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
+          name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
+          body_path: notes.md
+          files: |
+            ./dist/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================
+  # 本番リリース
+  # ========================================
+  release:
+    name: Production Release
+    needs: build-native
+    if: |
+      github.ref == 'refs/heads/main' || 
+      (github.event_name == 'workflow_dispatch' && inputs.release_type == 'release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Check for existing release
+        id: check_release
+        run: |
+          if gh release view "v${{ needs.build-native.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate changelog
+        if: steps.check_release.outputs.exists == 'false'
+        id: changelog
+        run: |
+          echo "## 🎉 Release v${{ needs.build-native.outputs.version }}" > changelog.md
+          echo "" >> changelog.md
+          echo "### 📦 Downloads" >> changelog.md
+          echo "Download the installer for macOS below." >> changelog.md
+          echo "" >> changelog.md
+          echo "### 🔧 Installation" >> changelog.md
+          echo "1. Download the .dmg file" >> changelog.md
+          echo "2. Open the downloaded file" >> changelog.md
+          echo "3. Drag PromPalette to your Applications folder" >> changelog.md
+          echo "4. On first launch, you may need to right-click and select 'Open' due to macOS security settings" >> changelog.md
+          echo "" >> changelog.md
+          
+          # 前回のリリースタグを取得
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "### 📝 Changes since $PREV_TAG" >> changelog.md
+            echo "" >> changelog.md
+            git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep -E "^- (feat|fix|perf|refactor):" >> changelog.md || echo "- Various improvements and bug fixes" >> changelog.md
+          else
+            echo "### 📝 Initial Release" >> changelog.md
+            echo "- First release of PromPalette" >> changelog.md
+          fi
+          
+          echo "" >> changelog.md
+          echo "### 🔗 Links" >> changelog.md
+          echo "- [Documentation](https://github.com/${{ github.repository }}/wiki)" >> changelog.md
+          echo "- [Report Issues](https://github.com/${{ github.repository }}/issues)" >> changelog.md
+
+      - name: Create production release
+        if: steps.check_release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: false
+          tag_name: v${{ needs.build-native.outputs.version }}
+          name: v${{ needs.build-native.outputs.version }}
+          body_path: changelog.md
+          files: |
+            ./dist/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing release
+        if: steps.check_release.outputs.exists == 'true'
+        run: |
+          echo "Release v${{ needs.build-native.outputs.version }} already exists. Skipping creation."
+          echo "To create a new release, please update the version in package.json."

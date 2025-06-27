@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
@@ -18,7 +18,7 @@ env:
 
 jobs:
   # ========================================
-  # 基本CI: 全ブランチで実行
+  # CI: 全ブランチで実行される品質チェック
   # ========================================
   ci:
     name: CI Check
@@ -59,14 +59,14 @@ jobs:
         run: pnpm run --filter "./apps/**" build
 
   # ========================================
-  # ネイティブアプリビルド: リリース用
+  # ビルド検証: リリース前の最終確認
   # ========================================
-  build-native:
-    name: Build Native App (macOS)
+  verify-native-build:
+    name: Verify Native Build
     needs: ci
     if: |
-      github.event_name == 'push' && 
-      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+      github.event_name == 'pull_request' && 
+      (github.base_ref == 'staging' || github.base_ref == 'main')
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -94,112 +94,5 @@ jobs:
       - name: Build packages
         run: pnpm run --filter "./packages/**" build
 
-      - name: Build Tauri app
-        run: pnpm --filter apps/native tauri build
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-installers
-          path: |
-            apps/native/src-tauri/target/release/bundle/**/*.dmg
-          retention-days: 30
-
-  # ========================================
-  # Stagingプレリリース
-  # ========================================
-  prerelease:
-    name: Pre-release (Staging)
-    needs: build-native
-    if: github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./dist
-
-      - name: Create pre-release
-        uses: softprops/action-gh-release@v2
-        with:
-          prerelease: true
-          tag_name: staging-${{ github.run_number }}
-          name: 'Staging Build #${{ github.run_number }}'
-          body: |
-            ## 🚧 Staging Pre-release
-
-            This is an automated pre-release from the staging branch.
-            
-            ### Changes
-            - Commit: ${{ github.sha }}
-            - Run: ${{ github.run_number }}
-            
-            ### ⚠️ Warning
-            This is a pre-release version for testing purposes only.
-          files: |
-            ./dist/**/*.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ========================================
-  # 本番リリース
-  # ========================================
-  release:
-    name: Production Release
-    needs: build-native
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get version from package.json
-        id: version
-        run: |
-          VERSION=$(node -p "require('./apps/native/package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./dist
-
-      - name: Create production release
-        uses: softprops/action-gh-release@v2
-        with:
-          prerelease: false
-          tag_name: v${{ steps.version.outputs.version }}
-          name: 'Release v${{ steps.version.outputs.version }}'
-          body: |
-            ## 🎉 Release v${{ steps.version.outputs.version }}
-
-            ### 📦 Downloads
-            Please download the appropriate installer for your platform below.
-
-            ### 🔧 Installation
-            - **macOS**: Download and open the .dmg file
-
-            ### 📝 Changelog
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          files: |
-            ./dist/**/*.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ========================================
-  # WebアプリDeploy設定 (将来用)
-  # ========================================
-  # deploy-web:
-  #   name: Deploy Web App
-  #   needs: ci
-  #   if: github.ref == 'refs/heads/main'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Placeholder for web deployment
-  #       run: echo "Web deployment will be configured here"
+      - name: Build Tauri app (dry-run)
+        run: pnpm --filter apps/native tauri build --debug
