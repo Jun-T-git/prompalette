@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import React from 'react';
 
 import { Button } from './button';
 
@@ -8,7 +9,7 @@ describe('Button', () => {
     render(<Button>Click me</Button>);
     
     const button = screen.getByRole('button', { name: 'Click me' });
-    expect(button).toBeDefined();
+    expect(button).toBeInTheDocument();
   });
   
   it('should apply variant classes', () => {
@@ -29,6 +30,6 @@ describe('Button', () => {
     render(<Button disabled>Disabled</Button>);
     
     const button = screen.getByRole('button', { name: 'Disabled' });
-    expect(button).toHaveProperty('disabled', true);
+    expect(button).toBeDisabled();
   });
 });
