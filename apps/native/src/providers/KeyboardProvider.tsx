@@ -1,20 +1,22 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 
 import {
+  EditPromptCommand,
   NewPromptCommand,
-  SearchFocusCommand,
   SaveCommand,
+  SearchFocusCommand,
+  SelectPaletteCommand,
   ShowHelpCommand,
-  ShowSettingsCommand
+  ShowSettingsCommand,
 } from '../commands/EssentialCommands';
 import type { KeyboardCommand } from '../commands/KeyboardCommand';
-import { 
-  NavigateUpCommand, 
-  NavigateDownCommand, 
-  SelectFirstCommand, 
-  SelectLastCommand,
+import {
+  CancelCommand,
   ConfirmCommand,
-  CancelCommand 
+  NavigateDownCommand,
+  NavigateUpCommand,
+  SelectFirstCommand,
+  SelectLastCommand,
 } from '../commands/NavigationCommands';
 import { ShortcutRegistry } from '../commands/ShortcutRegistry';
 import { useIMEComposition } from '../hooks/useIMEComposition';
@@ -26,7 +28,7 @@ import { getKeyboardContextFromUI, logContextChange, type UIState } from '../uti
 interface KeyboardContextValue {
   // Context management (now derived from UI state)
   activeContext: ContextId;
-  
+
   // IME composition
   isComposing: boolean;
   getCompositionProps: () => {
@@ -34,7 +36,7 @@ interface KeyboardContextValue {
     onCompositionUpdate: (event: React.CompositionEvent) => void;
     onCompositionEnd: (event: React.CompositionEvent) => void;
   };
-  
+
   // Registry access (for advanced use cases)
   registry: ShortcutRegistry;
 }
@@ -48,38 +50,44 @@ interface KeyboardProviderProps {
   uiState: UIState;
 }
 
-export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({ 
-  children, 
+export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
+  children,
   stores,
-  uiState
+  uiState,
 }) => {
   // Derive context from UI state (Single Source of Truth)
   const activeContext = useMemo(() => {
     return getKeyboardContextFromUI(uiState);
   }, [uiState]);
-  
+
   // Debug logging for context changes
   const previousContext = useRef<ContextId | null>(null);
   useEffect(() => {
     logContextChange(previousContext.current, activeContext, uiState);
     previousContext.current = activeContext;
   }, [activeContext, uiState]);
-  
+
   const imeComposition = useIMEComposition();
-  
+
   // Create simple context provider object for the adapter
-  const contextProvider = useMemo(() => ({
-    activeContext
-  }), [activeContext]);
-  
+  const contextProvider = useMemo(
+    () => ({
+      activeContext,
+    }),
+    [activeContext],
+  );
+
   // Create adapter and registry
-  const adapter = useMemo(() => new AppActionAdapter(stores, contextProvider), [stores, contextProvider]);
+  const adapter = useMemo(
+    () => new AppActionAdapter(stores, contextProvider),
+    [stores, contextProvider],
+  );
   const registry = useMemo(() => {
     const reg = new ShortcutRegistry();
-    
+
     // Register default shortcuts
     registerDefaultShortcuts(reg, adapter);
-    
+
     return reg;
   }, [adapter]);
 
@@ -99,16 +107,18 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
   // Debug: expose keyboard context to window for E2E testing (development only)
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-      (window as unknown as Record<string, unknown>).__keyboardContext = activeContext;
-      (window as unknown as Record<string, unknown>).__keyboardProvider = contextValue;
+      // Type-safe window extension for debugging
+      interface DebugWindow extends Window {
+        __keyboardContext?: ContextId;
+        __keyboardProvider?: KeyboardContextValue;
+      }
+      const debugWindow = window as DebugWindow;
+      debugWindow.__keyboardContext = activeContext;
+      debugWindow.__keyboardProvider = contextValue;
     }
   }, [activeContext, contextValue]);
 
-  return (
-    <KeyboardContext.Provider value={contextValue}>
-      {children}
-    </KeyboardContext.Provider>
-  );
+  return <KeyboardContext.Provider value={contextValue}>{children}</KeyboardContext.Provider>;
 };
 
 export const useKeyboard = (): KeyboardContextValue => {
@@ -121,7 +131,7 @@ export const useKeyboard = (): KeyboardContextValue => {
 
 // Helper function to register default shortcuts
 function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppActionAdapter) {
-  const shortcuts: Array<{ shortcut: KeyboardShortcut, command: KeyboardCommand }> = [
+  const shortcuts: Array<{ shortcut: KeyboardShortcut; command: KeyboardCommand }> = [
     // Navigation shortcuts
     {
       shortcut: {
@@ -189,12 +199,10 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
       },
       command: new CancelCommand(adapter.cancel.bind(adapter)),
     },
-    
-    // Essential shortcuts
     {
       shortcut: {
         id: 'new_prompt',
-        key: 'N',
+        key: 'n',
         modifiers: ['cmd'],
         context: 'global',
         action: 'NEW_PROMPT',
@@ -204,10 +212,21 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
     },
     {
       shortcut: {
-        id: 'search_focus',
-        key: 'F',
+        id: 'edit_prompt',
+        key: 'e',
         modifiers: ['cmd'],
         context: 'global',
+        action: 'EDIT_PROMPT',
+        customizable: true,
+      },
+      command: new EditPromptCommand(adapter.editPrompt.bind(adapter)),
+    },
+    {
+      shortcut: {
+        id: 'search_focus',
+        key: 'f',
+        modifiers: ['cmd'],
+        context: 'list',
         action: 'SEARCH_FOCUS',
         customizable: true,
       },
@@ -216,7 +235,7 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
     {
       shortcut: {
         id: 'save',
-        key: 'S',
+        key: 's',
         modifiers: ['cmd'],
         context: 'form',
         action: 'SAVE',
@@ -227,7 +246,7 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
     {
       shortcut: {
         id: 'show_help',
-        key: '?',
+        key: 'h',
         modifiers: ['cmd'],
         context: 'global',
         action: 'SHOW_HELP',
@@ -248,7 +267,28 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
     },
   ];
 
+  // Add palette selection shortcuts (Cmd+1 through Cmd+9, Cmd+0)
+  const paletteKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+  paletteKeys.forEach((key, index) => {
+    const position = index + 1; // positions 1-10
+    shortcuts.push({
+      shortcut: {
+        id: `select_palette_${position}`,
+        key,
+        modifiers: ['cmd'],
+        context: 'global',
+        action: 'SELECT_PALETTE',
+        customizable: true,
+      },
+      command: new SelectPaletteCommand(
+        (pos: number) => adapter.selectPalette(pos),
+        position
+      ),
+    });
+  });
+
   shortcuts.forEach(({ shortcut, command }) => {
     registry.register(shortcut, command);
   });
 }
+

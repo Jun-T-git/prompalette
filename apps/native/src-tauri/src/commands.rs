@@ -20,7 +20,7 @@ use crate::database::{
 };
 
 /// エラーレスポンス構造
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct ErrorResponse {
     pub error: String,
 }
@@ -68,7 +68,7 @@ pub async fn get_prompt(id: String) -> Result<SuccessResponse<Option<Prompt>>, E
             data: prompt,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get prompt: {}", e),
+            error: format!("Failed to get prompt: {e}"),
         }),
     }
 }
@@ -82,7 +82,7 @@ pub async fn get_all_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorResp
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get prompts: {}", e),
+            error: format!("Failed to get prompts: {e}"),
         }),
     }
 }
@@ -96,7 +96,7 @@ pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to search prompts: {}", e),
+            error: format!("Failed to search prompts: {e}"),
         }),
     }
 }
@@ -123,7 +123,7 @@ pub async fn search_prompts_fast(query: String) -> Result<SuccessResponse<Vec<Pr
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to search prompts fast: {}", e),
+            error: format!("Failed to search prompts fast: {e}"),
         }),
     }
 }
@@ -161,7 +161,7 @@ pub async fn delete_prompt(id: String) -> Result<SuccessResponse<bool>, ErrorRes
             data: deleted,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to delete prompt: {}", e),
+            error: format!("Failed to delete prompt: {e}"),
         }),
     }
 }
@@ -170,12 +170,12 @@ pub async fn delete_prompt(id: String) -> Result<SuccessResponse<bool>, ErrorRes
 #[tauri::command]
 pub async fn init_database() -> Result<SuccessResponse<String>, ErrorResponse> {
     match crate::database::init_database().await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
             data: "Database initialized successfully".to_string(),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to initialize database: {}", e),
+            error: format!("Failed to initialize database: {e}"),
         }),
     }
 }
@@ -208,19 +208,19 @@ pub async fn pin_prompt(prompt_id: String, position: u8) -> Result<SuccessRespon
         });
     }
     
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
     }
     
     match db_pin_prompt(&prompt_id, position).await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
-            data: format!("Prompt pinned to position {}", position),
+            data: format!("Prompt pinned to position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to pin prompt: {}", e),
+            error: format!("Failed to pin prompt: {e}"),
         }),
     }
 }
@@ -231,19 +231,19 @@ pub async fn pin_prompt(prompt_id: String, position: u8) -> Result<SuccessRespon
 #[tauri::command]
 pub async fn unpin_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
     }
     
     match db_unpin_prompt(position).await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
-            data: format!("Prompt unpinned from position {}", position),
+            data: format!("Prompt unpinned from position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to unpin prompt: {}", e),
+            error: format!("Failed to unpin prompt: {e}"),
         }),
     }
 }
@@ -257,7 +257,7 @@ pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorR
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get pinned prompts: {}", e),
+            error: format!("Failed to get pinned prompts: {e}"),
         }),
     }
 }
@@ -268,7 +268,7 @@ pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorR
 #[tauri::command]
 pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
@@ -333,7 +333,7 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
             if copy_result {
                 Ok(SuccessResponse {
                     success: true,
-                    data: format!("Prompt from position {} copied to clipboard", position),
+                    data: format!("Prompt from position {position} copied to clipboard"),
                 })
             } else {
                 // クリップボード操作に失敗した場合は内容を返す
@@ -344,10 +344,10 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
             }
         }
         Ok(None) => Err(ErrorResponse {
-            error: format!("No prompt found at pin position {}", position),
+            error: format!("No prompt found at pin position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get pinned prompt: {}", e),
+            error: format!("Failed to get pinned prompt: {e}"),
         }),
     }
 }

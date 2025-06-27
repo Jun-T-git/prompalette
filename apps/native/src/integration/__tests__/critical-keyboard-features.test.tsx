@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KeyboardProvider, useKeyboard } from '../../providers/KeyboardProvider';
 import type { AppStores } from '../../services/AppActionAdapter';
@@ -22,7 +22,7 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     actionSpies = {
       navigateDown: vi.fn(),
       navigateUp: vi.fn(),
@@ -68,16 +68,12 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
 
   const CriticalTestApp: React.FC<{ context: 'list' | 'form' | 'modal' }> = ({ context }) => {
     const { pushContext } = useKeyboard();
-    
+
     React.useEffect(() => {
       pushContext(context);
     }, [context, pushContext]);
-    
-    return (
-      <div data-testid="critical-test-app">
-        Context: {context}
-      </div>
-    );
+
+    return <div data-testid="critical-test-app">Context: {context}</div>;
   };
 
   describe('🎯 CRITICAL: Arrow Key Navigation (Most Used Feature)', () => {
@@ -85,38 +81,44 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'ArrowDown' });
 
-      await waitFor(() => {
-        expect(actionSpies.navigateDown).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: ArrowDown not working in list context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.navigateDown).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: ArrowDown not working in list context');
+          },
+        },
+      );
     });
 
     it('CRITICAL: ArrowUp must work in list context', async () => {
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'ArrowUp' });
 
-      await waitFor(() => {
-        expect(actionSpies.navigateUp).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: ArrowUp not working in list context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.navigateUp).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: ArrowUp not working in list context');
+          },
+        },
+      );
     });
   });
 
@@ -125,26 +127,29 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'Enter' });
 
-      await waitFor(() => {
-        expect(actionSpies.copyPrompt).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Enter not working in list context for copy');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.copyPrompt).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Enter not working in list context for copy');
+          },
+        },
+      );
     });
 
     it('CRITICAL: Enter must work from global context fallback', async () => {
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       // Enter should work even if context is not exactly matching
@@ -161,81 +166,93 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'Escape' });
 
-      await waitFor(() => {
-        expect(actionSpies.closeModal).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Escape not working in list context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.closeModal).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Escape not working in list context');
+          },
+        },
+      );
     });
 
     it('CRITICAL: Escape must work in form context', async () => {
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="form" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'Escape' });
 
-      await waitFor(() => {
-        expect(actionSpies.closeModal).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Escape not working in form context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.closeModal).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Escape not working in form context');
+          },
+        },
+      );
     });
 
     it('CRITICAL: Escape must work in modal context', async () => {
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="modal" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'Escape' });
 
-      await waitFor(() => {
-        expect(actionSpies.closeModal).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Escape not working in modal context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.closeModal).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Escape not working in modal context');
+          },
+        },
+      );
     });
   });
 
-  describe('🎯 CRITICAL: Help System (Cmd+?)', () => {
-    it('CRITICAL: Cmd+? must open help from any context', async () => {
+  describe('🎯 CRITICAL: Help System (Cmd+h)', () => {
+    it('CRITICAL: Cmd+h must open help from any context', async () => {
       const contexts: Array<'list' | 'form' | 'modal'> = ['list', 'form', 'modal'];
-      
+
       for (const context of contexts) {
         const { unmount } = render(
           <KeyboardProvider stores={stores}>
             <CriticalTestApp context={context} />
-          </KeyboardProvider>
+          </KeyboardProvider>,
         );
 
-        fireEvent.keyDown(document, { key: '?', metaKey: true });
+        fireEvent.keyDown(document, { key: 'h', metaKey: true });
 
-        await waitFor(() => {
-          expect(actionSpies.openHelp).toHaveBeenCalled();
-        }, { 
-          timeout: 500,
-          onTimeout: () => {
-            throw new Error(`🚨 CRITICAL FAILURE: Cmd+? not working in ${context} context`);
-          }
-        });
+        await waitFor(
+          () => {
+            expect(actionSpies.openHelp).toHaveBeenCalled();
+          },
+          {
+            timeout: 500,
+            onTimeout: () => {
+              throw new Error(`🚨 CRITICAL FAILURE: Cmd+h not working in ${context} context`);
+            },
+          },
+        );
 
         actionSpies.openHelp.mockClear();
         unmount();
@@ -248,19 +265,22 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       fireEvent.keyDown(document, { key: 'N', metaKey: true });
 
-      await waitFor(() => {
-        expect(actionSpies.openNewPrompt).toHaveBeenCalled();
-      }, { 
-        timeout: 500,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Cmd+N not working in list context');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(actionSpies.openNewPrompt).toHaveBeenCalled();
+        },
+        {
+          timeout: 500,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Cmd+N not working in list context');
+          },
+        },
+      );
     });
   });
 
@@ -268,7 +288,7 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
     it('CRITICAL: All essential shortcuts must be registered', () => {
       const TestRegistryCheck: React.FC = () => {
         const { registry, activeContext } = useKeyboard();
-        
+
         React.useEffect(() => {
           // Check critical shortcuts
           const criticalShortcuts = [
@@ -281,14 +301,14 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
           ];
 
           const missing: string[] = [];
-          
+
           for (const shortcut of criticalShortcuts) {
             const found = registry.findShortcutByKey(
-              shortcut.key, 
-              shortcut.modifiers as any, 
-              shortcut.context as any
+              shortcut.key,
+              shortcut.modifiers as any,
+              shortcut.context as any,
             );
-            
+
             if (!found) {
               missing.push(shortcut.label);
             }
@@ -306,24 +326,21 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
         render(
           <KeyboardProvider stores={stores}>
             <TestRegistryCheck />
-          </KeyboardProvider>
+          </KeyboardProvider>,
         );
       }).not.toThrow();
     });
 
     it('CRITICAL: Keyboard event listener must be attached', () => {
       const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
-      
+
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        'keydown',
-        expect.any(Function)
-      );
+      expect(addEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
 
       addEventListenerSpy.mockRestore();
     });
@@ -350,18 +367,21 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <ContextSwitchTest />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       // Should eventually reach modal context
-      await waitFor(() => {
-        expect(screen.getByTestId('context-display')).toHaveTextContent('modal');
-      }, {
-        timeout: 100,
-        onTimeout: () => {
-          throw new Error('🚨 CRITICAL FAILURE: Context switching not working');
-        }
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('context-display')).toHaveTextContent('modal');
+        },
+        {
+          timeout: 100,
+          onTimeout: () => {
+            throw new Error('🚨 CRITICAL FAILURE: Context switching not working');
+          },
+        },
+      );
     });
   });
 
@@ -370,7 +390,7 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
       render(
         <KeyboardProvider stores={stores}>
           <CriticalTestApp context="list" />
-        </KeyboardProvider>
+        </KeyboardProvider>,
       );
 
       // Fire all critical shortcuts rapidly
@@ -383,17 +403,17 @@ describe.skip('🚨 CRITICAL: Core Keyboard Features - Temporarily disabled for 
         { key: 'N', metaKey: true },
       ];
 
-      shortcuts.forEach(shortcut => {
+      shortcuts.forEach((shortcut) => {
         fireEvent.keyDown(document, shortcut);
       });
 
       // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Check that SOME actions were called (system is working)
       const totalActionCalls = Object.values(actionSpies).reduce(
-        (sum, spy) => sum + spy.mock.calls.length, 
-        0
+        (sum, spy) => sum + spy.mock.calls.length,
+        0,
       );
 
       if (totalActionCalls === 0) {
