@@ -182,7 +182,7 @@ function registerDefaultShortcuts(registry: ShortcutRegistry, adapter: AppAction
         id: 'confirm',
         key: 'Enter',
         modifiers: [],
-        context: 'global',
+        context: 'list',
         action: 'CONFIRM',
         customizable: true,
       },

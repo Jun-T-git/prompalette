@@ -38,6 +38,41 @@ export const useKeyboardHandler = (
 
       const modifiers = parseModifiers(event);
       const activeContext = options.contextProvider?.activeContext || 'global';
+      
+      // Special handling for form context
+      if (activeContext === 'form') {
+        // In form context, let Enter key be handled natively (for line breaks in textarea)
+        // unless it's a form-specific shortcut (like Cmd+S for save)
+        if (event.key === 'Enter' && modifiers.length === 0) {
+          return true; // Let browser handle Enter natively for line breaks
+        }
+        
+        // Allow text editing shortcuts in form context
+        const isTextEditingShortcut = (
+          (modifiers.includes('cmd') || modifiers.includes('ctrl')) &&
+          (event.key === '[' || event.key === ']' || // Indent/outdent
+           event.key === 'z' || event.key === 'y' ||  // Undo/redo
+           event.key === 'a' || event.key === 'x' ||  // Select all, cut
+           event.key === 'c' || event.key === 'v')    // Copy, paste
+        );
+        
+        if (isTextEditingShortcut) {
+          return true; // Let browser/form handle text editing shortcuts natively
+        }
+        
+        // Check if the target is a form element that should handle the key natively
+        const target = event.target as HTMLElement;
+        if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
+          // For form shortcuts like Cmd+S, still check the registry
+          const shortcut = registryRef.current.findShortcutByKey(event.key, modifiers, activeContext);
+          if (!shortcut) {
+            return true; // Let form element handle it natively
+          }
+          // Form shortcuts (like Cmd+S) should be handled by the shortcut system
+          return false;
+        }
+      }
+
       const shortcut = registryRef.current.findShortcutByKey(event.key, modifiers, activeContext);
 
       // Only intervene for registered app shortcuts - let everything else be native
