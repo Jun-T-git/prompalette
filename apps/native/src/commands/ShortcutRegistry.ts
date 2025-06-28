@@ -55,7 +55,7 @@ export class ShortcutRegistry {
       }
     }
     
-    // If not found, look for global shortcuts (available in all contexts)
+    // If not found, look for global shortcuts as fallback (available in all contexts)
     for (const shortcut of this.shortcuts.values()) {
       if (
         shortcut.key === key &&

@@ -1,6 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { FormSubmitHandler } from './adapters/RealAppStoreAdapter';
 import './App.css';
 import { createRealAppStores } from './adapters/RealAppStoreAdapter';
 import type { AppSidebarRef } from './components';
@@ -21,6 +22,10 @@ import { KeyboardProvider } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
+
+// Constants for UI timing
+const SEARCH_FOCUS_DELAY = 100;
+const FORM_CLOSE_DELAY = 50;
 
 // KeyboardContextManager removed - context is now derived directly from UI state
 
@@ -59,6 +64,7 @@ function AppContent() {
   });
   const sidebarRef = useRef<AppSidebarRef>(null);
   const searchQueryRef = useRef(searchQuery);
+  const formSubmitHandlerRef = useRef<FormSubmitHandler | null>(null);
 
   // searchQueryRefを最新状態に同期
   useEffect(() => {
@@ -97,7 +103,7 @@ function AppContent() {
       if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
         sidebarRef.current.focusSearchInput();
       }
-    }, 100); // 少し遅延させてDOMがレンダリングされてからフォーカス
+    }, SEARCH_FOCUS_DELAY); // 少し遅延させてDOMがレンダリングされてからフォーカス
 
     return () => clearTimeout(timer);
   }, []);
@@ -108,7 +114,7 @@ function AppContent() {
   // Extract prompts from search results for keyboard navigation
   const filteredPrompts = useMemo(() => {
     return searchResults?.map((result) => result.item) || [];
-  }, [searchResults, searchQuery, prompts.length]);
+  }, [searchResults]);
 
   // filteredPromptsの最新値を参照するためのRef
   const filteredPromptsRef = useRef(filteredPrompts);
@@ -181,7 +187,7 @@ function AppContent() {
         document.body.setAttribute('tabindex', '-1');
       }
       document.body.focus();
-    }, 50);
+    }, FORM_CLOSE_DELAY);
   }, []);
 
   // Create stores for new keyboard system (after handleFormClose is defined)
@@ -199,6 +205,7 @@ function AppContent() {
         filteredPrompts,
         selectedPrompt,
         handleFormClose,
+        formSubmitHandlerRef,
       ),
     [searchQuery, filteredPrompts, selectedPrompt, handleFormClose],
   );
@@ -355,7 +362,7 @@ function AppContent() {
         if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
           sidebarRef.current.focusSearchInput();
         }
-      }, 100);
+      }, SEARCH_FOCUS_DELAY);
     },
     [setSearchQuery],
   );
@@ -371,7 +378,7 @@ function AppContent() {
         if (sidebarRef.current && typeof sidebarRef.current.focusSearchInput === 'function') {
           sidebarRef.current.focusSearchInput();
         }
-      }, 100);
+      }, SEARCH_FOCUS_DELAY);
     },
     [setSearchQuery],
   );
@@ -521,6 +528,7 @@ function AppContent() {
             }}
             onTagClick={handleTagClick}
             onQuickAccessKeyClick={handleQuickAccessKeyClick}
+            formSubmitHandlerRef={formSubmitHandlerRef}
           />
         </div>
 
@@ -546,6 +554,10 @@ function AppContent() {
             <div className="flex items-center space-x-1">
               <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘H</kbd>
               <span>ヘルプ</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘⇧P</kbd>
+              <span>起動</span>
             </div>
           </div>
         </div>
@@ -625,6 +637,10 @@ function AppContent() {
                         <div className="flex justify-between p-2 bg-gray-50 rounded">
                           <span>ヘルプを表示</span>
                           <span className="font-mono">⌘ H</span>
+                        </div>
+                        <div className="flex justify-between p-2 bg-gray-50 rounded">
+                          <span>クイックランチャー</span>
+                          <span className="font-mono">⌘ ⇧ P</span>
                         </div>
                       </div>
                     </div>

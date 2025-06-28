@@ -3,6 +3,11 @@ import { useFavoritesStore } from '../stores/favorites';
 import { usePromptStore } from '../stores/prompt';
 import type { Prompt } from '../types';
 
+// フォーム保存関数の型定義
+export interface FormSubmitHandler {
+  (): Promise<void>;
+}
+
 // Real app store adapter that connects to actual Zustand stores
 export const createRealAppStores = (
   // Modal state setters from App component
@@ -18,7 +23,9 @@ export const createRealAppStores = (
   filteredPrompts: Prompt[],
   selectedPrompt: Prompt | null,
   // Focus management function
-  handleFormClose?: () => void
+  handleFormClose?: () => void,
+  // Form submission handler (set by active form)
+  formSubmitHandler?: React.MutableRefObject<FormSubmitHandler | null>
 ): AppStores => {
   return {
     promptStore: {
@@ -188,12 +195,25 @@ export const createRealAppStores = (
     },
     formStore: {
       saveForm: async () => {
-        // Form save logic will be handled by the form component itself
-        // This is just for keyboard shortcuts
+        // 中央キーボードシステムからフォーム保存をトリガー
+        if (formSubmitHandler?.current) {
+          try {
+            await formSubmitHandler.current();
+          } catch (error) {
+            // エラーは既にフォーム内で処理されている
+            console.error('Form save failed via keyboard shortcut:', error);
+          }
+        } else {
+          // 本番では警告ではなくエラーレベルでログ
+          console.error('Critical: No form submit handler available - save shortcut disabled');
+        }
       },
       cancelForm: () => {
         setShowCreateForm(false);
         setShowEditForm(false);
+        if (handleFormClose) {
+          handleFormClose();
+        }
       },
     },
     paletteStore: {

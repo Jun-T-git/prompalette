@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react';
 
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '../../types'
-import { validatePromptTitle, validatePromptContent, validateTags, validateQuickAccessKey, parseTagsString } from '../../utils'
-import { Button, Input, Textarea } from '../common'
+import type { FormSubmitHandler } from '../../adapters/RealAppStoreAdapter';
+import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '../../types';
+import { validatePromptTitle, validatePromptContent, validateTags, validateQuickAccessKey, parseTagsString } from '../../utils';
+import { indentText, outdentText, createFormSubmitEvent } from '../../utils/textEditor';
+import { Button, Input, Textarea } from '../common';
 
 interface PromptFormProps {
   initialData?: Prompt
   onSubmit: (data: CreatePromptRequest | UpdatePromptRequest) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
+  formSubmitHandlerRef: React.MutableRefObject<FormSubmitHandler | null>
 }
 
 export function PromptForm({
@@ -16,6 +19,7 @@ export function PromptForm({
   onSubmit,
   onCancel,
   isLoading = false,
+  formSubmitHandlerRef,
 }: PromptFormProps) {
   
   
@@ -34,7 +38,7 @@ export function PromptForm({
   const tagsRef = useRef<HTMLInputElement>(null)
   const quickAccessKeyRef = useRef<HTMLInputElement>(null)
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {}
 
     const titleError = validatePromptTitle(formData.title)
@@ -53,9 +57,9 @@ export function PromptForm({
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
+  }, [formData])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -76,7 +80,7 @@ export function PromptForm({
     }
 
     await onSubmit(submitData)
-  }
+  }, [validateForm, formData, initialData, onSubmit])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -88,6 +92,34 @@ export function PromptForm({
 
   // 保存可能かどうかのチェック
   const canSave = Boolean(formData.title.trim() && formData.content.trim() && !isLoading)
+
+  // 中央キーボードシステムとの統合
+  useEffect(() => {
+    // 安全性チェック: refが存在することを確認
+    if (!formSubmitHandlerRef) {
+      console.error('FormSubmitHandlerRef is not provided');
+      return;
+    }
+    
+    // フォームの保存処理を中央システムから呼び出せるように設定
+    formSubmitHandlerRef.current = async () => {
+      if (canSave) {
+        try {
+          await handleSubmit(createFormSubmitEvent());
+        } catch (error) {
+          console.error('Form submission failed:', error);
+          // エラーの場合はユーザーに通知すべき
+        }
+      }
+    };
+    
+    // コンポーネントアンマウント時にクリーンアップ
+    return () => {
+      if (formSubmitHandlerRef.current) {
+        formSubmitHandlerRef.current = null;
+      }
+    };
+  }, [canSave, handleSubmit]); // formSubmitHandlerRefを依存配列から除去
 
   // 初期フォーカス設定（シンプル版）
   useEffect(() => {
@@ -113,6 +145,17 @@ export function PromptForm({
         label="タイトル *"
         value={formData.title}
         onChange={(e) => handleInputChange('title', e.target.value)}
+        onKeyDown={(e) => {
+          // 入力フィールドでのEnterキーはタブ移動（次のフィールドへ）として動作
+          if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            // 次のフィールド（content）にフォーカス
+            if (contentRef.current) {
+              contentRef.current.focus();
+            }
+          }
+        }}
         error={errors.title}
         placeholder="プロンプトのタイトルを入力"
         maxLength={100}
@@ -124,6 +167,55 @@ export function PromptForm({
         label="プロンプト内容 *"
         value={formData.content}
         onChange={(e) => handleInputChange('content', e.target.value)}
+        onKeyDown={(e) => {
+          // テキストエリア内でのEnterキーは改行として動作させる
+          if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+            // 通常のEnterキーはデフォルト動作（改行）を許可
+            e.stopPropagation();
+          }
+          
+          // Cmd+] でインデント
+          if ((e.metaKey || e.ctrlKey) && e.key === ']') {
+            e.preventDefault();
+            e.stopPropagation();
+            const textarea = e.currentTarget;
+            const result = indentText(textarea.value, {
+              start: textarea.selectionStart,
+              end: textarea.selectionEnd,
+            });
+            
+            handleInputChange('content', result.text);
+            
+            // カーソル位置を調整（安全性を確保）
+            requestAnimationFrame(() => {
+              if (textarea && textarea.offsetParent !== null) { // DOMに接続されているかチェック
+                textarea.selectionStart = result.selection.start;
+                textarea.selectionEnd = result.selection.end;
+              }
+            });
+          }
+          
+          // Cmd+[ で逆インデント
+          if ((e.metaKey || e.ctrlKey) && e.key === '[') {
+            e.preventDefault();
+            e.stopPropagation();
+            const textarea = e.currentTarget;
+            const result = outdentText(textarea.value, {
+              start: textarea.selectionStart,
+              end: textarea.selectionEnd,
+            });
+            
+            handleInputChange('content', result.text);
+            
+            // カーソル位置を調整（安全性を確保）
+            requestAnimationFrame(() => {
+              if (textarea && textarea.offsetParent !== null) { // DOMに接続されているかチェック
+                textarea.selectionStart = result.selection.start;
+                textarea.selectionEnd = result.selection.end;
+              }
+            });
+          }
+        }}
         error={errors.content}
         placeholder="プロンプトの内容を入力"
         rows={8}
@@ -136,6 +228,17 @@ export function PromptForm({
         label="タグ"
         value={formData.tags}
         onChange={(e) => handleInputChange('tags', e.target.value)}
+        onKeyDown={(e) => {
+          // 入力フィールドでのEnterキーはタブ移動（次のフィールドへ）として動作
+          if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            // 次のフィールド（quickAccessKey）にフォーカス
+            if (quickAccessKeyRef.current) {
+              quickAccessKeyRef.current.focus();
+            }
+          }
+        }}
         error={errors.tags}
         placeholder="例: 開発, JavaScript, React, レビュー"
         helperText="用途・技術・対象などを自由に設定、カンマ区切りで入力（最大10個）"
@@ -146,6 +249,16 @@ export function PromptForm({
         label="クイックアクセスキー"
         value={formData.quickAccessKey}
         onChange={(e) => handleInputChange('quickAccessKey', e.target.value)}
+        onKeyDown={(e) => {
+          // 最後のフィールドでのEnterキーは保存として動作
+          if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (canSave) {
+              handleSubmit(createFormSubmitEvent());
+            }
+          }
+        }}
         error={errors.quickAccessKey}
         placeholder="例: rvw, code, test"
         helperText="検索で一意特定するためのキー。/rvw のように検索可能（英数字のみ、2-20文字）"
