@@ -99,6 +99,7 @@ export class AppActionAdapter {
   }
 
   async save(): Promise<void> {
+    // Save is now handled by the form component itself
     return this.stores.formStore.saveForm();
   }
 

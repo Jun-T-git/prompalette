@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import type { FormSubmitHandler } from '../../adapters/RealAppStoreAdapter';
 import { getPaletteColor } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from '../../types';
@@ -37,6 +38,8 @@ interface AppContentAreaProps {
   onTagClick?: (tag: string) => void;
   /** クイックアクセスキークリック時の検索ハンドラー */
   onQuickAccessKeyClick?: (key: string) => void;
+  /** フォーム保存ハンドラーへの参照（キーボードショートカット用） */
+  formSubmitHandlerRef: React.MutableRefObject<FormSubmitHandler | null>;
 }
 
 /**
@@ -59,6 +62,7 @@ export function AppContentArea({
   onCancelEditForm,
   onTagClick,
   onQuickAccessKeyClick,
+  formSubmitHandlerRef,
 }: AppContentAreaProps) {
   const {
     pinnedPrompts,
@@ -196,6 +200,7 @@ export function AppContentArea({
             onSubmit={onCreatePrompt}
             onCancel={onCancelCreateForm}
             isLoading={isLoading}
+            formSubmitHandlerRef={formSubmitHandlerRef}
           />
         </div>
       ) : showEditForm && selectedPrompt ? (
@@ -206,6 +211,7 @@ export function AppContentArea({
             onSubmit={onUpdatePrompt}
             onCancel={onCancelEditForm}
             isLoading={isLoading}
+            formSubmitHandlerRef={formSubmitHandlerRef}
           />
         </div>
       ) : selectedPrompt ? (
