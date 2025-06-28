@@ -4,7 +4,8 @@
     "jsx": "react-jsx",
     "outDir": "./dist",
     "rootDir": "./src",
-    "lib": ["dom", "ES2022"]
+    "lib": ["dom", "ES2022"],
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "*.config.ts", "vitest.config.ts"]
