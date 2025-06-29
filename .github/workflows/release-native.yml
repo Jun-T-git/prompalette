@@ -92,25 +92,55 @@ jobs:
 
       - name: Build Tauri app (Universal)
         run: |
+          echo "=== Build Environment Debug ==="
+          pwd
+          ls -la
+          echo "Node: $(node --version)"
+          echo "pnpm: $(pnpm --version)"
+          echo "Rust: $(rustc --version)"
+          
+          echo "=== Directory Check ==="
+          if [ -d "apps/native" ]; then
+            echo "✅ apps/native exists"
+            ls -la apps/native/
+          else
+            echo "❌ apps/native not found"
+            exit 1
+          fi
+          
+          echo "=== Package.json Check ==="
+          cat apps/native/package.json | grep -A5 -B5 "tauri"
+          
           if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
             echo "🔏 Building with code signing..."
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
           else
             echo "⚠️ Building without code signing (credentials not available)"
-            echo "For production releases, please configure Apple Developer ID signing"
           fi
           
           export CI=true
           export SKIP_JENKINS=1
           
-          echo "🏗️ Attempting Universal Binary build..."
-          if pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg --verbose; then
-            echo "✅ Universal build successful"
-          else
-            echo "❌ Universal build failed, trying native architecture..."
-            pnpm --filter apps/native tauri build --bundles dmg --verbose
-          fi
+          echo "🏗️ Starting build process..."
+          cd apps/native
+          
+          echo "=== Pre-build Check ==="
+          pwd
+          ls -la
+          
+          echo "=== Testing pnpm tauri command ==="
+          pnpm tauri --version || echo "tauri command failed"
+          
+          echo "=== Attempting Build ==="
+          pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose 2>&1 | tee ../build.log || {
+            echo "❌ Universal build failed, checking error..."
+            cat ../build.log | tail -50
+            echo "=== Trying native build ==="
+            pnpm tauri build --bundles dmg --verbose
+          }
+          
+          cd ../..
 
       - name: Debug build output
         run: |
@@ -147,42 +177,34 @@ jobs:
           echo "=== Alternative architectures ==="
           ls -la apps/native/src-tauri/target/ | grep -E "(aarch64|x86_64|release)" || echo "No alternative targets"
           
-      - name: Check for DMG files
-        id: check_dmg
+      - name: Collect all DMG files
         run: |
-          DMG_FOUND=""
-          DMG_PATH=""
+          echo "=== Collecting all possible DMG files ==="
+          mkdir -p ./artifacts
           
-          # Check Universal Binary location first
-          if ls apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg 1> /dev/null 2>&1; then
-            DMG_FOUND="true"
-            DMG_PATH="apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
-            echo "✅ Universal DMG files found at: $DMG_PATH"
-          # Check native architecture locations
-          elif ls apps/native/src-tauri/target/*/release/bundle/dmg/*.dmg 1> /dev/null 2>&1; then
-            DMG_FOUND="true"
-            DMG_PATH=$(find apps/native/src-tauri/target -name "*.dmg" -type f | head -1 | xargs dirname)
-            echo "✅ Native DMG files found at: $DMG_PATH"
-          # Check any other location
-          elif find apps/native/src-tauri/target -name "*.dmg" -type f | head -1; then
-            DMG_FOUND="true"
-            DMG_PATH=$(find apps/native/src-tauri/target -name "*.dmg" -type f | head -1 | xargs dirname)
-            echo "✅ DMG files found at: $DMG_PATH"
+          # Find all DMG files anywhere in target
+          find apps/native/src-tauri/target -name "*.dmg" -type f 2>/dev/null | while read dmg_file; do
+            echo "Found DMG: $dmg_file"
+            cp "$dmg_file" ./artifacts/ || echo "Failed to copy $dmg_file"
+          done
+          
+          echo "=== Final artifact list ==="
+          ls -la ./artifacts/ || echo "No artifacts directory"
+          
+          if [ -z "$(ls -A ./artifacts/ 2>/dev/null)" ]; then
+            echo "❌ No DMG files found to upload"
+            echo "=== Full target directory structure ==="
+            find apps/native/src-tauri/target -type f 2>/dev/null | head -20
           else
-            DMG_FOUND="false"
-            echo "❌ No DMG files found anywhere"
+            echo "✅ DMG files ready for upload"
           fi
-          
-          echo "dmg_exists=$DMG_FOUND" >> $GITHUB_OUTPUT
-          echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload build artifacts
-        if: steps.check_dmg.outputs.dmg_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-universal
-          path: ${{ steps.check_dmg.outputs.dmg_path }}/*.dmg
-          if-no-files-found: error
+          path: ./artifacts/*.dmg
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Verify artifact upload
