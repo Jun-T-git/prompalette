@@ -53,9 +53,7 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.15",
-      "dmg": {
-        "title": "PromPalette Installer"
-      }
+      "dmg": {}
     }
   }
 }

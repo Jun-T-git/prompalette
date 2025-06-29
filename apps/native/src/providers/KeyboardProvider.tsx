@@ -46,8 +46,8 @@ const KeyboardContext = createContext<KeyboardContextValue | null>(null);
 interface KeyboardProviderProps {
   children: React.ReactNode;
   stores: AppStores;
-  // UI state for context derivation
-  uiState: UIState;
+  // UI state for context derivation (optional for backward compatibility)
+  uiState?: UIState;
 }
 
 export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
@@ -55,17 +55,25 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
   stores,
   uiState,
 }) => {
+  // Derive context from UI state or use stores.uiState as fallback
+  const effectiveUIState = uiState || stores.uiState || {
+    showCreateForm: false,
+    showEditForm: false,
+    showHelpModal: false,
+    showSettings: false,
+  };
+
   // Derive context from UI state (Single Source of Truth)
   const activeContext = useMemo(() => {
-    return getKeyboardContextFromUI(uiState);
-  }, [uiState]);
+    return getKeyboardContextFromUI(effectiveUIState);
+  }, [effectiveUIState]);
 
   // Debug logging for context changes
   const previousContext = useRef<ContextId | null>(null);
   useEffect(() => {
-    logContextChange(previousContext.current, activeContext, uiState);
+    logContextChange(previousContext.current, activeContext, effectiveUIState);
     previousContext.current = activeContext;
-  }, [activeContext, uiState]);
+  }, [activeContext, effectiveUIState]);
 
   const imeComposition = useIMEComposition();
 

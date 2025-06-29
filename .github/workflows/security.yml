@@ -1,0 +1,234 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+      - main
+  pull_request:
+    branches:
+      - develop
+      - staging
+      - main
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  PNPM_VERSION: 8
+  NODE_VERSION: 20
+
+jobs:
+  security-audit:
+    name: Security Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run npm audit
+        run: |
+          echo "🔍 Running npm audit for high and critical vulnerabilities..."
+          npm audit --audit-level high --registry https://registry.npmjs.org/
+        continue-on-error: false
+
+      - name: Run pnpm audit
+        run: |
+          echo "🔍 Running pnpm audit for high and critical vulnerabilities..."
+          pnpm audit --audit-level high
+        continue-on-error: false
+
+      - name: Check for security advisories in dependencies
+        run: |
+          echo "🔍 Checking for known security advisories..."
+          # Check if any packages have security advisories
+          if pnpm audit --json | jq '.advisories | length' | grep -q '^0$'; then
+            echo "✅ No security advisories found"
+          else
+            echo "❌ Security advisories found - review required"
+            pnpm audit --json | jq '.advisories'
+            exit 1
+          fi
+
+  dependency-scanning:
+    name: Dependency License & Security Scan  
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate dependency list
+        run: |
+          echo "📦 Generating dependency inventory..."
+          pnpm list --depth=0 --json > dependency-inventory.json
+          echo "Total dependencies:"
+          cat dependency-inventory.json | jq '.dependencies | length'
+
+      - name: Check for suspicious packages
+        run: |
+          echo "🕵️ Checking for suspicious package patterns..."
+          # Check for packages with suspicious names or patterns
+          SUSPICIOUS_PATTERNS=("bitcoin" "crypto" "wallet" "password" "secret" "admin" "sudo" "exploit")
+          
+          for pattern in "${SUSPICIOUS_PATTERNS[@]}"; do
+            if pnpm list | grep -i "$pattern"; then
+              echo "⚠️ Found potentially suspicious package containing: $pattern"
+              echo "Please review this dependency manually"
+            fi
+          done
+          
+          echo "✅ Suspicious package check completed"
+
+      - name: Verify package integrity
+        run: |
+          echo "🔐 Verifying package integrity..."
+          # Check for any package integrity issues
+          pnpm install --frozen-lockfile --verify-store-integrity
+          echo "✅ Package integrity verified"
+
+  tauri-security:
+    name: Tauri Security Configuration Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Audit Tauri security configuration
+        run: |
+          echo "🔒 Auditing Tauri security configuration..."
+          
+          # Check CSP configuration
+          if grep -q "dangerousDisableAssetCspModification.*true" apps/native/src-tauri/tauri.conf.json; then
+            echo "❌ Dangerous CSP modification is enabled - security risk!"
+            exit 1
+          else
+            echo "✅ CSP configuration is secure"
+          fi
+          
+          # Check for development features in production
+          if grep -q '"devPath"' apps/native/src-tauri/tauri.conf.json; then
+            echo "⚠️ Development path configuration found - ensure this is intended"
+          fi
+          
+          # Check permissions and capabilities
+          echo "📋 Tauri capabilities and permissions audit:"
+          cat apps/native/src-tauri/capabilities/default.json | jq '.permissions'
+          
+          echo "✅ Tauri security audit completed"
+
+  secrets-scan:
+    name: Secrets and Sensitive Data Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for hardcoded secrets
+        run: |
+          echo "🔍 Scanning for hardcoded secrets and sensitive data..."
+          
+          # Common secret patterns
+          SECRET_PATTERNS=(
+            "password.*=" 
+            "secret.*="
+            "api[_-]?key.*="
+            "private[_-]?key"
+            "token.*="
+            "auth.*="
+          )
+          
+          for pattern in "${SECRET_PATTERNS[@]}"; do
+            echo "Checking for pattern: $pattern"
+            if grep -r -i "$pattern" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.json" --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=target .; then
+              echo "❌ Potential hardcoded secret found: $pattern"
+              echo "Please review and move to environment variables"
+              exit 1
+            fi
+          done
+          
+          echo "✅ No hardcoded secrets detected"
+
+      - name: Check for exposed API endpoints
+        run: |
+          echo "🌐 Checking for exposed API endpoints..."
+          
+          # Look for potentially sensitive API endpoints
+          if grep -r "localhost" --include="*.ts" --include="*.tsx" --exclude-dir=node_modules .; then
+            echo "⚠️ Localhost references found - ensure these are not in production"
+          fi
+          
+          echo "✅ API endpoint check completed"
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [security-audit, dependency-scanning, tauri-security, secrets-scan]
+    if: always()
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "# 🛡️ Security Audit Summary" > security-report.md
+          echo "" >> security-report.md
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> security-report.md
+          echo "**Commit:** ${{ github.sha }}" >> security-report.md
+          echo "" >> security-report.md
+          
+          if [[ "${{ needs.security-audit.result }}" == "success" ]]; then
+            echo "✅ **Dependency Vulnerability Scan:** PASSED" >> security-report.md
+          else
+            echo "❌ **Dependency Vulnerability Scan:** FAILED" >> security-report.md
+          fi
+          
+          if [[ "${{ needs.tauri-security.result }}" == "success" ]]; then
+            echo "✅ **Tauri Security Configuration:** PASSED" >> security-report.md
+          else
+            echo "❌ **Tauri Security Configuration:** FAILED" >> security-report.md
+          fi
+          
+          if [[ "${{ needs.secrets-scan.result }}" == "success" ]]; then
+            echo "✅ **Secrets & Sensitive Data Scan:** PASSED" >> security-report.md
+          else
+            echo "❌ **Secrets & Sensitive Data Scan:** FAILED" >> security-report.md
+          fi
+          
+          echo "" >> security-report.md
+          echo "For details, check the individual job logs above." >> security-report.md
+          
+          cat security-report.md
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: security-report.md
+          retention-days: 30

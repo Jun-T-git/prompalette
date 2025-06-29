@@ -1,5 +1,6 @@
 export * from './Button'
 export * from './ConfirmModal'
+export * from './ErrorBoundary'
 export * from './HelpModal'
 export * from './Input'
 export * from './PaletteDropdown'

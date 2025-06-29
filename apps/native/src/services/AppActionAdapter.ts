@@ -39,12 +39,20 @@ export interface FormStore {
   cancelForm: () => void;
 }
 
+export interface UIState {
+  showCreateForm: boolean;
+  showEditForm: boolean;
+  showHelpModal: boolean;
+  showSettings: boolean;
+}
+
 export interface AppStores {
   promptStore: PromptStore;
   modalStore: ModalStore;
   searchStore: SearchStore;
   formStore: FormStore;
-  paletteStore: PaletteStore;
+  paletteStore?: PaletteStore;
+  uiState?: UIState;
 }
 
 export interface ContextProvider {
@@ -195,6 +203,6 @@ export class AppActionAdapter {
   }
 
   async selectPalette(position: number): Promise<void> {
-    this.stores.paletteStore.selectPinnedPrompt(position);
+    this.stores.paletteStore?.selectPinnedPrompt(position);
   }
 }
