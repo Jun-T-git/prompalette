@@ -93,11 +93,13 @@ jobs:
             # Set Tauri signing environment variables
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+            export CI=true
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg,app
           else
             echo "⚠️ Building without code signing (credentials not available)"
             echo "For production releases, please configure Apple Developer ID signing"
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+            export CI=true
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg,app
           fi
 
       - name: List build artifacts
@@ -116,6 +118,7 @@ jobs:
           name: macos-universal
           path: |
             apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            apps/native/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
           retention-days: 7
 
   # ========================================
@@ -165,6 +168,7 @@ jobs:
           body_path: notes.md
           files: |
             ./dist/**/*.dmg
+            ./dist/**/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -242,6 +246,7 @@ jobs:
           body_path: changelog.md
           files: |
             ./dist/**/*.dmg
+            ./dist/**/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

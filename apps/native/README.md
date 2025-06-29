@@ -1,106 +1,53 @@
 # PromPalette Native App
 
-Tauri + React + TypeScript で構築されたネイティブデスクトップアプリケーション
+macOS向けネイティブデスクトップアプリケーション
 
-## 🚀 起動方法
+## 🏗️ ビルド
 
-### 推奨：Tauriアプリとして実行
-
+### 開発用ビルド
 ```bash
-# Tauri開発サーバーを起動（推奨）
 pnpm dev
 ```
 
-これにより、TauriのネイティブウィンドウでReactアプリが起動し、データベース機能や他のネイティブ機能が利用できます。
+### プロダクション用ビルド
 
-### 代替：ブラウザでのテスト
-
+#### .appバンドルのみ
 ```bash
-# Webブラウザでの開発・テスト（機能制限あり）
-pnpm dev:web
-```
-
-この方法では、TauriのネイティブAPIが利用できないため、環境エラー画面が表示されます。UI/UXのテストには利用できます。
-
-## 📦 ビルド
-
-```bash
-# フロントエンドのビルド
-pnpm build
-
-# ネイティブアプリのビルド（配布用）
 pnpm tauri:build
 ```
 
-## 🧪 テスト・品質チェック
-
+#### DMGインストーラー + .appバンドル
 ```bash
-# TypeScript型チェック
-pnpm typecheck
+# ネイティブアーキテクチャ用
+pnpm tauri:build:dmg
 
-# ESLintによるコード品質チェック
-pnpm lint
-
-# 単体テスト実行
-pnpm test
-
-# テストカバレッジ付きテスト
-pnpm test:coverage
+# Universal (Intel + Apple Silicon)
+pnpm tauri:build:universal
 ```
 
-## 🏗️ アーキテクチャ
+## 📦 配布形式
 
-- **Frontend**: React 18 + TypeScript + Tailwind CSS
-- **State Management**: Zustand
-- **Native Backend**: Tauri (Rust)
-- **Database**: SQLite with sqlx
-- **Build Tool**: Vite
-- **Testing**: Vitest + React Testing Library
+### DMGファイル (推奨)
+- **配布形式**: macOSの標準的なインストーラー
+- **サイズ**: ~13MB (Universal)
+- **ユーザー体験**: ドラッグ&ドロップでApplicationsフォルダーにインストール
+- **対応アーキテクチャ**: Intel + Apple Silicon (Universal)
 
-## 🔧 開発時の注意点
+### .appファイル
+- **配布形式**: アプリケーションバンドル
+- **使用方法**: 直接Applicationsフォルダーにコピー
+- **用途**: DMGが使用できない場合のフォールバック
 
-### 1. 環境の違い
+## 🔧 技術詳細
 
-- `pnpm dev`: Tauriネイティブ環境（全機能利用可能）
-- `pnpm dev:web`: ブラウザ環境（UI確認のみ、API機能制限あり）
+### DMGビルドについて
+CI環境では`CI=true`環境変数により、Finderの操作が必要なGUI要素をスキップしてDMGを作成します。これにより、GitHub Actionsなどの自動化環境でも安定してDMGファイルを生成できます。
 
-### 2. データベース
-
-アプリケーション初回起動時に自動的にSQLiteデータベースが初期化されます。
-
-### 3. エラーハンドリング
-
-環境エラーが発生した場合、専用のエラー画面で適切な解決方法が表示されます。
-
-## 📁 プロジェクト構造
-
-```
-src/
-├── components/          # Reactコンポーネント
-│   ├── common/         # 共通コンポーネント
-│   ├── prompt/         # プロンプト関連コンポーネント
-│   └── search/         # 検索機能コンポーネント
-├── services/           # API・外部サービス
-├── stores/             # Zustand状態管理
-├── types/              # TypeScript型定義
-├── utils/              # ユーティリティ関数
-└── App.tsx            # メインアプリケーション
-
-src-tauri/
-├── src/
-│   ├── commands.rs     # Tauriコマンド定義
-│   ├── database.rs     # データベース操作
-│   └── lib.rs          # メイン設定
-└── tauri.conf.json     # Tauri設定
-```
+### 設定
+- **DMGウィンドウサイズ**: 660x400px
+- **アプリアイコン位置**: (180, 170)
+- **Applicationsフォルダーリンク**: (480, 170)
 
 ## 🔐 セキュリティ
 
-- Content Security Policy (CSP) 設定済み
-- 入力値検証
-- 環境変数による設定管理
-- SQLインジェクション対策
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+本番リリースではApple Developer IDによるコード署名を推奨します。詳細は `/docs/APPLE_CODE_SIGNING.md` を参照してください。
