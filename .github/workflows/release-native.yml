@@ -144,6 +144,17 @@ jobs:
         with:
           path: ./dist
 
+      - name: Debug artifact structure
+        run: |
+          echo "=== Downloaded artifacts structure ==="
+          find ./dist -type f -name "*.dmg" -o -name "*.app" | head -10
+          echo "=== All files in dist ==="
+          ls -la ./dist/
+          if [ -d "./dist/macos-universal" ]; then
+            echo "=== Files in macos-universal ==="
+            ls -la ./dist/macos-universal/
+          fi
+
       - name: Generate release notes
         id: notes
         run: |
@@ -171,8 +182,8 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
           body_path: notes.md
           files: |
-            ./dist/**/*.dmg
-            ./dist/**/*.app
+            ./dist/macos-universal/*.dmg
+            ./dist/macos-universal/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -196,6 +207,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./dist
+
+      - name: Debug artifact structure
+        run: |
+          echo "=== Downloaded artifacts structure ==="
+          find ./dist -type f -name "*.dmg" -o -name "*.app" | head -10
+          echo "=== All files in dist ==="
+          ls -la ./dist/
+          if [ -d "./dist/macos-universal" ]; then
+            echo "=== Files in macos-universal ==="
+            ls -la ./dist/macos-universal/
+          fi
 
       - name: Check for existing release
         id: check_release
@@ -249,8 +271,8 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
           files: |
-            ./dist/**/*.dmg
-            ./dist/**/*.app
+            ./dist/macos-universal/*.dmg
+            ./dist/macos-universal/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
