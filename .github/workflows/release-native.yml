@@ -94,33 +94,94 @@ jobs:
         run: |
           if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
             echo "🔏 Building with code signing..."
-            # Set Tauri signing environment variables
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-            export CI=true
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
           else
             echo "⚠️ Building without code signing (credentials not available)"
             echo "For production releases, please configure Apple Developer ID signing"
-            export CI=true
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+          fi
+          
+          export CI=true
+          export SKIP_JENKINS=1
+          
+          echo "🏗️ Attempting Universal Binary build..."
+          if pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg --verbose; then
+            echo "✅ Universal build successful"
+          else
+            echo "❌ Universal build failed, trying native architecture..."
+            pnpm --filter apps/native tauri build --bundles dmg --verbose
           fi
 
-      - name: List build artifacts
+      - name: Debug build output
         run: |
-          echo "=== Listing bundle directory ==="
-          find apps/native/src-tauri/target -type f -name "*.dmg" -o -name "*.app" -o -name "*.tar.gz" -o -name "*.zip" | head -20
-          echo "=== DMG files ==="
-          find apps/native/src-tauri/target -name "*.dmg" -type f || echo "No DMG files found"
-          echo "=== All bundle contents ==="
-          ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/ || true
-          ls -la apps/native/src-tauri/target/release/bundle/ || true
+          echo "=== Build Target Directories ==="
+          ls -la apps/native/src-tauri/target/ || echo "No target directory"
           
+          echo "=== Universal Target Check ==="
+          if [ -d "apps/native/src-tauri/target/universal-apple-darwin" ]; then
+            echo "Universal target directory exists"
+            ls -la apps/native/src-tauri/target/universal-apple-darwin/
+            if [ -d "apps/native/src-tauri/target/universal-apple-darwin/release" ]; then
+              ls -la apps/native/src-tauri/target/universal-apple-darwin/release/
+              if [ -d "apps/native/src-tauri/target/universal-apple-darwin/release/bundle" ]; then
+                ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/
+                if [ -d "apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg" ]; then
+                  echo "DMG directory exists:"
+                  ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/
+                else
+                  echo "❌ DMG directory not found"
+                fi
+              else
+                echo "❌ Bundle directory not found"
+              fi
+            else
+              echo "❌ Release directory not found"
+            fi
+          else
+            echo "❌ Universal target directory not found"
+          fi
+          
+          echo "=== All DMG files in target ==="
+          find apps/native/src-tauri/target -name "*.dmg" -type f 2>/dev/null || echo "No DMG files found anywhere"
+          
+          echo "=== Alternative architectures ==="
+          ls -la apps/native/src-tauri/target/ | grep -E "(aarch64|x86_64|release)" || echo "No alternative targets"
+          
+      - name: Check for DMG files
+        id: check_dmg
+        run: |
+          DMG_FOUND=""
+          DMG_PATH=""
+          
+          # Check Universal Binary location first
+          if ls apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg 1> /dev/null 2>&1; then
+            DMG_FOUND="true"
+            DMG_PATH="apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+            echo "✅ Universal DMG files found at: $DMG_PATH"
+          # Check native architecture locations
+          elif ls apps/native/src-tauri/target/*/release/bundle/dmg/*.dmg 1> /dev/null 2>&1; then
+            DMG_FOUND="true"
+            DMG_PATH=$(find apps/native/src-tauri/target -name "*.dmg" -type f | head -1 | xargs dirname)
+            echo "✅ Native DMG files found at: $DMG_PATH"
+          # Check any other location
+          elif find apps/native/src-tauri/target -name "*.dmg" -type f | head -1; then
+            DMG_FOUND="true"
+            DMG_PATH=$(find apps/native/src-tauri/target -name "*.dmg" -type f | head -1 | xargs dirname)
+            echo "✅ DMG files found at: $DMG_PATH"
+          else
+            DMG_FOUND="false"
+            echo "❌ No DMG files found anywhere"
+          fi
+          
+          echo "dmg_exists=$DMG_FOUND" >> $GITHUB_OUTPUT
+          echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
+
       - name: Upload build artifacts
+        if: steps.check_dmg.outputs.dmg_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-universal
-          path: apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: ${{ steps.check_dmg.outputs.dmg_path }}/*.dmg
           if-no-files-found: error
           retention-days: 7
 
