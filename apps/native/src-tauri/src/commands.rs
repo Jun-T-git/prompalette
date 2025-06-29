@@ -38,23 +38,19 @@ pub struct SuccessResponse<T> {
 #[tauri::command]
 pub async fn create_prompt(request: CreatePromptRequest) -> Result<SuccessResponse<Prompt>, ErrorResponse> {
     // 基本的な入力値チェック
-    if request.title.trim().is_empty() {
-        return Err(ErrorResponse {
-            error: "Title cannot be empty".to_string(),
-        });
-    }
-    
     if request.content.trim().is_empty() {
         return Err(ErrorResponse {
             error: "Content cannot be empty".to_string(),
         });
     }
     
-    // サイズ制限チェック
-    if request.title.len() > 200 {
-        return Err(ErrorResponse {
-            error: "Title too long (max 200 characters)".to_string(),
-        });
+    // サイズ制限チェック（タイトルがある場合のみ）
+    if let Some(ref title) = request.title {
+        if title.len() > 200 {
+            return Err(ErrorResponse {
+                error: "Title too long (max 200 characters)".to_string(),
+            });
+        }
     }
     
     if request.content.len() > 100_000 {
@@ -344,7 +340,7 @@ mod tests {
         // タイトルの長さチェック
         let long_title = "a".repeat(201);
         let request = CreatePromptRequest {
-            title: long_title,
+            title: Some(long_title),
             content: "Test content".to_string(),
             tags: None,
             quick_access_key: None,
@@ -352,7 +348,7 @@ mod tests {
         
         // 長すぎるタイトルはエラーとなるはず
         // (ここではロジックのみチェック)
-        assert!(request.title.len() > 200);
+        assert!(request.title.as_ref().unwrap().len() > 200);
     }
     
     #[test]

@@ -74,7 +74,10 @@ export const mockPromptsApi = {
     await new Promise(resolve => setTimeout(resolve, 200))
     const newPrompt: Prompt = {
       id: Date.now().toString(),
-      ...request,
+      title: request.title ?? null,
+      content: request.content,
+      tags: request.tags,
+      quickAccessKey: request.quickAccessKey,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -116,7 +119,7 @@ export const mockPromptsApi = {
     
     const searchTerm = query.q.toLowerCase()
     return mockPrompts.filter(prompt => 
-      prompt.title.toLowerCase().includes(searchTerm) ||
+      (prompt.title?.toLowerCase().includes(searchTerm)) ||
       prompt.content.toLowerCase().includes(searchTerm) ||
       prompt.tags?.some(tag => tag.toLowerCase().includes(searchTerm)) ||
       (prompt.quickAccessKey && searchTerm.startsWith('/') && 

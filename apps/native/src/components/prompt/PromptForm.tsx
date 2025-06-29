@@ -24,7 +24,7 @@ export function PromptForm({
   
   
   const [formData, setFormData] = useState({
-    title: initialData?.title || '',
+    title: initialData?.title ?? '',
     content: initialData?.content || '',
     tags: initialData?.tags?.join(', ') || '',
     quickAccessKey: initialData?.quickAccessKey || '',
@@ -68,16 +68,16 @@ export function PromptForm({
 
     const tagsArray = parseTagsString(formData.tags)
 
-    const submitData: CreatePromptRequest | UpdatePromptRequest = {
-      title: formData.title,
+    const baseData = {
+      title: formData.title.trim() || null,
       content: formData.content,
       tags: tagsArray.length > 0 ? tagsArray : undefined,
       quickAccessKey: formData.quickAccessKey.trim() || undefined,
     }
 
-    if (initialData) {
-      ;(submitData as UpdatePromptRequest).id = initialData.id
-    }
+    const submitData: CreatePromptRequest | UpdatePromptRequest = initialData
+      ? { ...baseData, id: initialData.id }
+      : baseData
 
     await onSubmit(submitData)
   }, [validateForm, formData, initialData, onSubmit])
@@ -90,8 +90,8 @@ export function PromptForm({
     }
   }
 
-  // 保存可能かどうかのチェック
-  const canSave = Boolean(formData.title.trim() && formData.content.trim() && !isLoading)
+  // 保存可能かどうかのチェック（タイトルは任意項目）
+  const canSave = Boolean(formData.content.trim() && !isLoading)
 
   // 中央キーボードシステムとの統合
   useEffect(() => {
@@ -142,7 +142,7 @@ export function PromptForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <Input
         ref={titleRef}
-        label="タイトル *"
+        label="タイトル"
         value={formData.title}
         onChange={(e) => handleInputChange('title', e.target.value)}
         onKeyDown={(e) => {
@@ -157,9 +157,8 @@ export function PromptForm({
           }
         }}
         error={errors.title}
-        placeholder="プロンプトのタイトルを入力"
+        placeholder="プロンプトのタイトルを入力（任意）"
         maxLength={100}
-        required
       />
 
       <Textarea
