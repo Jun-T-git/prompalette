@@ -55,6 +55,16 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Security Audit
+        run: |
+          echo "🔍 Running security audit..."
+          pnpm audit --audit-level high || {
+            echo "❌ High or critical vulnerabilities found in dependencies"
+            echo "Please run 'pnpm audit' locally and fix vulnerabilities before proceeding"
+            exit 1
+          }
+          echo "✅ Security audit passed"
+
       - name: Build applications
         run: pnpm run --filter "./apps/**" build
 

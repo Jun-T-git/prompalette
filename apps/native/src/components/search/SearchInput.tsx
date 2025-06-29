@@ -101,6 +101,12 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
   const [localValue, setLocalValue] = useState(value)
   // 候補表示用のローカル値（より短いデバウンス）
   const [suggestionsValue, setSuggestionsValue] = useState(value)
+  
+  // 親のvalueプロパティが変更されたときにlocalValueを同期
+  useEffect(() => {
+    setLocalValue(value)
+    setSuggestionsValue(value)
+  }, [value])
   // IME変換中かどうかを追跡
   const [isComposing, setIsComposing] = useState(false)
   // compositionEnd直後の短時間フラグ
@@ -242,8 +248,16 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
           setActiveDropdown(null)
           return
         }
-        // If no suggestions visible, let the event propagate to global handler
-        // This allows the global Escape handler to clear search or hide window
+        
+        // If search has content and no suggestions are visible, clear the search
+        if (value.length > 0) {
+          e.preventDefault()
+          handleClear() // Clear the search input
+          return
+        }
+        
+        // If search is empty and no suggestions, let the event propagate to global handler
+        // This allows the global Escape handler to hide window
       }
     }
 
@@ -376,6 +390,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         placeholder={placeholder}
         className="pl-10 pr-10"
         data-search-input="true"
+        data-testid="search-input"
         type="search"
         onFocus={handleFocus}
         onBlur={handleBlur}

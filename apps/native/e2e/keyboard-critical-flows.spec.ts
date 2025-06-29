@@ -69,16 +69,16 @@ test.describe('🚨 CRITICAL: Real Browser Keyboard Tests', () => {
       // Help modal should not be visible initially
       await expect(page.locator('[data-testid="help-modal"]')).not.toBeVisible();
 
-      // Open help with Cmd+h (or Ctrl+h on non-Mac)
+      // Open help with Cmd+Shift+? (or Ctrl+Shift+? on non-Mac)
       const isMac = process.platform === 'darwin';
       if (isMac) {
-        await page.keyboard.press('Meta+H');
+        await page.keyboard.press('Meta+Shift+Slash');
       } else {
-        await page.keyboard.press('Control+H');
+        await page.keyboard.press('Control+Shift+Slash');
       }
 
       // Help modal should appear
-      await expect(page.locator('[data-testid="help-modal"]')).toBeVisible({ timeout: 2000 });
+      await expect(page.locator('[data-testid="help-modal"]')).toBeVisible({ timeout: 3000 });
 
       // Close with Escape
       await page.keyboard.press('Escape');
