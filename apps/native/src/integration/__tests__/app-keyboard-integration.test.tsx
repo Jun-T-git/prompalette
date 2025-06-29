@@ -49,6 +49,7 @@ vi.mock('../../components', () => ({
         <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
+  ErrorBoundary: ({ children }: any) => <div>{children}</div>,
   HelpModal: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="help-modal">

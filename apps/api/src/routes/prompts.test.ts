@@ -12,7 +12,8 @@ describe('Prompts Route', () => {
   let testAuth: TestAuth;
 
   beforeEach(async () => {
-    // Ensure file storage is initialized before each test
+    // Reset file storage for clean test environment
+    await fileStorage.reset();
     await fileStorage.initialize();
     
     // Create test authentication dynamically

@@ -25,6 +25,12 @@ export default defineConfig({
         'src-tauri/',
         'e2e/**',
       ],
+      thresholds: {
+        statements: 70,
+        branches: 65,
+        functions: 70,
+        lines: 70,
+      },
     },
   },
   // @ts-expect-error vitest types

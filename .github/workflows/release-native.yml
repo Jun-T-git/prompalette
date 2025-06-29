@@ -66,9 +66,39 @@ jobs:
           VERSION=$(node -p "require('./apps/native/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Setup Apple Code Signing (if credentials available)
+        if: ${{ secrets.APPLE_CERTIFICATE_BASE64 && secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "🔑 Setting up Apple Developer ID code signing..."
+          
+          # Create keychain
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Import certificate
+          echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Set signing identity
+          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')" >> $GITHUB_ENV
+          
+          echo "✅ Code signing setup completed"
+
       - name: Build Tauri app (Universal)
         run: |
-          pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+          if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "🔏 Building with code signing..."
+            # Set Tauri signing environment variables
+            export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
+            export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+          else
+            echo "⚠️ Building without code signing (credentials not available)"
+            echo "For production releases, please configure Apple Developer ID signing"
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
+          fi
 
       - name: List build artifacts
         run: |

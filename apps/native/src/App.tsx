@@ -11,6 +11,7 @@ import {
   Button,
   ConfirmModal,
   EnvironmentError,
+  ErrorBoundary,
   HelpModal,
   ToastProvider,
   useToast,
@@ -693,9 +694,11 @@ function AppContent() {
 
 function App() {
   return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 
