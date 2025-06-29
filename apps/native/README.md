@@ -16,7 +16,7 @@ pnpm dev
 pnpm tauri:build
 ```
 
-#### DMGインストーラー + .appバンドル
+#### DMGインストーラー
 ```bash
 # ネイティブアーキテクチャ用
 pnpm tauri:build:dmg
@@ -27,16 +27,12 @@ pnpm tauri:build:universal
 
 ## 📦 配布形式
 
-### DMGファイル (推奨)
+### DMGファイル
 - **配布形式**: macOSの標準的なインストーラー
 - **サイズ**: ~13MB (Universal)
 - **ユーザー体験**: ドラッグ&ドロップでApplicationsフォルダーにインストール
 - **対応アーキテクチャ**: Intel + Apple Silicon (Universal)
-
-### .appファイル
-- **配布形式**: アプリケーションバンドル
-- **使用方法**: 直接Applicationsフォルダーにコピー
-- **用途**: DMGが使用できない場合のフォールバック
+- **含まれるもの**: アプリケーションバンドル(.app)が内包済み
 
 ## 🔧 技術詳細
 

@@ -98,12 +98,12 @@ jobs:
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
             export CI=true
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg,app
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
           else
             echo "⚠️ Building without code signing (credentials not available)"
             echo "For production releases, please configure Apple Developer ID signing"
             export CI=true
-            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg,app
+            pnpm --filter apps/native tauri build --target universal-apple-darwin --bundles dmg
           fi
 
       - name: List build artifacts
@@ -120,10 +120,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-universal
-          path: |
-            apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            apps/native/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          path: apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
           retention-days: 7
+
+      - name: Verify artifact upload
+        run: |
+          echo "=== Verifying DMG files exist before upload ==="
+          ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ || echo "❌ DMG directory not found"
+          echo "=== DMG files ==="
+          find apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ -name "*.dmg" 2>/dev/null || echo "No DMG files"
 
   # ========================================
   # Stagingプレリリース
@@ -146,13 +152,23 @@ jobs:
 
       - name: Debug artifact structure
         run: |
-          echo "=== Downloaded artifacts structure ==="
-          find ./dist -type f -name "*.dmg" -o -name "*.app" | head -10
-          echo "=== All files in dist ==="
-          ls -la ./dist/
-          if [ -d "./dist/macos-universal" ]; then
-            echo "=== Files in macos-universal ==="
-            ls -la ./dist/macos-universal/
+          echo "=== Working directory ==="
+          pwd
+          ls -la ./
+          echo "=== Check if dist exists ==="
+          if [ -d "./dist" ]; then
+            echo "dist directory exists"
+            find ./dist -type f -name "*.dmg" | head -10
+            echo "=== All files in dist ==="
+            ls -la ./dist/
+            if [ -d "./dist/macos-universal" ]; then
+              echo "=== DMG files in macos-universal ==="
+              ls -la ./dist/macos-universal/
+            fi
+          else
+            echo "❌ dist directory does not exist"
+            echo "=== Available artifacts might be ==="
+            find . -name "*.dmg" 2>/dev/null || echo "No DMG files found"
           fi
 
       - name: Generate release notes
@@ -181,9 +197,7 @@ jobs:
           tag_name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
           name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
           body_path: notes.md
-          files: |
-            ./dist/macos-universal/*.dmg
-            ./dist/macos-universal/*.app
+          files: ./dist/macos-universal/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -210,13 +224,23 @@ jobs:
 
       - name: Debug artifact structure
         run: |
-          echo "=== Downloaded artifacts structure ==="
-          find ./dist -type f -name "*.dmg" -o -name "*.app" | head -10
-          echo "=== All files in dist ==="
-          ls -la ./dist/
-          if [ -d "./dist/macos-universal" ]; then
-            echo "=== Files in macos-universal ==="
-            ls -la ./dist/macos-universal/
+          echo "=== Working directory ==="
+          pwd
+          ls -la ./
+          echo "=== Check if dist exists ==="
+          if [ -d "./dist" ]; then
+            echo "dist directory exists"
+            find ./dist -type f -name "*.dmg" | head -10
+            echo "=== All files in dist ==="
+            ls -la ./dist/
+            if [ -d "./dist/macos-universal" ]; then
+              echo "=== DMG files in macos-universal ==="
+              ls -la ./dist/macos-universal/
+            fi
+          else
+            echo "❌ dist directory does not exist"
+            echo "=== Available artifacts might be ==="
+            find . -name "*.dmg" 2>/dev/null || echo "No DMG files found"
           fi
 
       - name: Check for existing release
@@ -270,9 +294,7 @@ jobs:
           tag_name: v${{ needs.build-native.outputs.version }}
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
-          files: |
-            ./dist/macos-universal/*.dmg
-            ./dist/macos-universal/*.app
+          files: ./dist/macos-universal/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
