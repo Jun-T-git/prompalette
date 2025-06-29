@@ -251,7 +251,7 @@ export const useFavoritesStore = create<FavoritesState>()(
               const arrayIndex = prompt.position - 1;
               positionedPrompts[arrayIndex] = prompt;
             } else {
-              console.warn(`Invalid position ${prompt.position} for prompt "${prompt.title}"`);
+              console.warn(`Invalid position ${prompt.position} for prompt "${prompt.title || 'Untitled'}"`);
             }
           });
           

@@ -3,7 +3,7 @@
  * `SQLite`を使用したプロンプトデータの永続化
  */
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Row};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
@@ -14,7 +14,7 @@ static DB_POOL: OnceLock<SqlitePool> = OnceLock::new();
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Prompt {
     pub id: String,
-    pub title: String,
+    pub title: Option<String>,
     pub content: String,
     pub tags: Option<String>, // JSON文字列として保存
     pub quick_access_key: Option<String>, // クイックアクセスキー
@@ -27,7 +27,7 @@ pub struct Prompt {
 /// プロンプト作成リクエスト
 #[derive(Debug, Deserialize)]
 pub struct CreatePromptRequest {
-    pub title: String,
+    pub title: Option<String>,
     pub content: String,
     pub tags: Option<Vec<String>>,
     #[serde(rename = "quickAccessKey")]
@@ -117,7 +117,7 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
         r"
         CREATE TABLE IF NOT EXISTS prompts (
             id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
+            title TEXT,
             content TEXT NOT NULL,
             tags TEXT,
             quick_access_key TEXT,
@@ -155,20 +155,148 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
 /// データベースマイグレーション実行
 /// 既存のテーブルにピン関連カラムを追加
 async fn run_migrations(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
-    // pinned_positionカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_position INTEGER;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
+    // カラム追加の安全な実行（既存カラムのチェック付き）
+    add_column_if_not_exists(pool, "pinned_position", "INTEGER").await?;
+    add_column_if_not_exists(pool, "pinned_at", "DATETIME").await?;
+    add_column_if_not_exists(pool, "quick_access_key", "TEXT").await?;
     
-    // pinned_atカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_at DATETIME;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
+    // titleカラムのNOT NULL制約を削除するマイグレーション
+    migrate_title_to_optional(pool).await?;
     
-    // quick_access_keyカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN quick_access_key TEXT;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
+    Ok(())
+}
+
+/// 指定されたカラムが存在しない場合のみ追加する安全なヘルパー関数
+async fn add_column_if_not_exists(
+    pool: &SqlitePool, 
+    column_name: &str, 
+    column_type: &str
+) -> Result<(), Box<dyn std::error::Error>> {
+    let table_info = sqlx::query("PRAGMA table_info(prompts);")
+        .fetch_all(pool)
+        .await?;
+    
+    let column_exists = table_info.iter().any(|row| {
+        let name: String = row.get("name");
+        name == column_name
+    });
+    
+    if !column_exists {
+        let query = format!("ALTER TABLE prompts ADD COLUMN {} {};", column_name, column_type);
+        sqlx::query(&query)
+            .execute(pool)
+            .await
+            .map_err(|e| format!("Failed to add column {}: {}", column_name, e))?;
+    }
+    
+    Ok(())
+}
+
+/// titleカラムをNOT NULLからオプショナルに変更するマイグレーション
+/// トランザクションを使用してデータ安全性を確保
+async fn migrate_title_to_optional(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    // プロンプトテーブルが存在するかチェック
+    let table_exists = sqlx::query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='prompts';"
+    )
+    .fetch_optional(pool)
+    .await?;
+    
+    if table_exists.is_none() {
+        // テーブルが存在しない場合は何もしない
+        return Ok(());
+    }
+    
+    // titleカラムがNOT NULLかどうかを確認
+    let table_info = sqlx::query("PRAGMA table_info(prompts);")
+        .fetch_all(pool)
+        .await?;
+    
+    let mut title_not_null = false;
+    for row in table_info {
+        let column_name: String = row.get("name");
+        let not_null: i64 = row.get("notnull");
+        if column_name == "title" && not_null == 1 {
+            title_not_null = true;
+            break;
+        }
+    }
+    
+    // titleがNOT NULLの場合のみマイグレーションを実行
+    if title_not_null {
+        // トランザクション開始でデータ安全性を確保
+        let mut tx = pool.begin().await?;
+        
+        // バックアップテーブル作成（データ損失防止）
+        sqlx::query(
+            r"
+            CREATE TABLE IF NOT EXISTS prompts_backup AS 
+            SELECT * FROM prompts;
+            "
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // 一時テーブルを作成
+        sqlx::query(
+            r"
+            CREATE TABLE prompts_new (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                content TEXT NOT NULL,
+                tags TEXT,
+                quick_access_key TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                pinned_position INTEGER,
+                pinned_at DATETIME
+            );
+            ",
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // データをコピー
+        sqlx::query(
+            r"
+            INSERT INTO prompts_new (id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at)
+            SELECT id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at FROM prompts;
+            ",
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // データ整合性検証
+        let original_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prompts")
+            .fetch_one(&mut *tx)
+            .await?;
+        let new_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prompts_new")
+            .fetch_one(&mut *tx)
+            .await?;
+        
+        if original_count != new_count {
+            // データ不整合の場合はロールバック
+            return Err("Data migration failed: row count mismatch".into());
+        }
+        
+        // 古いテーブルを削除
+        sqlx::query("DROP TABLE prompts;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // 新しいテーブルをリネーム
+        sqlx::query("ALTER TABLE prompts_new RENAME TO prompts;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // バックアップテーブルも同一トランザクション内で削除
+        sqlx::query("DROP TABLE IF EXISTS prompts_backup;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // トランザクションコミット（全操作の原子性確保）
+        tx.commit().await?;
+    }
     
     Ok(())
 }
@@ -335,7 +463,7 @@ pub async fn update_prompt(
     };
     
     // 更新フィールドの決定
-    let title = request.title.unwrap_or(existing.title);
+    let title = request.title.or(existing.title);
     let content = request.content.unwrap_or(existing.content);
     
     // タグの処理
@@ -505,7 +633,7 @@ mod tests {
             r"
             CREATE TABLE prompts (
                 id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
+                title TEXT,
                 content TEXT NOT NULL,
                 tags TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

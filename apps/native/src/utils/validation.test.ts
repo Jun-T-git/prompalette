@@ -7,9 +7,11 @@ describe('validation utils', () => {
       expect(validatePromptTitle('A'.repeat(100))).toBeNull()
     })
 
-    it('returns error for empty title', () => {
-      expect(validatePromptTitle('')).toBe('タイトルは必須です')
-      expect(validatePromptTitle('   ')).toBe('タイトルは必須です')
+    it('returns null for empty title (now optional)', () => {
+      expect(validatePromptTitle('')).toBeNull()
+      expect(validatePromptTitle('   ')).toBeNull()
+      expect(validatePromptTitle(undefined)).toBeNull()
+      expect(validatePromptTitle(null)).toBeNull()
     })
 
     it('returns error for too long title', () => {

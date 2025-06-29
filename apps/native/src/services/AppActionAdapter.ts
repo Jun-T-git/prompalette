@@ -1,4 +1,5 @@
 import type { Prompt } from '../types';
+import { getSafeTitle } from '../utils/promptDisplay';
 
 export interface PromptStore {
   selectedPromptIndex: number;
@@ -161,10 +162,10 @@ export class AppActionAdapter {
 
     // Use modal confirmation if available, otherwise fallback to browser confirm
     if (this.stores.modalStore.openDeleteConfirm) {
-      this.stores.modalStore.openDeleteConfirm(selectedPrompt.id, selectedPrompt.title);
+      this.stores.modalStore.openDeleteConfirm(selectedPrompt.id, getSafeTitle(selectedPrompt));
     } else if (this.stores.promptStore.deletePrompt) {
       // Fallback for environments where modal is not available
-      const confirmed = confirm(`プロンプト「${selectedPrompt.title}」を削除しますか？`);
+      const confirmed = confirm(`プロンプト「${getSafeTitle(selectedPrompt)}」を削除しますか？`);
       if (confirmed) {
         return this.stores.promptStore.deletePrompt(selectedPrompt.id);
       }
