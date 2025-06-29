@@ -16,7 +16,7 @@ describe('PromptForm', () => {
   it('renders form fields correctly', () => {
     render(<PromptForm onSubmit={vi.fn()} onCancel={vi.fn()} />)
 
-    expect(screen.getByLabelText('タイトル *')).toBeInTheDocument()
+    expect(screen.getByLabelText('タイトル')).toBeInTheDocument()
     expect(screen.getByLabelText('プロンプト内容 *')).toBeInTheDocument()
     expect(screen.getByLabelText('タグ')).toBeInTheDocument()
     expect(screen.getByLabelText('クイックアクセスキー')).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('PromptForm', () => {
     const handleSubmit = vi.fn()
     render(<PromptForm onSubmit={handleSubmit} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('タイトル *'), {
+    fireEvent.change(screen.getByLabelText('タイトル'), {
       target: { value: 'New Prompt' },
     })
     fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {
@@ -77,10 +77,31 @@ describe('PromptForm', () => {
     expect(handleCancel).toHaveBeenCalled()
   })
 
-  it('disables submit button when title or content is empty', () => {
+  it('submits with null title when title is empty', async () => {
+    const handleSubmit = vi.fn()
+    render(<PromptForm onSubmit={handleSubmit} onCancel={vi.fn()} />)
+
+    // Only fill content, leave title empty
+    fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {
+      target: { value: 'Content only' },
+    })
+
+    fireEvent.click(screen.getByText('作成'))
+
+    await waitFor(() => {
+      expect(handleSubmit).toHaveBeenCalledWith({
+        title: null,
+        content: 'Content only',
+        tags: undefined,
+        quickAccessKey: undefined,
+      })
+    })
+  })
+
+  it('disables submit button when content is empty', () => {
     render(<PromptForm onSubmit={vi.fn()} onCancel={vi.fn()} />)
 
-    // Submit button should be disabled when fields are empty
+    // Submit button should be disabled when content is empty (title is optional)
     expect(screen.getByText('作成')).toBeDisabled()
   })
 
@@ -88,7 +109,7 @@ describe('PromptForm', () => {
     const handleSubmit = vi.fn()
     render(<PromptForm onSubmit={handleSubmit} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('タイトル *'), {
+    fireEvent.change(screen.getByLabelText('タイトル'), {
       target: { value: 'Test' },
     })
     fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {
@@ -114,7 +135,7 @@ describe('PromptForm', () => {
     const handleSubmit = vi.fn()
     render(<PromptForm onSubmit={handleSubmit} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('タイトル *'), {
+    fireEvent.change(screen.getByLabelText('タイトル'), {
       target: { value: 'Test' },
     })
     fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {
@@ -148,8 +169,20 @@ describe('PromptForm', () => {
   it('enables submit button when required fields are filled', () => {
     render(<PromptForm onSubmit={vi.fn()} onCancel={vi.fn()} />)
 
-    // Fill required fields
-    fireEvent.change(screen.getByLabelText('タイトル *'), {
+    // Fill required field (content only, title is now optional)
+    fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {
+      target: { value: 'Test Content' },
+    })
+
+    // Submit button should be enabled
+    expect(screen.getByText('作成')).not.toBeDisabled()
+  })
+
+  it('enables submit button with title and content filled', () => {
+    render(<PromptForm onSubmit={vi.fn()} onCancel={vi.fn()} />)
+
+    // Fill both optional and required fields
+    fireEvent.change(screen.getByLabelText('タイトル'), {
       target: { value: 'Test Title' },
     })
     fireEvent.change(screen.getByLabelText('プロンプト内容 *'), {

@@ -48,6 +48,9 @@ describe('Prompt models', () => {
       const result = PromptSchema.safeParse(prompt);
       
       expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain('Title must be 100 characters or less');
+      }
     });
   });
   
@@ -98,6 +101,9 @@ describe('Prompt models', () => {
       const result = UpdatePromptSchema.safeParse(updateData);
       
       expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain('Title must be 100 characters or less');
+      }
     });
   });
 });

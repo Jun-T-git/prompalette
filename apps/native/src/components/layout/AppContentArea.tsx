@@ -4,6 +4,7 @@ import type { FormSubmitHandler } from '../../adapters/RealAppStoreAdapter';
 import { getPaletteColor } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from '../../types';
+import { getSafeTitle } from '../../utils/promptDisplay';
 import { ConfirmModal, PaletteDropdown, useToast } from '../common';
 import { PromptForm } from '../prompt';
 
@@ -103,7 +104,7 @@ export function AppContentArea({
       setConfirmOverwrite({
         show: true,
         position,
-        targetPromptTitle: targetPrompt.title,
+        targetPromptTitle: getSafeTitle(targetPrompt),
       });
       return;
     }
@@ -221,7 +222,7 @@ export function AppContentArea({
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-medium text-gray-900 truncate mb-1">
-                  {selectedPrompt.title}
+                  {getSafeTitle(selectedPrompt)}
                 </h2>
 
                 {/* クイックアクセスキー */}

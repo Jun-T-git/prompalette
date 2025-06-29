@@ -23,6 +23,7 @@ import { KeyboardProvider } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
+import { getSafeTitle } from './utils/promptDisplay';
 
 // Constants for UI timing
 const SEARCH_FOCUS_DELAY = 100;
@@ -142,7 +143,7 @@ function AppContent() {
       try {
         const result = await copyPromptToClipboard(prompt.content, prompt.id);
         if (result.success) {
-          showToast(`「${prompt.title}」をコピーしました`, 'success');
+          showToast(`「${getSafeTitle(prompt)}」をコピーしました`, 'success');
         } else {
           showToast(`コピーに失敗しました: ${result.error}`, 'error');
         }
@@ -249,7 +250,7 @@ function AppContent() {
     }
   }, [error]);
 
-  // 型ガード関数（強化版：全フィールドを検証）
+  // 型ガード関数：UpdatePromptRequestはidフィールドの存在で判定
   const isUpdateRequest = (
     data: CreatePromptRequest | UpdatePromptRequest,
   ): data is UpdatePromptRequest => {
@@ -258,13 +259,7 @@ function AppContent() {
       data !== null &&
       'id' in data &&
       typeof data.id === 'string' &&
-      data.id.length > 0 &&
-      'title' in data &&
-      typeof data.title === 'string' &&
-      'content' in data &&
-      typeof data.content === 'string' &&
-      'tags' in data &&
-      Array.isArray(data.tags)
+      data.id.length > 0
     );
   };
 
@@ -295,6 +290,8 @@ function AppContent() {
         await updatePrompt(data);
         setSelectionIntentForEditedPrompt(data.id);
       } else {
+        // このケースは通常発生すべきではない（編集フォームから作成リクエストが送信される場合）
+        logger.warn('Edit form submitted create request instead of update request:', data);
         const resultPrompt = await createPrompt(data);
         if (resultPrompt && resultPrompt.id) {
           setSelectionIntentForNewPrompt(resultPrompt.id);
@@ -314,7 +311,7 @@ function AppContent() {
       setDeleteConfirm({
         show: true,
         promptId: id,
-        promptTitle: prompt.title,
+        promptTitle: getSafeTitle(prompt),
       });
     }
   };

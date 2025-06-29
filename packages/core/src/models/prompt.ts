@@ -20,7 +20,18 @@ const sanitizeString = (str: string): string => {
 
 export const PromptSchema = z.object({
   id: z.string().regex(/^prm_[a-zA-Z0-9]+$/, 'Invalid prompt ID format'),
-  title: z.string().min(1, 'Title is required').max(MAX_TITLE_LENGTH, `Title must be ${MAX_TITLE_LENGTH} characters or less`).transform(sanitizeString),
+  title: z.string().nullish()
+    .refine((str) => {
+      if (!str || typeof str !== 'string') return true; // null/undefined is allowed
+      const trimmed = str.trim();
+      return trimmed.length === 0 || trimmed.length <= MAX_TITLE_LENGTH;
+    }, `Title must be ${MAX_TITLE_LENGTH} characters or less`)
+    .transform((str) => {
+      if (!str || typeof str !== 'string') return null;
+      const trimmed = str.trim();
+      if (trimmed.length === 0) return null;
+      return sanitizeString(trimmed);
+    }),
   content: z.string().min(1, 'Content is required').max(MAX_PROMPT_LENGTH, `Content must be ${MAX_PROMPT_LENGTH} characters or less`).transform((str) => {
     return str
       // eslint-disable-next-line no-control-regex

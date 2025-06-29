@@ -4,6 +4,7 @@ import { HOTKEY_DISPLAY, PALETTE_COLORS } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores/favorites';
 import type { Prompt } from '../../types';
 import { logger } from '../../utils';
+import { getTooltipTitle } from '../../utils/promptDisplay';
 
 interface SidebarPromptPaletteProps {
   onPromptSelect: (prompt: Prompt) => void;
@@ -67,7 +68,7 @@ export function SidebarPromptPalette({
               disabled={!prompt}
               title={
                 prompt
-                  ? `${prompt.title} (⌘${hotkeyDisplay})`
+                  ? `${getTooltipTitle(prompt)} (⌘${hotkeyDisplay})`
                   : `位置 ${index + 1} (⌘${hotkeyDisplay})`
               }
             >

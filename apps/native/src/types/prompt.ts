@@ -5,8 +5,8 @@
 export interface Prompt {
   /** プロンプトの一意識別子 */
   id: string
-  /** プロンプトのタイトル（最大100文字） */
-  title: string
+  /** プロンプトのタイトル（最大100文字、任意） */
+  title: string | null
   /** プロンプトの本文内容 */
   content: string
   /** プロンプトに付与されたタグの配列（用途・技術・対象などを自由に設定） */
@@ -28,8 +28,8 @@ export interface Prompt {
  * APIで新しいプロンプトを作成する際に送信する情報
  */
 export interface CreatePromptRequest {
-  /** プロンプトのタイトル（必須、最大100文字） */
-  title: string
+  /** プロンプトのタイトル（任意、最大100文字） */
+  title: string | null | undefined
   /** プロンプトの本文内容（必須） */
   content: string
   /** プロンプトに付与するタグの配列（用途・技術・対象などを自由に設定、最大10個） */

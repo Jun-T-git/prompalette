@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores/favorites';
 import type { Prompt } from '../../types';
+import { getDisplayTitle } from '../../utils/promptDisplay';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -48,7 +49,7 @@ export function PromptCard({ prompt, isSelected = false, onClick, onCopy }: Prom
       {/* 左側: タイトル */}
       <div className="flex items-center space-x-2 flex-1 min-w-0">
         <h3 className="text-sm font-medium text-gray-900 truncate">
-          {prompt.title}
+          {getDisplayTitle(prompt)}
         </h3>
       </div>
 

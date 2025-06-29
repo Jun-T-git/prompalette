@@ -120,7 +120,7 @@ describe('Prompts Route', () => {
 
   it('should handle validation errors gracefully', async () => {
     const invalidData = {
-      title: '', // Invalid: empty title
+      title: 'a'.repeat(101), // Invalid: title too long
       content: 'Test content',
     };
 
