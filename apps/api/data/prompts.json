@@ -4497,6 +4497,285 @@
       ],
       "createdAt": "2025-06-29T13:50:10.614Z",
       "isActive": true
+    },
+    "usr_1751285910432_2dx4o16sj": {
+      "id": "usr_1751285910432_2dx4o16sj",
+      "email": "test@example.com",
+      "name": "Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T12:18:30.432Z",
+      "isActive": true
+    },
+    "usr_1751285910507_xqipczmos": {
+      "id": "usr_1751285910507_xqipczmos",
+      "email": "timestamp-test@example.com",
+      "name": "Timestamp Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T12:18:30.507Z",
+      "isActive": true
+    },
+    "usr_1751285910800_ph1j95sve": {
+      "id": "usr_1751285910800_ph1j95sve",
+      "email": "test-00ff68114ffa2a94@example.com",
+      "name": "Test User 00ff68114ffa2a94",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:30.800Z",
+      "isActive": true
+    },
+    "usr_1751285910995_l5lddw42i": {
+      "id": "usr_1751285910995_l5lddw42i",
+      "email": "test-585f44e18dfc5a67@example.com",
+      "name": "Test User 585f44e18dfc5a67",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:30.995Z",
+      "isActive": true
+    },
+    "usr_1751285911050_8gfg5rgg0": {
+      "id": "usr_1751285911050_8gfg5rgg0",
+      "email": "test-3dde0dde3be6f9bb@example.com",
+      "name": "Test User 3dde0dde3be6f9bb",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.050Z",
+      "isActive": true
+    },
+    "usr_1751285911229_sfy299t3b": {
+      "id": "usr_1751285911229_sfy299t3b",
+      "email": "test-304e18e13db6b87f@example.com",
+      "name": "Test User 304e18e13db6b87f",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.229Z",
+      "isActive": true
+    },
+    "usr_1751285911316_sy9hn6wvf": {
+      "id": "usr_1751285911316_sy9hn6wvf",
+      "email": "test-5757d04158375539@example.com",
+      "name": "Test User 5757d04158375539",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.316Z",
+      "isActive": true
+    },
+    "usr_1751285911491_7oop0i8tx": {
+      "id": "usr_1751285911491_7oop0i8tx",
+      "email": "test-7e233e857fa14920@example.com",
+      "name": "Test User 7e233e857fa14920",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.491Z",
+      "isActive": true
+    },
+    "usr_1751285911558_y27dodnlj": {
+      "id": "usr_1751285911558_y27dodnlj",
+      "email": "test-c6847ee46a0bb1d5@example.com",
+      "name": "Test User c6847ee46a0bb1d5",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.558Z",
+      "isActive": true
+    },
+    "usr_1751289805841_710m503ox": {
+      "id": "usr_1751289805841_710m503ox",
+      "email": "test@example.com",
+      "name": "Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.841Z",
+      "isActive": true
+    },
+    "usr_1751289805856_f9cg85fih": {
+      "id": "usr_1751289805856_f9cg85fih",
+      "email": "timestamp-test@example.com",
+      "name": "Timestamp Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.856Z",
+      "isActive": true
+    },
+    "usr_1751289805887_wyp76pa7w": {
+      "id": "usr_1751289805887_wyp76pa7w",
+      "email": "api-test@example.com",
+      "name": "API Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.887Z",
+      "isActive": true
+    },
+    "usr_1751289805900_f9xw1u4dw": {
+      "id": "usr_1751289805900_f9xw1u4dw",
+      "email": "validate-test@example.com",
+      "name": "Validate Test User",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.900Z",
+      "isActive": true
+    },
+    "usr_1751289805921_8q06u8o9f": {
+      "id": "usr_1751289805921_8q06u8o9f",
+      "email": "test-393b0c2a8acd9455@example.com",
+      "name": "Test User 393b0c2a8acd9455",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.921Z",
+      "isActive": true
+    },
+    "usr_1751289805938_ltbqidg7g": {
+      "id": "usr_1751289805938_ltbqidg7g",
+      "email": "test-6bd38f323557a69d@example.com",
+      "name": "Test User 6bd38f323557a69d",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.938Z",
+      "isActive": true
+    },
+    "usr_1751289805954_x1kj84vo5": {
+      "id": "usr_1751289805954_x1kj84vo5",
+      "email": "test-2e5b5401a49aa9e8@example.com",
+      "name": "Test User 2e5b5401a49aa9e8",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.954Z",
+      "isActive": true
+    },
+    "usr_1751289805973_4gtfe6st3": {
+      "id": "usr_1751289805973_4gtfe6st3",
+      "email": "test-3882b74e1afe2638@example.com",
+      "name": "Test User 3882b74e1afe2638",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.973Z",
+      "isActive": true
+    },
+    "usr_1751289805985_pu43dy6cl": {
+      "id": "usr_1751289805985_pu43dy6cl",
+      "email": "test-0f21a47561711448@example.com",
+      "name": "Test User 0f21a47561711448",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.985Z",
+      "isActive": true
+    },
+    "usr_1751289806046_uno860ghi": {
+      "id": "usr_1751289806046_uno860ghi",
+      "email": "test-b383d09df093de5e@example.com",
+      "name": "Test User b383d09df093de5e",
+      "workspaces": [
+        "wsp_demo"
+      ],
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:26.046Z",
+      "isActive": true
     }
   },
   "apiKeys": {
@@ -8547,6 +8826,264 @@
       "createdAt": "2025-06-29T13:50:10.617Z",
       "isActive": true,
       "lastUsedAt": "2025-06-29T13:50:10.622Z"
+    },
+    "9a754520c880ebaca7a0df8af134384a58ffc29971746d8e6b2943f114337b35": {
+      "id": "key_1751285910438_neu26me40",
+      "keyHash": "9a754520c880ebaca7a0df8af134384a58ffc29971746d8e6b2943f114337b35",
+      "userId": "usr_1751285910432_2dx4o16sj",
+      "name": "Test Key",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T12:18:30.438Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:30.445Z"
+    },
+    "f1a6d87ae203b59d88301f36d37aee1c719cf7ded472df1f380885e64fdfbd9e": {
+      "id": "key_1751285910698_lxkpephtp",
+      "keyHash": "f1a6d87ae203b59d88301f36d37aee1c719cf7ded472df1f380885e64fdfbd9e",
+      "userId": "usr_1751285910507_xqipczmos",
+      "name": "Timestamp Test Key",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T12:18:30.698Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:30.715Z"
+    },
+    "afd6116809c467cd6ed65fe53a8ca8140581b532eaa3f7ba8782e6bea34483e6": {
+      "id": "key_1751285910805_j1on84qca",
+      "keyHash": "afd6116809c467cd6ed65fe53a8ca8140581b532eaa3f7ba8782e6bea34483e6",
+      "userId": "usr_1751285910800_ph1j95sve",
+      "name": "Test API Key 00ff68114ffa2a94",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:30.805Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:30.951Z"
+    },
+    "102b3a396668b44e5460c058a13fc3c9a27040f90400eb9445737a5cda5b0922": {
+      "id": "key_1751285911009_u79v98apk",
+      "keyHash": "102b3a396668b44e5460c058a13fc3c9a27040f90400eb9445737a5cda5b0922",
+      "userId": "usr_1751285910995_l5lddw42i",
+      "name": "Test API Key 585f44e18dfc5a67",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.009Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.015Z"
+    },
+    "b443aa8876aee130392cbc09008797a4e4757836dd74cd03d2a22eb6c9f2c9de": {
+      "id": "key_1751285911061_k9mutyq87",
+      "keyHash": "b443aa8876aee130392cbc09008797a4e4757836dd74cd03d2a22eb6c9f2c9de",
+      "userId": "usr_1751285911050_8gfg5rgg0",
+      "name": "Test API Key 3dde0dde3be6f9bb",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.061Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.183Z"
+    },
+    "7d880423bce34a948b3d30df7c34c3484946f27023ffd76ccb6fac8dabc325dd": {
+      "id": "key_1751285911234_bd680cz11",
+      "keyHash": "7d880423bce34a948b3d30df7c34c3484946f27023ffd76ccb6fac8dabc325dd",
+      "userId": "usr_1751285911229_sfy299t3b",
+      "name": "Test API Key 304e18e13db6b87f",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.234Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.242Z"
+    },
+    "4e9c35ad8f094dc62920ba7d6bc900b0fdae9b4672418735ba87cd6360e43994": {
+      "id": "key_1751285911430_8jua0as4w",
+      "keyHash": "4e9c35ad8f094dc62920ba7d6bc900b0fdae9b4672418735ba87cd6360e43994",
+      "userId": "usr_1751285911316_sy9hn6wvf",
+      "name": "Test API Key 5757d04158375539",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.430Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.451Z"
+    },
+    "247174b30ae1cdb080d36756cf4e38310d62c1744d18f55dd3e842a03a36e9ce": {
+      "id": "key_1751285911497_ofq0z61ql",
+      "keyHash": "247174b30ae1cdb080d36756cf4e38310d62c1744d18f55dd3e842a03a36e9ce",
+      "userId": "usr_1751285911491_7oop0i8tx",
+      "name": "Test API Key 7e233e857fa14920",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.497Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.514Z"
+    },
+    "d4bb717b9c9d037a0752183aed12d8e693a31ba4aecf659ca4183190b2a78331": {
+      "id": "key_1751285911562_h6bsu1gup",
+      "keyHash": "d4bb717b9c9d037a0752183aed12d8e693a31ba4aecf659ca4183190b2a78331",
+      "userId": "usr_1751285911558_y27dodnlj",
+      "name": "Test API Key c6847ee46a0bb1d5",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T12:18:31.562Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T12:18:31.570Z"
+    },
+    "2c34c0470333f5eb007c3152687dc94e93d63473edd0919e34784643bd6c1cae": {
+      "id": "key_1751289805846_l0a2xxtqv",
+      "keyHash": "2c34c0470333f5eb007c3152687dc94e93d63473edd0919e34784643bd6c1cae",
+      "userId": "usr_1751289805841_710m503ox",
+      "name": "Test Key",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.846Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.849Z"
+    },
+    "fa2a7a9206d96bdd1c6ad7e75c5a3e3350d0804dcacadee43d438eb2fe9fb49c": {
+      "id": "key_1751289805858_wywrgjmjq",
+      "keyHash": "fa2a7a9206d96bdd1c6ad7e75c5a3e3350d0804dcacadee43d438eb2fe9fb49c",
+      "userId": "usr_1751289805856_f9cg85fih",
+      "name": "Timestamp Test Key",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.858Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.880Z"
+    },
+    "a384049653f345f655b01130e0f19a08aa699c03e85714c168fe44b9f189a4f4": {
+      "id": "key_1751289805892_k7mgk60ls",
+      "keyHash": "a384049653f345f655b01130e0f19a08aa699c03e85714c168fe44b9f189a4f4",
+      "userId": "usr_1751289805887_wyp76pa7w",
+      "name": "Test Key",
+      "permissions": [
+        "read"
+      ],
+      "createdAt": "2025-06-30T13:23:25.892Z",
+      "isActive": true
+    },
+    "830cc5858ada780ad4624583cf376c90ea38a1864f3443129e751ea103ae0965": {
+      "id": "key_1751289805908_yihc0cnsh",
+      "keyHash": "830cc5858ada780ad4624583cf376c90ea38a1864f3443129e751ea103ae0965",
+      "userId": "usr_1751289805900_f9xw1u4dw",
+      "name": "Test Key 2",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "createdAt": "2025-06-30T13:23:25.908Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.912Z"
+    },
+    "fa80fa601380f4fc34f0f88708e84c439a1ab5cb0fd03336c1d8da22aadb3cce": {
+      "id": "key_1751289805924_n0y1pxg17",
+      "keyHash": "fa80fa601380f4fc34f0f88708e84c439a1ab5cb0fd03336c1d8da22aadb3cce",
+      "userId": "usr_1751289805921_8q06u8o9f",
+      "name": "Test API Key 393b0c2a8acd9455",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.924Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.929Z"
+    },
+    "6d121973111a3c60848a0ba936367b87c9705ddbc78f35bf7be1000ba8f18eb7": {
+      "id": "key_1751289805941_kjjuv9bqe",
+      "keyHash": "6d121973111a3c60848a0ba936367b87c9705ddbc78f35bf7be1000ba8f18eb7",
+      "userId": "usr_1751289805938_ltbqidg7g",
+      "name": "Test API Key 6bd38f323557a69d",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.941Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.944Z"
+    },
+    "0f35e57b7b5f03e37df54afedca8fad0a227094f911673cd42f856618e7301c2": {
+      "id": "key_1751289805957_nq1qd5zb6",
+      "keyHash": "0f35e57b7b5f03e37df54afedca8fad0a227094f911673cd42f856618e7301c2",
+      "userId": "usr_1751289805954_x1kj84vo5",
+      "name": "Test API Key 2e5b5401a49aa9e8",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.957Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.960Z"
+    },
+    "204ecfc01d721162528f51c608f973e2ba5974ce878b718ee8e94981f0c1ac46": {
+      "id": "key_1751289805976_dub9fqgq3",
+      "keyHash": "204ecfc01d721162528f51c608f973e2ba5974ce878b718ee8e94981f0c1ac46",
+      "userId": "usr_1751289805973_4gtfe6st3",
+      "name": "Test API Key 3882b74e1afe2638",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.976Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:25.980Z"
+    },
+    "aae8cdd722e176072119c90b26a505d30a3923f8e5d4d94accf353597a8e4d38": {
+      "id": "key_1751289805992_p0jdnjnmz",
+      "keyHash": "aae8cdd722e176072119c90b26a505d30a3923f8e5d4d94accf353597a8e4d38",
+      "userId": "usr_1751289805985_pu43dy6cl",
+      "name": "Test API Key 0f21a47561711448",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:25.992Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:26.029Z"
+    },
+    "052dd0c74f41ef38fc469bf7aeffcce56e0686bd250eb69195e56f885fc6602d": {
+      "id": "key_1751289806049_gjnykjd6l",
+      "keyHash": "052dd0c74f41ef38fc469bf7aeffcce56e0686bd250eb69195e56f885fc6602d",
+      "userId": "usr_1751289806046_uno860ghi",
+      "name": "Test API Key b383d09df093de5e",
+      "permissions": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "createdAt": "2025-06-30T13:23:26.049Z",
+      "isActive": true,
+      "lastUsedAt": "2025-06-30T13:23:26.056Z"
     }
   },
   "prompts": {
@@ -9164,6 +9701,38 @@
       "updatedAt": "2025-06-29T13:50:10.578Z",
       "usageCount": 1,
       "lastUsedAt": "2025-06-29T13:50:10.578Z"
+    },
+    "prm_1751285911254_r7ee56at3": {
+      "id": "prm_1751285911254_r7ee56at3",
+      "title": "Test Prompt",
+      "content": "This is a test prompt",
+      "description": "A test prompt for testing",
+      "workspaceId": "wsp_demo",
+      "tagIds": [
+        "test-tag"
+      ],
+      "visibility": "private",
+      "status": "active",
+      "createdAt": "2025-06-30T12:18:31.254Z",
+      "updatedAt": "2025-06-30T12:18:31.526Z",
+      "usageCount": 1,
+      "lastUsedAt": "2025-06-30T12:18:31.526Z"
+    },
+    "prm_1751289805963_8aeko5frn": {
+      "id": "prm_1751289805963_8aeko5frn",
+      "title": "Test Prompt",
+      "content": "This is a test prompt",
+      "description": "A test prompt for testing",
+      "workspaceId": "wsp_demo",
+      "tagIds": [
+        "test-tag"
+      ],
+      "visibility": "private",
+      "status": "active",
+      "createdAt": "2025-06-30T13:23:25.964Z",
+      "updatedAt": "2025-06-30T13:23:26.031Z",
+      "usageCount": 1,
+      "lastUsedAt": "2025-06-30T13:23:26.031Z"
     }
   },
   "auditLogs": [
@@ -11284,6 +11853,133 @@
         "usageCount": 1
       },
       "timestamp": "2025-06-29T13:50:10.589Z"
+    },
+    {
+      "id": "audit_1751285910955_p5tf9mlva",
+      "promptId": "*",
+      "userId": "usr_1751285910800_ph1j95sve",
+      "action": "list",
+      "details": {
+        "filters": {},
+        "resultCount": 39
+      },
+      "timestamp": "2025-06-30T12:18:30.955Z"
+    },
+    {
+      "id": "audit_1751285911021_o8nnpjozz",
+      "promptId": "*",
+      "userId": "usr_1751285910995_l5lddw42i",
+      "action": "list",
+      "details": {
+        "filters": {
+          "status": "active"
+        },
+        "resultCount": 39
+      },
+      "timestamp": "2025-06-30T12:18:31.021Z"
+    },
+    {
+      "id": "audit_1751285911206_i6ynymvhj",
+      "promptId": "*",
+      "userId": "usr_1751285911050_8gfg5rgg0",
+      "action": "list",
+      "details": {
+        "filters": {
+          "visibility": "private"
+        },
+        "resultCount": 39
+      },
+      "timestamp": "2025-06-30T12:18:31.206Z"
+    },
+    {
+      "id": "audit_1751285911289_9e4wkt04n",
+      "promptId": "prm_1751285911254_r7ee56at3",
+      "userId": "usr_1751285911229_sfy299t3b",
+      "action": "create",
+      "details": {
+        "title": "Test Prompt",
+        "workspaceId": "wsp_demo"
+      },
+      "timestamp": "2025-06-30T12:18:31.289Z"
+    },
+    {
+      "id": "audit_1751285911508_bmn6v8x75",
+      "promptId": "*",
+      "userId": "usr_1751285911491_7oop0i8tx",
+      "action": "list",
+      "details": {
+        "filters": {},
+        "resultCount": 40
+      },
+      "timestamp": "2025-06-30T12:18:31.508Z"
+    },
+    {
+      "id": "audit_1751285911541_6tfk3hyyz",
+      "promptId": "prm_1751285911254_r7ee56at3",
+      "userId": "usr_1751285911491_7oop0i8tx",
+      "action": "use",
+      "details": {
+        "usageCount": 1
+      },
+      "timestamp": "2025-06-30T12:18:31.541Z"
+    },
+    {
+      "id": "audit_1751289805933_kojezrw1x",
+      "promptId": "*",
+      "userId": "usr_1751289805921_8q06u8o9f",
+      "action": "list",
+      "details": {
+        "filters": {
+          "status": "active"
+        },
+        "resultCount": 40
+      },
+      "timestamp": "2025-06-30T13:23:25.933Z"
+    },
+    {
+      "id": "audit_1751289805947_7t5koy4db",
+      "promptId": "*",
+      "userId": "usr_1751289805938_ltbqidg7g",
+      "action": "list",
+      "details": {
+        "filters": {
+          "visibility": "private"
+        },
+        "resultCount": 40
+      },
+      "timestamp": "2025-06-30T13:23:25.947Z"
+    },
+    {
+      "id": "audit_1751289805966_57nqlpdqg",
+      "promptId": "prm_1751289805963_8aeko5frn",
+      "userId": "usr_1751289805954_x1kj84vo5",
+      "action": "create",
+      "details": {
+        "title": "Test Prompt",
+        "workspaceId": "wsp_demo"
+      },
+      "timestamp": "2025-06-30T13:23:25.966Z"
+    },
+    {
+      "id": "audit_1751289806022_czo8j8qlh",
+      "promptId": "*",
+      "userId": "usr_1751289805985_pu43dy6cl",
+      "action": "list",
+      "details": {
+        "filters": {},
+        "resultCount": 41
+      },
+      "timestamp": "2025-06-30T13:23:26.022Z"
+    },
+    {
+      "id": "audit_1751289806034_qz4l0fk5a",
+      "promptId": "prm_1751289805963_8aeko5frn",
+      "userId": "usr_1751289805985_pu43dy6cl",
+      "action": "use",
+      "details": {
+        "usageCount": 1
+      },
+      "timestamp": "2025-06-30T13:23:26.034Z"
     }
   ]
 }

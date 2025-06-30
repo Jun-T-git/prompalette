@@ -10,7 +10,7 @@ import type {
   UnpinPromptRequest,
   CopyPinnedPromptRequest
 } from '../types'
-import { logger, isTauriEnvironment } from '../utils'
+import { logger, getEnvironmentInfo } from '../utils'
 
 import { mockPromptsApi, mockPinnedPromptsApi, mockHealthApi } from './mockApi'
 
@@ -27,12 +27,16 @@ function isE2ETestEnvironment(): boolean {
 /**
  * Tauri invoke関数を安全に取得
  */
-function getTauriInvoke() {
-  if (!isTauriEnvironment()) {
-    return null
+async function getTauriInvoke() {
+  try {
+    const envInfo = await getEnvironmentInfo()
+    if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
+      return invoke
+    }
+  } catch {
+    // Environment detection failed, not in Tauri environment
   }
-  
-  return invoke
+  return null
 }
 
 /**
@@ -81,17 +85,10 @@ async function invokeCommand<T>(
   args?: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<T> {
-  // Tauri環境でない場合は適切なエラーメッセージを表示
-  if (!isTauriEnvironment()) {
-    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
-    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
-    throw new ApiError(errorMessage)
-  }
-
   // Tauri invoke関数を取得
-  const invoke = getTauriInvoke()
-  if (!invoke) {
-    const errorMessage = 'Failed to load Tauri API'
+  const invokeFunc = await getTauriInvoke()
+  if (!invokeFunc) {
+    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
     logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
     throw new ApiError(errorMessage)
   }
@@ -102,7 +99,7 @@ async function invokeCommand<T>(
       throw new Error('Request was cancelled')
     }
 
-    const response = await invoke<TauriResponse<T>>(command, args)
+    const response = await invokeFunc<TauriResponse<T>>(command, args)
     
     // Check for cancellation after the request
     if (signal?.aborted) {

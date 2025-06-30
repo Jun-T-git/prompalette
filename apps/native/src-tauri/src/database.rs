@@ -47,23 +47,10 @@ pub struct UpdatePromptRequest {
 /// アプリケーションデータディレクトリの取得
 /// プラットフォーム固有の適切なディレクトリを返す
 fn get_app_data_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    // プラットフォーム別のデータディレクトリ
-    let app_dir = if cfg!(target_os = "macos") {
-        std::env::var("HOME")
-            .map(|home| std::path::PathBuf::from(home).join("Library/Application Support/PromPalette"))
-            .map_err(|_| "Cannot find HOME directory on macOS")?
-    } else if cfg!(target_os = "windows") {
-        std::env::var("APPDATA")
-            .map(|appdata| std::path::PathBuf::from(appdata).join("PromPalette"))
-            .map_err(|_| "Cannot find APPDATA directory on Windows")?
-    } else {
-        // Linux/Unix
-        std::env::var("HOME")
-            .map(|home| std::path::PathBuf::from(home).join(".config/prompalette"))
-            .map_err(|_| "Cannot find HOME directory on Linux")?
-    };
-    
-    Ok(app_dir)
+    // 環境に基づいてディレクトリを取得
+    use crate::environment::Environment;
+    let env = Environment::current();
+    env.data_dir()
 }
 
 
@@ -76,7 +63,10 @@ pub async fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         format!("Failed to create app data directory {}: {}", app_dir.display(), e)
     })?;
     
-    let db_path = app_dir.join("prompalette.db");
+    // 環境固有のデータベースファイル名を使用
+    use crate::environment::Environment;
+    let env = Environment::current();
+    let db_path = app_dir.join(env.database_filename());
     
     // データベースファイルへの書き込み権限確認
     if db_path.exists() {
@@ -315,6 +305,7 @@ fn get_db_pool() -> &'static SqlitePool {
 /// # Returns
 /// * `Ok(&SqlitePool)` - データベースプールが初期化済みの場合
 /// * `Err(String)` - データベースが初期化されていない場合
+#[allow(dead_code)]
 pub fn try_get_db_pool() -> Result<&'static SqlitePool, String> {
     DB_POOL.get()
         .ok_or_else(|| "Database not initialized. Call init_database() first.".to_string())
