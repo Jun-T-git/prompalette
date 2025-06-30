@@ -285,8 +285,9 @@ export const useFavoritesStore = create<FavoritesState>()(
         try {
           logger.debug('Loading hotkey configuration')
           
-          // ローカルストレージから設定を読み込み
-          const savedConfig = localStorage.getItem('prompalette-hotkey-config')
+          // ローカルストレージから設定を読み込み（環境別）
+          const { envStorage } = await import('../utils')
+          const savedConfig = await envStorage.getItem('hotkey-config')
           if (savedConfig) {
             try {
               const config: HotkeyConfig[] = JSON.parse(savedConfig)
@@ -336,8 +337,9 @@ export const useFavoritesStore = create<FavoritesState>()(
         try {
           logger.debug('Saving hotkey configuration:', config)
           
-          // ローカルストレージに保存
-          localStorage.setItem('prompalette-hotkey-config', JSON.stringify(config))
+          // ローカルストレージに保存（環境別）
+          const { envStorage } = await import('../utils')
+          await envStorage.setItem('hotkey-config', JSON.stringify(config))
           set({ hotkeyConfig: config, isLoading: false })
           
           logger.info('Hotkey configuration saved successfully')

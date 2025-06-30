@@ -46,7 +46,8 @@
 3. **Run Development**
    ```bash
    cd apps/native
-   pnpm dev
+   pnpm dev            # Development environment
+   pnpm dev:staging    # Staging environment (optional)
    ```
 
 ### Building for Production
@@ -108,8 +109,11 @@ pnpm build          # Build all packages
 
 # Native app specific
 cd apps/native
-pnpm dev            # Start native app in development
-pnpm build          # Build native app for production
+pnpm dev                    # Start native app in development
+pnpm dev:staging           # Start native app in staging
+pnpm tauri:build:dev       # Build development version
+pnpm tauri:build:staging   # Build staging version
+pnpm tauri:build:production # Build production version
 ```
 
 ## 🤝 Contributing

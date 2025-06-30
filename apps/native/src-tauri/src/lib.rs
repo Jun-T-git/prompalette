@@ -11,6 +11,7 @@ mod global_hotkey;
 mod hotkey_test;
 mod tray;
 mod app_state;
+mod environment;
 
 use commands::{
     copy_pinned_prompt, create_prompt, delete_prompt, get_all_prompts, get_app_info,
@@ -36,6 +37,13 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            // 環境に基づいてウィンドウタイトルを設定
+            use crate::environment::Environment;
+            let env = Environment::current();
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(env.window_title());
+            }
+            
             // アプリケーション起動時にデータベースを同期的に初期化
             // エラー時はアプリケーション起動を停止
             tauri::async_runtime::block_on(async {
@@ -146,7 +154,9 @@ pub fn run() {
             global_hotkey::unregister_palette_hotkeys,
             global_hotkey::get_palette_hotkey_status,
             hotkey_test::test_hotkey_combinations,
-            hotkey_test::cleanup_test_hotkeys
+            hotkey_test::cleanup_test_hotkeys,
+            commands::environment::get_current_environment,
+            commands::environment::get_environment_info
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|err| {

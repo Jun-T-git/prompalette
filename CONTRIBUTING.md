@@ -122,9 +122,10 @@ Please follow these steps to have your contribution considered by the maintainer
    pnpm dev
 
    # Or start specific apps
-   cd apps/native && pnpm dev  # Desktop app
-   cd apps/api && pnpm dev     # API server
-   cd apps/web && pnpm dev     # Web interface
+   cd apps/native && pnpm dev          # Desktop app (development)
+   cd apps/native && pnpm dev:staging  # Desktop app (staging)
+   cd apps/api && pnpm dev             # API server
+   cd apps/web && pnpm dev             # Web interface
    ```
 
 ### Project Structure

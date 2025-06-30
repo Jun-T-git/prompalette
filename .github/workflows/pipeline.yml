@@ -66,7 +66,13 @@ jobs:
           echo "✅ Security audit passed"
 
       - name: Build applications
-        run: pnpm run --filter "./apps/**" build
+        run: |
+          # Build shared packages first
+          pnpm run --filter "./packages/**" build
+          
+          # Build web and API apps (environment-agnostic)
+          pnpm run --filter "./apps/web" build
+          pnpm run --filter "./apps/api" build
 
   # ========================================
   # ビルド検証: リリース前の最終確認
@@ -105,4 +111,20 @@ jobs:
         run: pnpm run --filter "./packages/**" build
 
       - name: Build Tauri app (dry-run)
-        run: pnpm --filter apps/native tauri build --debug
+        run: |
+          cd apps/native
+          
+          # Determine environment based on target branch
+          if [[ "${{ github.base_ref }}" == "staging" ]]; then
+            echo "🏗️ Building for staging environment"
+            export APP_ENV=staging
+            pnpm tauri build --debug
+          elif [[ "${{ github.base_ref }}" == "main" ]]; then
+            echo "🏗️ Building for production environment"
+            export APP_ENV=production
+            pnpm tauri build --debug
+          else
+            echo "🏗️ Building for development environment (default)"
+            export APP_ENV=development
+            pnpm tauri build --debug
+          fi

@@ -2,6 +2,7 @@ import type { AppStores } from '../services/AppActionAdapter';
 import { useFavoritesStore } from '../stores/favorites';
 import { usePromptStore } from '../stores/prompt';
 import type { Prompt } from '../types';
+import { getEnvironmentInfo } from '../utils';
 
 // フォーム保存関数の型定義
 export interface FormSubmitHandler {
@@ -102,7 +103,8 @@ export const createRealAppStores = (
             await navigator.clipboard.writeText(selectedPrompt.content);
             
             // Hide window (not close) if in Tauri environment to keep app running in background
-            if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+            const envInfo = await getEnvironmentInfo()
+            if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
               const { getCurrentWindow } = await import('@tauri-apps/api/window');
               const appWindow = getCurrentWindow();
               await appWindow.hide();
@@ -121,14 +123,15 @@ export const createRealAppStores = (
             }
             
             // Still hide the window even if copy failed
-            if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-              try {
+            try {
+              const envInfo = await getEnvironmentInfo()
+              if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
                 const { getCurrentWindow } = await import('@tauri-apps/api/window');
                 const appWindow = getCurrentWindow();
                 await appWindow.hide();
-              } catch (hideError) {
-                console.error('Failed to hide window after copy error:', hideError);
               }
+            } catch (hideError) {
+              console.error('Failed to hide window after copy error:', hideError);
             }
           }
         }
@@ -165,13 +168,18 @@ export const createRealAppStores = (
       },
       hideWindow: async () => {
         // Hide window to background (keep app running)
-        if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const appWindow = getCurrentWindow();
-          await appWindow.hide();
-        } else {
-          // In E2E test environment, just log window hiding
-          console.log('Window hidden to background');
+        try {
+          const envInfo = await getEnvironmentInfo()
+          if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            const appWindow = getCurrentWindow();
+            await appWindow.hide();
+          } else {
+            // In E2E test environment, just log window hiding
+            console.log('Window hidden to background');
+          }
+        } catch (error) {
+          console.error('Failed to hide window:', error);
         }
       },
       hasOpenModal: () => {

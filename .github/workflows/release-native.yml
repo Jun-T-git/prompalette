@@ -32,6 +32,8 @@ jobs:
     runs-on: macos-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      environment: ${{ steps.env.outputs.environment }}
+      artifact-name: ${{ steps.env.outputs.artifact-name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,11 +62,32 @@ jobs:
       - name: Build packages
         run: pnpm run --filter "./packages/**" build
 
+      - name: Determine environment and version
+        id: env
+        run: |
+          # Determine environment based on branch
+          if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            ENV="staging"
+            ARTIFACT_NAME="macos-staging"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            ENV="production"
+            ARTIFACT_NAME="macos-production"
+          else
+            ENV="development"
+            ARTIFACT_NAME="macos-development"
+          fi
+          
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "artifact-name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+          echo "🌍 Environment: $ENV"
+          echo "📦 Artifact name: $ARTIFACT_NAME"
+
       - name: Get version
         id: version
         run: |
           VERSION=$(node -p "require('./apps/native/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📋 Version: $VERSION"
 
       - name: Setup Apple Code Signing (if credentials available)
         if: ${{ env.APPLE_CERTIFICATE_BASE64 != '' && env.APPLE_CERTIFICATE_PASSWORD != '' }}
@@ -90,11 +113,13 @@ jobs:
           
           echo "✅ Code signing setup completed"
 
-      - name: Build Tauri app (Universal)
+      - name: Build Tauri app (Environment-specific)
+        env:
+          APP_ENV: ${{ steps.env.outputs.environment }}
         run: |
           echo "=== Build Environment Debug ==="
-          pwd
-          ls -la
+          echo "🌍 Environment: ${{ steps.env.outputs.environment }}"
+          echo "📦 APP_ENV: $APP_ENV"
           echo "Node: $(node --version)"
           echo "pnpm: $(pnpm --version)"
           echo "Rust: $(rustc --version)"
@@ -108,9 +133,6 @@ jobs:
             exit 1
           fi
           
-          echo "=== Package.json Check ==="
-          cat apps/native/package.json | grep -A5 -B5 "tauri"
-          
           if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
             echo "🔏 Building with code signing..."
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
@@ -122,23 +144,33 @@ jobs:
           export CI=true
           export SKIP_JENKINS=1
           
-          echo "🏗️ Starting build process..."
+          echo "🏗️ Starting environment-specific build process..."
           cd apps/native
           
-          echo "=== Pre-build Check ==="
-          pwd
-          ls -la
-          
-          echo "=== Testing pnpm tauri command ==="
-          pnpm tauri --version || echo "tauri command failed"
-          
-          echo "=== Attempting Build ==="
-          pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose 2>&1 | tee ../build.log || {
-            echo "❌ Universal build failed, checking error..."
-            cat ../build.log | tail -50
-            echo "=== Trying native build ==="
-            pnpm tauri build --bundles dmg --verbose
-          }
+          echo "=== Environment-specific Build ==="
+          case "$APP_ENV" in
+            "staging")
+              echo "🔧 Building for staging environment"
+              pnpm tauri:build:staging 2>&1 | tee ../build.log || {
+                echo "❌ Staging build failed, trying fallback..."
+                APP_ENV=staging pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+              }
+              ;;
+            "production")
+              echo "🚀 Building for production environment"
+              pnpm tauri:build:production 2>&1 | tee ../build.log || {
+                echo "❌ Production build failed, trying fallback..."
+                APP_ENV=production pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+              }
+              ;;
+            *)
+              echo "🔨 Building for development environment"
+              pnpm tauri:build:dev 2>&1 | tee ../build.log || {
+                echo "❌ Development build failed, trying fallback..."
+                APP_ENV=development pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+              }
+              ;;
+          esac
           
           cd ../..
 
@@ -202,7 +234,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-universal
+          name: ${{ steps.env.outputs.artifact-name }}
           path: ./artifacts/*.dmg
           if-no-files-found: warn
           retention-days: 7
@@ -244,9 +276,9 @@ jobs:
             find ./dist -type f -name "*.dmg" | head -10
             echo "=== All files in dist ==="
             ls -la ./dist/
-            if [ -d "./dist/macos-universal" ]; then
-              echo "=== DMG files in macos-universal ==="
-              ls -la ./dist/macos-universal/
+            if [ -d "./dist/${{ needs.build-native.outputs.artifact-name }}" ]; then
+              echo "=== DMG files in ${{ needs.build-native.outputs.artifact-name }} ==="
+              ls -la ./dist/${{ needs.build-native.outputs.artifact-name }}/
             fi
           else
             echo "❌ dist directory does not exist"
@@ -257,30 +289,60 @@ jobs:
       - name: Generate release notes
         id: notes
         run: |
-          echo "## 🚧 Staging Pre-release v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}" > notes.md
-          echo "" >> notes.md
-          echo "### 📅 Build Information" >> notes.md
-          echo "- **Version**: ${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}" >> notes.md
-          echo "- **Commit**: ${{ github.sha }}" >> notes.md
-          echo "- **Build**: #${{ github.run_number }}" >> notes.md
-          echo "- **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> notes.md
-          echo "" >> notes.md
-          echo "### ⚠️ Notice" >> notes.md
-          echo "This is a pre-release build for testing purposes. It may contain bugs or incomplete features." >> notes.md
+          ENV="${{ needs.build-native.outputs.environment }}"
+          VERSION="${{ needs.build-native.outputs.version }}"
+          
+          case "$ENV" in
+            "staging")
+              echo "## 🚧 Staging Pre-release v${VERSION}-staging.${{ github.run_number }}" > notes.md
+              echo "" >> notes.md
+              echo "### 📅 Build Information" >> notes.md
+              echo "- **Environment**: Staging" >> notes.md
+              echo "- **Version**: ${VERSION}-staging.${{ github.run_number }}" >> notes.md
+              echo "- **App ID**: com.prompalette.app.staging" >> notes.md
+              echo "- **Window Title**: PromPalette [STAGING]" >> notes.md
+              echo "- **Data Directory**: PromPalette-Staging/" >> notes.md
+              echo "- **Commit**: ${{ github.sha }}" >> notes.md
+              echo "- **Build**: #${{ github.run_number }}" >> notes.md
+              echo "- **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> notes.md
+              echo "" >> notes.md
+              echo "### ⚠️ Notice" >> notes.md
+              echo "This is a **staging build** for testing purposes. It uses separate data storage from production." >> notes.md
+              echo "You can install this alongside the production version without conflicts." >> notes.md
+              ;;
+            *)
+              echo "## 🔨 Development Build v${VERSION}-dev.${{ github.run_number }}" > notes.md
+              echo "" >> notes.md
+              echo "### 📅 Build Information" >> notes.md
+              echo "- **Environment**: Development" >> notes.md
+              echo "- **Version**: ${VERSION}-dev.${{ github.run_number }}" >> notes.md
+              echo "- **App ID**: com.prompalette.app.dev" >> notes.md
+              echo "- **Window Title**: PromPalette [DEV]" >> notes.md
+              echo "- **Data Directory**: PromPalette-Dev/" >> notes.md
+              echo "- **Commit**: ${{ github.sha }}" >> notes.md
+              echo "- **Build**: #${{ github.run_number }}" >> notes.md
+              echo "- **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> notes.md
+              echo "" >> notes.md
+              echo "### ⚠️ Notice" >> notes.md
+              echo "This is a **development build** for testing purposes. It uses separate data storage." >> notes.md
+              ;;
+          esac
+          
           echo "" >> notes.md
           echo "### 📦 Installation" >> notes.md
           echo "1. Download the .dmg file below" >> notes.md
           echo "2. Open the downloaded file" >> notes.md
           echo "3. Drag PromPalette to your Applications folder" >> notes.md
+          echo "4. The app will be installed with environment-specific naming" >> notes.md
 
       - name: Create pre-release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
-          tag_name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
-          name: v${{ needs.build-native.outputs.version }}-staging.${{ github.run_number }}
+          tag_name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
+          name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
           body_path: notes.md
-          files: ./dist/macos-universal/*.dmg
+          files: ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -316,9 +378,9 @@ jobs:
             find ./dist -type f -name "*.dmg" | head -10
             echo "=== All files in dist ==="
             ls -la ./dist/
-            if [ -d "./dist/macos-universal" ]; then
-              echo "=== DMG files in macos-universal ==="
-              ls -la ./dist/macos-universal/
+            if [ -d "./dist/${{ needs.build-native.outputs.artifact-name }}" ]; then
+              echo "=== DMG files in ${{ needs.build-native.outputs.artifact-name }} ==="
+              ls -la ./dist/${{ needs.build-native.outputs.artifact-name }}/
             fi
           else
             echo "❌ dist directory does not exist"
@@ -341,7 +403,14 @@ jobs:
         if: steps.check_release.outputs.exists == 'false'
         id: changelog
         run: |
-          echo "## 🎉 Release v${{ needs.build-native.outputs.version }}" > changelog.md
+          echo "## 🎉 Production Release v${{ needs.build-native.outputs.version }}" > changelog.md
+          echo "" >> changelog.md
+          echo "### 📅 Build Information" >> changelog.md
+          echo "- **Environment**: Production" >> changelog.md
+          echo "- **Version**: ${{ needs.build-native.outputs.version }}" >> changelog.md
+          echo "- **App ID**: com.prompalette.app" >> changelog.md
+          echo "- **Window Title**: PromPalette" >> changelog.md
+          echo "- **Data Directory**: PromPalette/" >> changelog.md
           echo "" >> changelog.md
           echo "### 📦 Downloads" >> changelog.md
           echo "Download the installer for macOS below." >> changelog.md
@@ -377,7 +446,7 @@ jobs:
           tag_name: v${{ needs.build-native.outputs.version }}
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
-          files: ./dist/macos-universal/*.dmg
+          files: ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

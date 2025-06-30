@@ -11,13 +11,22 @@ vi.mock('../utils')
 
 const mockInvoke = vi.mocked(invoke)
 const mockLogger = vi.mocked(utils.logger)
-const mockIsTauriEnvironment = vi.mocked(utils.isTauriEnvironment)
+const mockGetEnvironmentInfo = vi.mocked(utils.getEnvironmentInfo)
 
 describe('API Layer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // デフォルトではTauri環境として設定
-    mockIsTauriEnvironment.mockReturnValue(true)
+    mockGetEnvironmentInfo.mockResolvedValue({
+      environment: 'development',
+      isDevelopment: true,
+      isStaging: false,
+      isProduction: false,
+      appName: 'PromPalette Dev',
+      storagePrefix: 'prompalette-dev',
+      appIdentifier: 'com.prompalette.app.dev',
+      windowTitle: 'PromPalette [DEV]'
+    })
   })
 
   afterEach(() => {
@@ -50,7 +59,7 @@ describe('API Layer', () => {
       })
 
       it('should throw ApiError when Tauri environment is not available', async () => {
-        mockIsTauriEnvironment.mockReturnValue(false)
+        mockGetEnvironmentInfo.mockRejectedValue(new Error('Not in Tauri environment'))
 
         await expect(promptsApi.getAll()).rejects.toThrow(
           'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
@@ -277,9 +286,18 @@ describe('API Layer', () => {
 
   describe('Tauri Environment Checks', () => {
     it('should handle when Tauri invoke is not available', async () => {
-      // isTauriEnvironment は true だが、invoke が何らかの理由で利用できない状況をシミュレート
+      // getEnvironmentInfo は成功するが、invoke が何らかの理由で利用できない状況をシミュレート
       // 実際のコードでは getTauriInvoke が null を返すケースは非常に稀だが、防御的プログラミングとしてテスト
-      mockIsTauriEnvironment.mockReturnValue(true)
+      mockGetEnvironmentInfo.mockResolvedValue({
+        environment: 'development',
+        isDevelopment: true,
+        isStaging: false,
+        isProduction: false,
+        appName: 'PromPalette Dev',
+        storagePrefix: 'prompalette-dev',
+        appIdentifier: 'com.prompalette.app.dev',
+        windowTitle: 'PromPalette [DEV]'
+      })
       
       // invoke 関数自体を undefined にするために、動的 import をモック
       vi.doMock('@tauri-apps/api/core', () => ({
@@ -287,9 +305,9 @@ describe('API Layer', () => {
       }))
 
       // この場合、実際の getTauriInvoke 関数はinvokeが存在するかチェックするので、
-      // より現実的なテストケースは isTauriEnvironment が false の場合のみ
+      // より現実的なテストケースは getEnvironmentInfo が失敗する場合のみ
       // ここでは一般的な Tauri API 利用不可のケースをテスト
-      mockIsTauriEnvironment.mockReturnValue(false)
+      mockGetEnvironmentInfo.mockRejectedValue(new Error('Not in Tauri environment'))
 
       await expect(promptsApi.getAll()).rejects.toThrow(
         'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'

@@ -9,11 +9,31 @@ Desktop application built with Tauri, React, and TypeScript for macOS.
 pnpm install
 
 # Start development server
-pnpm dev
+pnpm dev                    # Development environment
+pnpm dev:staging           # Staging environment
 
 # Build for production
 pnpm build
+pnpm tauri:build:dev       # Development build
+pnpm tauri:build:staging   # Staging build
+pnpm tauri:build:production # Production build
 ```
+
+### Environment Separation
+
+The app supports independent installations for different environments:
+
+- **Development**: `PromPalette Dev` - Data stored in `PromPalette-Dev/` directory
+- **Staging**: `PromPalette Staging` - Data stored in `PromPalette-Staging/` directory  
+- **Production**: `PromPalette` - Data stored in `PromPalette/` directory
+
+Each environment uses separate:
+- App identifiers (`com.prompalette.app.dev`, etc.)
+- Database files (`prompalette-dev.db`, etc.)
+- Data directories
+- Window titles for visual identification
+
+Control via `APP_ENV` environment variable: `development`, `staging`, `production`.
 
 ## Architecture
 

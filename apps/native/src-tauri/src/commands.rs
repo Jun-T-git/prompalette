@@ -2,6 +2,8 @@
  * Tauriコマンド実装
  * フロントエンドからバックエンドへのAPI呼び出し処理
  */
+
+pub mod environment;
 use crate::database::{
     create_prompt as db_create_prompt,
     delete_prompt as db_delete_prompt,

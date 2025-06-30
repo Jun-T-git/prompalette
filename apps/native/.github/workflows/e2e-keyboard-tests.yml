@@ -21,31 +21,41 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'apps/native/package-lock.json'
+        node-version: '20'
+        cache: 'pnpm'
         
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       
     - name: Install dependencies
       working-directory: apps/native
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Install Playwright Browsers
       working-directory: apps/native
-      run: npx playwright install --with-deps
+      run: pnpm exec playwright install --with-deps
       
     - name: Build app
       working-directory: apps/native
-      run: npm run build
+      env:
+        APP_ENV: development
+      run: |
+        echo "🏗️ Building for development environment (E2E testing)"
+        pnpm tauri:build:dev
       
     - name: Run E2E keyboard tests
       working-directory: apps/native
-      run: npm run test:e2e
+      env:
+        APP_ENV: development
+      run: pnpm test:e2e
       
     - name: Upload Playwright Report
       uses: actions/upload-artifact@v4
