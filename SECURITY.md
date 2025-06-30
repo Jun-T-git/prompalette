@@ -8,19 +8,17 @@
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security vulnerability, please follow these steps:
+If you discover a security vulnerability, please follow these steps:
 
 1. **Do not** open a public issue
-2. Email us at: security@prompalette.dev
-3. Include a detailed description of the vulnerability
-4. Provide steps to reproduce the issue
-5. If possible, include a proof of concept
+2. Open a private security advisory on GitHub (Settings → Security → Report a vulnerability)
+3. Include:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
 
-## Response Timeline
-
-- **Initial response**: Within 24 hours
-- **Status update**: Within 72 hours
-- **Resolution timeline**: Communicated in initial response
+We will respond as quickly as possible and work with you to understand and resolve the issue.
 
 ## Security Best Practices
 
@@ -29,13 +27,11 @@ When contributing to PromPalette:
 - Never commit secrets, API keys, or passwords
 - Use environment variables for sensitive configuration
 - Validate all user inputs
-- Follow principle of least privilege
 - Keep dependencies updated
 
 ## Security Features
 
 - **Local-first storage**: User data stays on device by default
-- **Optional cloud sync**: End-to-end encryption (when implemented)
 - **No telemetry**: No user tracking or analytics
 - **Open source**: Transparent and auditable code
 

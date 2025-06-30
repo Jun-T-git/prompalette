@@ -1,18 +1,18 @@
 {
   "name": "prompalette",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Your AI Prompts, Beautifully Organized",
   "license": "MIT",
   "author": "PromPalette Team",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/prompalette/prompalette.git"
+    "url": "git+https://github.com/Jun-T-git/prompalette.git"
   },
   "bugs": {
-    "url": "https://github.com/prompalette/prompalette/issues"
+    "url": "https://github.com/Jun-T-git/prompalette/issues"
   },
-  "homepage": "https://github.com/prompalette/prompalette#readme",
+  "homepage": "https://github.com/Jun-T-git/prompalette#readme",
   "type": "module",
   "scripts": {
     "dev": "turbo dev",

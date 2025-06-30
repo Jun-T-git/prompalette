@@ -1,62 +1,26 @@
 # @prompalette/web
 
-PromPalette Web Application - Next.js 14 App Router
+Web application built with Next.js 14 and App Router.
 
-## 🚀 Quick Start
+## Development
 
 ```bash
-# Install dependencies (from root)
+# Install dependencies
 pnpm install
 
-# Run development server
-pnpm --filter @prompalette/web dev
+# Start development server
+pnpm dev
 
 # Build for production
-pnpm --filter @prompalette/web build
+pnpm build
 
 # Run tests
-pnpm --filter @prompalette/web test
-```
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Home page
-│   └── globals.css        # Global styles
-├── components/            # React components
-├── lib/                   # Utility functions
-└── test/                  # Test configuration
-```
-
-## 🧪 Testing
-
-```bash
-# Run tests once
 pnpm test
-
-# Run tests in watch mode
-pnpm test:watch
 ```
 
-## 🎨 Styling
+## Architecture
 
-- Uses Tailwind CSS
-- Imports shared UI components from `@prompalette/ui`
-- Supports dark/light theme via CSS variables
-
-## 🔧 Configuration
-
-- `next.config.mjs`: Next.js configuration
-- `tailwind.config.ts`: Tailwind CSS configuration
-- `tsconfig.json`: TypeScript configuration
-- `vitest.config.ts`: Test configuration
-
-## 📦 Dependencies
-
-- **Next.js 14**: React framework with App Router
-- **@prompalette/core**: Business logic
-- **@prompalette/ui**: Shared UI components
-- **@prompalette/api-client**: API communication
+- **Framework**: Next.js 14 with App Router
+- **Styling**: Tailwind CSS
+- **Components**: Shared components from @prompalette/ui
+- **API**: Communication via @prompalette/api-client
