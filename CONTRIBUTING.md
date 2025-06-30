@@ -1,18 +1,13 @@
 # Contributing to PromPalette
 
-First off, thank you for considering contributing to PromPalette! 🎉
-
-It's people like you that make PromPalette such a great tool for the AI community. This document provides guidelines for contributing to the PromPalette project. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+Thank you for considering contributing to PromPalette!
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [I Have a Question](#i-have-a-question)
 - [Getting Started](#getting-started)
 - [How Can I Contribute?](#how-can-i-contribute)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
-  - [Your First Code Contribution](#your-first-code-contribution)
   - [Pull Requests](#pull-requests)
 - [Development Process](#development-process)
   - [Setting Up Your Environment](#setting-up-your-environment)
@@ -20,23 +15,7 @@ It's people like you that make PromPalette such a great tool for the AI communit
   - [Running Tests](#running-tests)
   - [Code Style](#code-style)
 - [Commit Guidelines](#commit-guidelines)
-- [Community](#community)
 
-## Code of Conduct
-
-This project and everyone participating in it is governed by the [PromPalette Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [conduct@prompalette.dev](mailto:conduct@prompalette.dev).
-
-## I Have a Question
-
-> **Note:** Please don't file an issue to ask a question. You'll get faster results by using the resources below.
-
-Before you ask a question, it is best to search for existing [Issues](https://github.com/username/prompalette/issues) that might help you. In case you have found a suitable issue and still need clarification, you can write your question in this issue. It is also advisable to search the internet for answers first.
-
-If you then still feel the need to ask a question and need clarification, we recommend the following:
-
-- Join our [Discord server](https://discord.gg/xxxxx)
-- Ask in the `#help` channel
-- Provide as much context as you can about what you're running into
 
 ## Getting Started
 
@@ -44,10 +23,10 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 Before you begin, ensure you have the following installed:
 
-- Node.js (v18 or higher)
+- Node.js (v20 or higher)
 - pnpm (v8 or higher)
 - Git
-- Rust (v1.70 or higher) - for native app development
+- Rust (v1.77 or higher) - for native app development
 - A code editor (we recommend VS Code)
 
 ### Fork & Clone
@@ -60,7 +39,7 @@ Before you begin, ensure you have the following installed:
    ```
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/username/prompalette.git
+   git remote add upstream https://github.com/Jun-T-git/prompalette.git
    ```
 4. Create a new branch for your feature/fix:
    ```bash
@@ -75,13 +54,12 @@ This section guides you through submitting a bug report for PromPalette. Followi
 
 #### Before Submitting A Bug Report
 
-- **Check the [FAQ](docs/FAQ.md)** for a list of common questions and problems.
-- **Check the [debugging guide](docs/DEBUGGING.md)** for tips on debugging.
-- **Perform a [cursory search](https://github.com/username/prompalette/issues)** to see if the problem has already been reported.
+- **Perform a [cursory search](https://github.com/Jun-T-git/prompalette/issues)** to see if the problem has already been reported.
+- **Check if the issue is already fixed** in the latest version.
 
 #### How Do I Submit A (Good) Bug Report?
 
-Bugs are tracked as [GitHub issues](https://github.com/username/prompalette/issues). Create an issue and provide the following information:
+Bugs are tracked as [GitHub issues](https://github.com/Jun-T-git/prompalette/issues). Create an issue and provide the following information:
 
 - **Use a clear and descriptive title** for the issue to identify the problem.
 - **Describe the exact steps which reproduce the problem** in as many details as possible.
@@ -92,7 +70,6 @@ Bugs are tracked as [GitHub issues](https://github.com/username/prompalette/issu
 - **Include your environment details:**
   - OS: [e.g., macOS 13.0, Windows 11, Ubuntu 22.04]
   - PromPalette version
-  - Browser (if using extension): [e.g., Chrome 119, Firefox 120]
 
 ### Suggesting Enhancements
 
@@ -100,12 +77,11 @@ This section guides you through submitting an enhancement suggestion for PromPal
 
 #### Before Submitting An Enhancement Suggestion
 
-- **Check the [roadmap](ROADMAP.md)** to see if the feature is already planned.
-- **Perform a [cursory search](https://github.com/username/prompalette/issues)** to see if the enhancement has already been suggested.
+- **Perform a [cursory search](https://github.com/Jun-T-git/prompalette/issues)** to see if the enhancement has already been suggested.
 
 #### How Do I Submit A (Good) Enhancement Suggestion?
 
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/username/prompalette/issues). Create an issue and provide the following information:
+Enhancement suggestions are tracked as [GitHub issues](https://github.com/Jun-T-git/prompalette/issues). Create an issue and provide the following information:
 
 - **Use a clear and descriptive title** for the issue to identify the suggestion.
 - **Provide a step-by-step description of the suggested enhancement** in as many details as possible.
@@ -113,12 +89,6 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/userna
 - **Describe the current behavior** and **explain which behavior you expected to see instead** and why.
 - **Explain why this enhancement would be useful** to most PromPalette users.
 
-### Your First Code Contribution
-
-Unsure where to begin contributing to PromPalette? You can start by looking through these `beginner` and `help-wanted` issues:
-
-- [Beginner issues](https://github.com/username/prompalette/labels/good%20first%20issue) - issues which should only require a few lines of code, and a test or two.
-- [Help wanted issues](https://github.com/username/prompalette/labels/help%20wanted) - issues which should be a bit more involved than `beginner` issues.
 
 ### Pull Requests
 
@@ -131,9 +101,9 @@ The process described here has several goals:
 
 Please follow these steps to have your contribution considered by the maintainers:
 
-1. Follow all instructions in [the template](PULL_REQUEST_TEMPLATE.md)
-2. Follow the [styleguides](#code-style)
-3. After you submit your pull request, verify that all [status checks](https://help.github.com/articles/about-status-checks/) are passing
+1. Follow the [code style guidelines](#code-style)
+2. Write clear commit messages following our [commit guidelines](#commit-guidelines)
+3. After you submit your pull request, verify that all status checks are passing
 
 ## Development Process
 
@@ -145,24 +115,16 @@ Please follow these steps to have your contribution considered by the maintainer
    pnpm install
    ```
 
-2. **Set up environment variables:**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start development servers:**
+2. **Start development servers:**
 
    ```bash
    # Start all apps in development mode
    pnpm dev
 
    # Or start specific apps
-   pnpm native:dev     # Desktop app
-   pnpm extension:dev  # Browser extension
-   pnpm api:dev        # API server
-   pnpm web:dev        # Web interface
+   cd apps/native && pnpm dev  # Desktop app
+   cd apps/api && pnpm dev     # API server
+   cd apps/web && pnpm dev     # Web interface
    ```
 
 ### Project Structure
@@ -171,15 +133,12 @@ Please follow these steps to have your contribution considered by the maintainer
 prompalette/
 ├── apps/                    # Applications
 │   ├── native/             # Desktop app (Tauri + React)
-│   ├── extension/          # Browser extension
-│   ├── api/                # Cloud API (Hono)
+│   ├── api/                # REST API (Hono)
 │   └── web/                # Web interface (Next.js)
 ├── packages/               # Shared packages
 │   ├── core/              # Core business logic
 │   ├── ui/                # Shared UI components
 │   └── api-client/        # API client library
-├── docs/                   # Documentation
-└── tools/                  # Development tools
 ```
 
 ### Running Tests
@@ -193,13 +152,8 @@ pnpm test:watch
 
 # Run tests for a specific app
 pnpm --filter native test
-pnpm --filter extension test
-
-# Run E2E tests
-pnpm test:e2e
-
-# Check test coverage
-pnpm test:coverage
+pnpm --filter api test
+pnpm --filter web test
 ```
 
 ### Code Style
@@ -281,7 +235,6 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 The scope should be the name of the package affected:
 
 - **native**: Desktop app
-- **extension**: Browser extension
 - **api**: API server
 - **web**: Web interface
 - **core**: Core package
@@ -308,56 +261,11 @@ git commit -m "feat(api)!: change authentication method
 BREAKING CHANGE: API now uses JWT tokens instead of API keys"
 ```
 
-## Release Process
-
-1. **Version Bumping:**
-
-   ```bash
-   pnpm changeset
-   # Follow the prompts to describe your changes
-   ```
-
-2. **Creating a Release:**
-   ```bash
-   pnpm changeset version
-   pnpm install  # Update lockfile
-   git commit -m "chore: release"
-   pnpm release
-   ```
-
-## Community
-
-### Communication Channels
-
-- **Discord**: [Join our server](https://discord.gg/xxxxx) for real-time chat
-- **GitHub Discussions**: For longer form discussions about the project
-- **Twitter**: [@prompalette](https://twitter.com/prompalette) for updates
-
-### Recognition
-
-Contributors who have made significant contributions may be invited to become maintainers. We value:
-
-- Code contributions
-- Documentation improvements
-- Community support
-- Bug reports and testing
-- Design contributions
-- Translation efforts
-
 ## Questions?
 
-Don't hesitate to ask questions! The PromPalette community is here to help. You can:
+If you have questions, please:
 
-- Ask in our [Discord server](https://discord.gg/xxxxx)
-- Open a [GitHub Discussion](https://github.com/username/prompalette/discussions)
-- Email us at [hello@prompalette.dev](mailto:hello@prompalette.dev)
+- Open a [GitHub Issue](https://github.com/Jun-T-git/prompalette/issues) with the "question" label
+- Check existing issues for similar questions
 
-Thank you for contributing to PromPalette! 🎨✨
-
----
-
-<div align="center">
-  <strong>Happy Coding!</strong>
-  <br>
-  Made with ❤️ by the PromPalette community
-</div>
+Thank you for contributing to PromPalette!
