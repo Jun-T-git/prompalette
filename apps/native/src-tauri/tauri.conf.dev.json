@@ -17,5 +17,10 @@
       "icons/icon-dev.icns",
       "icons/icon-dev.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": false
+    }
   }
 }

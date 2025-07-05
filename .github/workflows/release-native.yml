@@ -335,6 +335,28 @@ jobs:
           echo "3. Drag PromPalette to your Applications folder" >> notes.md
           echo "4. The app will be installed with environment-specific naming" >> notes.md
 
+      - name: Generate staging updater signature
+        if: env.TAURI_PRIVATE_KEY != ''
+        id: staging_signature
+        uses: ./.github/actions/generate-updater-signature
+        with:
+          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
+          environment: staging
+          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
+          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Create staging updater manifest
+        id: staging_manifest
+        uses: ./.github/actions/create-updater-manifest
+        with:
+          version: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
+          release-notes-file: notes.md
+          signature: ${{ steps.staging_signature.outputs.signature }}
+          dmg-file: ${{ steps.staging_signature.outputs.dmg-file }}
+          repository: ${{ github.repository }}
+          manifest-filename: updater-manifest-staging.json
+
       - name: Create pre-release
         uses: softprops/action-gh-release@v2
         with:
@@ -342,7 +364,9 @@ jobs:
           tag_name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
           name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
           body_path: notes.md
-          files: ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+          files: |
+            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+            ./updater-manifest-staging.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -438,6 +462,29 @@ jobs:
           echo "- [Documentation](https://github.com/${{ github.repository }}/wiki)" >> changelog.md
           echo "- [Report Issues](https://github.com/${{ github.repository }}/issues)" >> changelog.md
 
+      - name: Generate production updater signature
+        if: steps.check_release.outputs.exists == 'false' && env.TAURI_PRIVATE_KEY != ''
+        id: signature
+        uses: ./.github/actions/generate-updater-signature
+        with:
+          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
+          environment: production
+          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
+          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Create production updater manifest
+        if: steps.check_release.outputs.exists == 'false'
+        id: manifest
+        uses: ./.github/actions/create-updater-manifest
+        with:
+          version: v${{ needs.build-native.outputs.version }}
+          release-notes-file: changelog.md
+          signature: ${{ steps.signature.outputs.signature }}
+          dmg-file: ${{ steps.signature.outputs.dmg-file }}
+          repository: ${{ github.repository }}
+          manifest-filename: updater-manifest.json
+
       - name: Create production release
         if: steps.check_release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
@@ -446,7 +493,9 @@ jobs:
           tag_name: v${{ needs.build-native.outputs.version }}
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
-          files: ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+          files: |
+            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+            ./updater-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

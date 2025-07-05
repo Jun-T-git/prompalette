@@ -17,5 +17,15 @@
       "icons/icon-staging.icns",
       "icons/icon-staging.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://api.github.com/repos/Jun-T-git/prompalette/releases"
+      ],
+      "dialog": true,
+      "pubkey": ""
+    }
   }
 }
