@@ -8,7 +8,11 @@ import type {
   PinnedPrompt,
   PinPromptRequest,
   UnpinPromptRequest,
-  CopyPinnedPromptRequest
+  CopyPinnedPromptRequest,
+  UpdateStatus,
+  BackupResult,
+  BackupInfo,
+  UpdateConfig
 } from '../types'
 import { logger, getEnvironmentInfo } from '../utils'
 
@@ -397,5 +401,96 @@ export const healthApi = {
       return mockHealthApi.initDatabase()
     }
     return invokeCommand('init_database')
+  },
+}
+
+/**
+ * アップデート関連のAPI呼び出し関数群
+ * 自動更新機能とデータバックアップを提供
+ */
+export const updaterApi = {
+  /**
+   * アップデートをチェック
+   * @returns アップデート状況
+   * @throws {ApiError} チェック失敗時
+   */
+  async checkForUpdates(): Promise<UpdateStatus> {
+    return invokeCommand('check_for_updates')
+  },
+
+  /**
+   * データベースバックアップを作成（自動バックアップ）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createBackup(): Promise<BackupResult> {
+    return invokeCommand('create_backup')
+  },
+
+  /**
+   * 手動バックアップを作成
+   * @param name - バックアップ名（任意）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createManualBackup(name?: string): Promise<BackupResult> {
+    return invokeCommand('create_manual_backup', { name })
+  },
+
+  /**
+   * アップデートをダウンロードして適用
+   * @returns アップデート進行状況
+   * @throws {ApiError} アップデート失敗時
+   */
+  async downloadAndApplyUpdate(): Promise<UpdateStatus> {
+    return invokeCommand('download_and_apply_update')
+  },
+
+  /**
+   * バックアップから復元
+   * @param backupPath - バックアップファイルパス
+   * @returns 復元成功可否
+   * @throws {ApiError} 復元失敗時
+   */
+  async restoreFromBackup(backupPath: string): Promise<boolean> {
+    return invokeCommand('restore_from_backup', { backupPath })
+  },
+
+  /**
+   * 利用可能なバックアップ一覧を取得（詳細情報付き）
+   * @returns バックアップ詳細情報配列
+   * @throws {ApiError} 取得失敗時
+   */
+  async listBackups(): Promise<BackupInfo[]> {
+    return invokeCommand('list_backups')
+  },
+
+  /**
+   * 古いバックアップファイルを削除
+   * @param keepCount - 保持するバックアップ数（デフォルト: 10）
+   * @returns 削除されたファイル数
+   * @throws {ApiError} 削除失敗時
+   */
+  async cleanupOldBackups(keepCount?: number): Promise<number> {
+    return invokeCommand('cleanup_old_backups', { keepCount })
+  },
+
+  /**
+   * 特定のバックアップファイルを削除
+   * @param filename - 削除するバックアップファイル名
+   * @returns 削除成功可否
+   * @throws {ApiError} 削除失敗時
+   */
+  async deleteBackup(filename: string): Promise<boolean> {
+    return invokeCommand('delete_backup', { filename })
+  },
+
+  /**
+   * アップデート設定を取得
+   * @returns アップデート設定情報
+   * @throws {ApiError} 取得失敗時
+   */
+  async getUpdateConfig(): Promise<UpdateConfig> {
+    return invokeCommand('get_update_config')
   },
 }

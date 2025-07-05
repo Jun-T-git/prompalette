@@ -125,3 +125,78 @@ export interface CopyPinnedPromptRequest {
   position: number
 }
 
+/**
+ * アップデート情報
+ */
+export interface UpdateInfo {
+  /** アップデートバージョン */
+  version: string
+  /** リリースノート */
+  notes?: string
+  /** 公開日時 */
+  pub_date?: string
+  /** ダウンロードURL */
+  url: string
+  /** 署名 */
+  signature?: string
+}
+
+/**
+ * アップデート状態
+ */
+export type UpdateStatus = 
+  | { type: 'NoUpdateAvailable' }
+  | { type: 'UpdateAvailable'; info: UpdateInfo }
+  | { type: 'Downloading'; progress: number }
+  | { type: 'Downloaded' }
+  | { type: 'Installing' }
+  | { type: 'Error'; message: string }
+
+/**
+ * データバックアップ結果
+ */
+export interface BackupResult {
+  /** バックアップ成功可否 */
+  success: boolean
+  /** バックアップファイルパス */
+  backup_path?: string
+  /** バックアップ作成日時 */
+  timestamp: string
+  /** エラーメッセージ */
+  error?: string
+}
+
+/**
+ * バックアップ詳細情報
+ */
+export interface BackupInfo {
+  /** ファイル名 */
+  filename: string
+  /** フルパス */
+  full_path: string
+  /** 作成日時 */
+  created_at: string
+  /** ファイルサイズ（バイト） */
+  size_bytes: number
+  /** 自動バックアップかどうか */
+  is_automatic: boolean
+}
+
+/**
+ * アップデート設定
+ */
+export interface UpdateConfig {
+  /** 現在の環境 */
+  environment: string
+  /** アップデート機能有効可否 */
+  updates_enabled: boolean
+  /** 自動チェック有効可否 */
+  auto_check_enabled: boolean
+  /** 手動承認が必要か */
+  requires_manual_approval: boolean
+  /** バックアップ機能有効可否 */
+  backup_enabled: boolean
+  /** 公開鍵（オプション） */
+  public_key?: string
+}
+

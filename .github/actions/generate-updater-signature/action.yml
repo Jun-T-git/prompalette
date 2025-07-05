@@ -1,0 +1,104 @@
+name: 'Generate Updater Signature'
+description: 'Generate cryptographic signature for Tauri updater'
+inputs:
+  artifact-name:
+    description: 'Name of the artifact containing DMG files'
+    required: true
+  environment:
+    description: 'Build environment (staging, production, development)'
+    required: true
+  tauri-private-key:
+    description: 'Tauri private key for signing'
+    required: true
+  tauri-key-password:
+    description: 'Password for the Tauri private key'
+    required: true
+  pnpm-version:
+    description: 'PNPM version to install'
+    default: '8'
+    required: false
+outputs:
+  signature:
+    description: 'Generated signature for the DMG file'
+    value: ${{ steps.sign.outputs.signature }}
+  dmg-file:
+    description: 'Path to the signed DMG file'
+    value: ${{ steps.sign.outputs.dmg-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm for tauri CLI
+      shell: bash
+      run: |
+        npm install -g pnpm@${{ inputs.pnpm-version }}
+        
+    - name: Install dependencies and generate signature
+      id: sign
+      shell: bash
+      env:
+        TAURI_PRIVATE_KEY: ${{ inputs.tauri-private-key }}
+        TAURI_KEY_PASSWORD: ${{ inputs.tauri-key-password }}
+      run: |
+        cd apps/native
+        
+        # Install dependencies to get tauri CLI
+        pnpm install --frozen-lockfile
+        
+        # Find the DMG file
+        DMG_FILE=$(find ../../dist/${{ inputs.artifact-name }}/ -name "*.dmg" | head -1)
+        if [ -z "$DMG_FILE" ]; then
+          echo "❌ No DMG file found for signing in ../../dist/${{ inputs.artifact-name }}/"
+          echo "Available files:"
+          find ../../dist/ -type f 2>/dev/null || echo "No dist directory found"
+          exit 1
+        fi
+        
+        echo "📝 Generating signature for ${{ inputs.environment }}: $DMG_FILE"
+        
+        # Verify DMG file exists and is readable
+        if [ ! -f "$DMG_FILE" ]; then
+          echo "❌ DMG file does not exist: $DMG_FILE"
+          exit 1
+        fi
+        
+        if [ ! -r "$DMG_FILE" ]; then
+          echo "❌ DMG file is not readable: $DMG_FILE"
+          exit 1
+        fi
+        
+        echo "✅ DMG file verified: $(ls -lh "$DMG_FILE")"
+        
+        # Generate signature using Tauri CLI with secure key handling
+        if [ -n "$TAURI_PRIVATE_KEY" ] && [ -n "$TAURI_KEY_PASSWORD" ]; then
+          # Create temporary directory with restricted permissions
+          TEMP_DIR=$(mktemp -d)
+          chmod 700 "$TEMP_DIR"
+          TEMP_KEY_FILE="$TEMP_DIR/private.key"
+          
+          # Use trap to ensure cleanup even on error
+          trap 'rm -rf "$TEMP_DIR"' EXIT INT TERM
+          
+          # Write key to temp file with restricted permissions
+          (umask 077 && echo "$TAURI_PRIVATE_KEY" > "$TEMP_KEY_FILE")
+          
+          # Generate signature
+          SIGNATURE=$(pnpm tauri signer sign "$DMG_FILE" --private-key-path "$TEMP_KEY_FILE" --password "$TAURI_KEY_PASSWORD" 2>&1)
+          SIGN_EXIT_CODE=$?
+          
+          # Cleanup is handled by trap
+          
+          if [ $SIGN_EXIT_CODE -eq 0 ] && [ -n "$SIGNATURE" ]; then
+            echo "signature=$SIGNATURE" >> $GITHUB_OUTPUT
+            echo "dmg-file=$DMG_FILE" >> $GITHUB_OUTPUT
+            echo "✅ Signature generated successfully for ${{ inputs.environment }}"
+          else
+            echo "❌ Failed to generate signature (exit code: $SIGN_EXIT_CODE)"
+            echo "signature=" >> $GITHUB_OUTPUT
+            echo "dmg-file=$DMG_FILE" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "⚠️ Signing keys not available, skipping signature generation"
+          echo "signature=" >> $GITHUB_OUTPUT
+          echo "dmg-file=$DMG_FILE" >> $GITHUB_OUTPUT
+        fi

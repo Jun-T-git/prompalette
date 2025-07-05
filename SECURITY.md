@@ -20,6 +20,16 @@ If you discover a security vulnerability, please follow these steps:
 
 We will respond as quickly as possible and work with you to understand and resolve the issue.
 
+## Security Features
+
+### Automatic Updates
+
+PromPalette uses Tauri's built-in updater with cryptographic signature verification:
+
+- **Ed25519 Signatures**: All updates are cryptographically signed
+- **Environment Validation**: Version compatibility checks per environment
+- **Automatic Backups**: Data protection before updates
+
 ## Security Best Practices
 
 When contributing to PromPalette:
@@ -28,11 +38,5 @@ When contributing to PromPalette:
 - Use environment variables for sensitive configuration
 - Validate all user inputs
 - Keep dependencies updated
-
-## Security Features
-
-- **Local-first storage**: User data stays on device by default
-- **No telemetry**: No user tracking or analytics
-- **Open source**: Transparent and auditable code
 
 Thank you for helping keep PromPalette secure!

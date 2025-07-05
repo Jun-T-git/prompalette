@@ -5,6 +5,7 @@
 
 use std::env;
 use std::path::PathBuf;
+use std::fmt;
 
 /// アプリケーション環境
 #[derive(Debug, Clone, PartialEq)]
@@ -101,6 +102,26 @@ impl Environment {
             Environment::Staging => "-staging",
             Environment::Production => "",
         }
+    }
+
+    /// 本番環境かどうかを判定
+    pub fn is_production(&self) -> bool {
+        matches!(self, Environment::Production)
+    }
+
+    /// 環境名を文字列で取得
+    pub fn name(&self) -> &'static str {
+        match self {
+            Environment::Development => "development",
+            Environment::Staging => "staging",
+            Environment::Production => "production",
+        }
+    }
+}
+
+impl fmt::Display for Environment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
     }
 }
 
