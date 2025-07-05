@@ -11,6 +11,17 @@ mod global_hotkey;
 mod hotkey_test;
 mod tray;
 mod app_state;
+mod environment;
+mod updater;
+mod security;
+mod update_urls;
+mod tauri_config;
+
+#[cfg(test)]
+mod security_test;
+
+#[cfg(test)]
+mod updater_integration_test;
 
 use commands::{
     copy_pinned_prompt, create_prompt, delete_prompt, get_all_prompts, get_app_info,
@@ -35,7 +46,28 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin({
+            let mut builder = tauri_plugin_updater::Builder::new();
+            
+            // ビルド時に埋め込まれた公開鍵を使用
+            if let Some(pubkey) = tauri_config::UPDATER_PUBKEY {
+                if !pubkey.is_empty() {
+                    builder = builder.pubkey(pubkey);
+                }
+            }
+            
+            // Note: エンドポイントはtauri.conf.jsonで設定される
+            
+            builder.build()
+        })
         .setup(|app| {
+            // 環境に基づいてウィンドウタイトルを設定
+            use crate::environment::Environment;
+            let env = Environment::current();
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(env.window_title());
+            }
+            
             // アプリケーション起動時にデータベースを同期的に初期化
             // エラー時はアプリケーション起動を停止
             tauri::async_runtime::block_on(async {
@@ -146,7 +178,18 @@ pub fn run() {
             global_hotkey::unregister_palette_hotkeys,
             global_hotkey::get_palette_hotkey_status,
             hotkey_test::test_hotkey_combinations,
-            hotkey_test::cleanup_test_hotkeys
+            hotkey_test::cleanup_test_hotkeys,
+            commands::environment::get_current_environment,
+            commands::environment::get_environment_info,
+            updater::check_for_updates,
+            updater::create_backup,
+            updater::create_manual_backup,
+            updater::download_and_apply_update,
+            updater::restore_from_backup,
+            updater::list_backups,
+            updater::cleanup_old_backups,
+            updater::delete_backup,
+            updater::get_update_config
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|err| {

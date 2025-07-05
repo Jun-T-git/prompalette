@@ -8,9 +8,13 @@ import type {
   PinnedPrompt,
   PinPromptRequest,
   UnpinPromptRequest,
-  CopyPinnedPromptRequest
+  CopyPinnedPromptRequest,
+  UpdateStatus,
+  BackupResult,
+  BackupInfo,
+  UpdateConfig
 } from '../types'
-import { logger, isTauriEnvironment } from '../utils'
+import { logger, getEnvironmentInfo } from '../utils'
 
 import { mockPromptsApi, mockPinnedPromptsApi, mockHealthApi } from './mockApi'
 
@@ -27,12 +31,16 @@ function isE2ETestEnvironment(): boolean {
 /**
  * Tauri invoke関数を安全に取得
  */
-function getTauriInvoke() {
-  if (!isTauriEnvironment()) {
-    return null
+async function getTauriInvoke() {
+  try {
+    const envInfo = await getEnvironmentInfo()
+    if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
+      return invoke
+    }
+  } catch {
+    // Environment detection failed, not in Tauri environment
   }
-  
-  return invoke
+  return null
 }
 
 /**
@@ -81,17 +89,10 @@ async function invokeCommand<T>(
   args?: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<T> {
-  // Tauri環境でない場合は適切なエラーメッセージを表示
-  if (!isTauriEnvironment()) {
-    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
-    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
-    throw new ApiError(errorMessage)
-  }
-
   // Tauri invoke関数を取得
-  const invoke = getTauriInvoke()
-  if (!invoke) {
-    const errorMessage = 'Failed to load Tauri API'
+  const invokeFunc = await getTauriInvoke()
+  if (!invokeFunc) {
+    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
     logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
     throw new ApiError(errorMessage)
   }
@@ -102,7 +103,7 @@ async function invokeCommand<T>(
       throw new Error('Request was cancelled')
     }
 
-    const response = await invoke<TauriResponse<T>>(command, args)
+    const response = await invokeFunc<TauriResponse<T>>(command, args)
     
     // Check for cancellation after the request
     if (signal?.aborted) {
@@ -400,5 +401,96 @@ export const healthApi = {
       return mockHealthApi.initDatabase()
     }
     return invokeCommand('init_database')
+  },
+}
+
+/**
+ * アップデート関連のAPI呼び出し関数群
+ * 自動更新機能とデータバックアップを提供
+ */
+export const updaterApi = {
+  /**
+   * アップデートをチェック
+   * @returns アップデート状況
+   * @throws {ApiError} チェック失敗時
+   */
+  async checkForUpdates(): Promise<UpdateStatus> {
+    return invokeCommand('check_for_updates')
+  },
+
+  /**
+   * データベースバックアップを作成（自動バックアップ）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createBackup(): Promise<BackupResult> {
+    return invokeCommand('create_backup')
+  },
+
+  /**
+   * 手動バックアップを作成
+   * @param name - バックアップ名（任意）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createManualBackup(name?: string): Promise<BackupResult> {
+    return invokeCommand('create_manual_backup', { name })
+  },
+
+  /**
+   * アップデートをダウンロードして適用
+   * @returns アップデート進行状況
+   * @throws {ApiError} アップデート失敗時
+   */
+  async downloadAndApplyUpdate(): Promise<UpdateStatus> {
+    return invokeCommand('download_and_apply_update')
+  },
+
+  /**
+   * バックアップから復元
+   * @param backupPath - バックアップファイルパス
+   * @returns 復元成功可否
+   * @throws {ApiError} 復元失敗時
+   */
+  async restoreFromBackup(backupPath: string): Promise<boolean> {
+    return invokeCommand('restore_from_backup', { backupPath })
+  },
+
+  /**
+   * 利用可能なバックアップ一覧を取得（詳細情報付き）
+   * @returns バックアップ詳細情報配列
+   * @throws {ApiError} 取得失敗時
+   */
+  async listBackups(): Promise<BackupInfo[]> {
+    return invokeCommand('list_backups')
+  },
+
+  /**
+   * 古いバックアップファイルを削除
+   * @param keepCount - 保持するバックアップ数（デフォルト: 10）
+   * @returns 削除されたファイル数
+   * @throws {ApiError} 削除失敗時
+   */
+  async cleanupOldBackups(keepCount?: number): Promise<number> {
+    return invokeCommand('cleanup_old_backups', { keepCount })
+  },
+
+  /**
+   * 特定のバックアップファイルを削除
+   * @param filename - 削除するバックアップファイル名
+   * @returns 削除成功可否
+   * @throws {ApiError} 削除失敗時
+   */
+  async deleteBackup(filename: string): Promise<boolean> {
+    return invokeCommand('delete_backup', { filename })
+  },
+
+  /**
+   * アップデート設定を取得
+   * @returns アップデート設定情報
+   * @throws {ApiError} 取得失敗時
+   */
+  async getUpdateConfig(): Promise<UpdateConfig> {
+    return invokeCommand('get_update_config')
   },
 }

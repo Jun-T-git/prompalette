@@ -68,3 +68,5 @@ local-docs/
 # playwright
 **/test-results/
 **/playwright-report/
+
+CLAUDE.md

@@ -1,0 +1,65 @@
+name: 'Create Updater Manifest'
+description: 'Create updater manifest JSON for Tauri updater'
+inputs:
+  version:
+    description: 'Version string for the release'
+    required: true
+  release-notes-file:
+    description: 'Path to the release notes file'
+    required: true
+  signature:
+    description: 'Cryptographic signature for the DMG file'
+    required: false
+    default: ''
+  dmg-file:
+    description: 'Path to the DMG file'
+    required: true
+  repository:
+    description: 'GitHub repository in format owner/repo'
+    required: true
+  manifest-filename:
+    description: 'Name of the manifest file to create'
+    default: 'updater-manifest.json'
+    required: false
+outputs:
+  manifest-path:
+    description: 'Path to the created manifest file'
+    value: ${{ steps.create.outputs.manifest-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create updater manifest
+      id: create
+      shell: bash
+      run: |
+        MANIFEST_FILE="${{ inputs.manifest-filename }}"
+        DMG_BASENAME=$(basename "${{ inputs.dmg-file }}")
+        
+        # Escape release notes for JSON
+        ESCAPED_NOTES=$(cat "${{ inputs.release-notes-file }}" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
+        
+        # Create updater manifest for Tauri
+        cat > "$MANIFEST_FILE" << EOF
+        {
+          "version": "${{ inputs.version }}",
+          "notes": "${ESCAPED_NOTES}",
+          "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "platforms": {
+            "darwin-x86_64": {
+              "signature": "${{ inputs.signature }}",
+              "url": "https://github.com/${{ inputs.repository }}/releases/download/${{ inputs.version }}/${DMG_BASENAME}"
+            },
+            "darwin-aarch64": {
+              "signature": "${{ inputs.signature }}",
+              "url": "https://github.com/${{ inputs.repository }}/releases/download/${{ inputs.version }}/${DMG_BASENAME}"
+            }
+          }
+        }
+        EOF
+        
+        echo "manifest-path=$MANIFEST_FILE" >> $GITHUB_OUTPUT
+        
+        echo "📄 Generated updater manifest: $MANIFEST_FILE"
+        echo "Content preview:"
+        cat "$MANIFEST_FILE" | head -20

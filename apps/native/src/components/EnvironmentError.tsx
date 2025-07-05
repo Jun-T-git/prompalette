@@ -1,4 +1,6 @@
-import { isTauriEnvironment } from '../utils'
+import { useEffect, useState } from 'react'
+
+import { getEnvironmentInfo } from '../utils'
 
 /**
  * 環境エラー表示コンポーネント
@@ -18,7 +20,15 @@ interface EnvironmentErrorProps {
  * @returns 環境エラー表示JSX
  */
 export function EnvironmentError({ error, onRetry }: EnvironmentErrorProps) {
-  const isTauri = isTauriEnvironment()
+  const [isTauri, setIsTauri] = useState(false)
+  
+  useEffect(() => {
+    getEnvironmentInfo().then(envInfo => {
+      setIsTauri(envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction)
+    }).catch(() => {
+      setIsTauri(false)
+    })
+  }, [])
   
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -58,8 +68,11 @@ export function EnvironmentError({ error, onRetry }: EnvironmentErrorProps) {
                       PromPalette Native Appを正しく起動するには：
                     </p>
                     <div className="bg-gray-900 text-green-400 p-3 rounded text-xs font-mono">
-                      <p># Tauri開発サーバーを起動</p>
+                      <p># 開発環境で起動</p>
                       <p>pnpm dev</p>
+                      <p></p>
+                      <p># ステージング環境で起動</p>
+                      <p>pnpm dev:staging</p>
                       <p></p>
                       <p># またはWebのみでテストする場合</p>
                       <p>pnpm dev:web</p>

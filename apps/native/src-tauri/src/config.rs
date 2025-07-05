@@ -5,6 +5,8 @@
  * YAGNI原則に従い、現時点では定数定義のみ
  */
 
+pub mod update_config;
+
 /// ショートカットキー設定
 pub mod shortcuts {
     /// クイックランチャーのデフォルトショートカット

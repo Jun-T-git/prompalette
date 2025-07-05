@@ -1,49 +1,56 @@
 # PromPalette Native App
 
-macOS向けネイティブデスクトップアプリケーション
+Desktop application built with Tauri, React, and TypeScript for macOS.
 
-## 🏗️ ビルド
+## Development
 
-### 開発用ビルド
 ```bash
-pnpm dev
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev                    # Development environment
+pnpm dev:staging           # Staging environment
+
+# Build for production
+pnpm build
+pnpm tauri:build:dev       # Development build
+pnpm tauri:build:staging   # Staging build
+pnpm tauri:build:production # Production build
 ```
 
-### プロダクション用ビルド
+### Environment Separation
 
-#### .appバンドルのみ
-```bash
-pnpm tauri:build
-```
+The app supports independent installations for different environments:
 
-#### DMGインストーラー
-```bash
-# ネイティブアーキテクチャ用
-pnpm tauri:build:dmg
+- **Development**: `PromPalette Dev` - Data stored in `PromPalette-Dev/` directory
+- **Staging**: `PromPalette Staging` - Data stored in `PromPalette-Staging/` directory  
+- **Production**: `PromPalette` - Data stored in `PromPalette/` directory
 
-# Universal (Intel + Apple Silicon)
-pnpm tauri:build:universal
-```
+Each environment uses separate:
+- App identifiers (`com.prompalette.app.dev`, etc.)
+- Database files (`prompalette-dev.db`, etc.)
+- Data directories
+- Window titles for visual identification
 
-## 📦 配布形式
+Control via `APP_ENV` environment variable: `development`, `staging`, `production`.
 
-### DMGファイル
-- **配布形式**: macOSの標準的なインストーラー
-- **サイズ**: ~13MB (Universal)
-- **ユーザー体験**: ドラッグ&ドロップでApplicationsフォルダーにインストール
-- **対応アーキテクチャ**: Intel + Apple Silicon (Universal)
-- **含まれるもの**: アプリケーションバンドル(.app)が内包済み
+## Architecture
 
-## 🔧 技術詳細
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Rust + Tauri
+- **Database**: SQLite
+- **State Management**: Zustand
 
-### DMGビルドについて
-CI環境では`CI=true`環境変数により、Finderの操作が必要なGUI要素をスキップしてDMGを作成します。これにより、GitHub Actionsなどの自動化環境でも安定してDMGファイルを生成できます。
+## Key Features
 
-### 設定
-- **DMGウィンドウサイズ**: 660x400px
-- **アプリアイコン位置**: (180, 170)
-- **Applicationsフォルダーリンク**: (480, 170)
+- Local-first prompt storage
+- Fuzzy search with scoring
+- Keyboard shortcuts and navigation
+- Pin system for favorite prompts
+- Tag-based organization
+- Optional title support
 
-## 🔐 セキュリティ
+## Distribution
 
-本番リリースではApple Developer IDによるコード署名を推奨します。詳細は `/docs/APPLE_CODE_SIGNING.md` を参照してください。
+The build process creates a DMG installer for macOS with universal support (Intel + Apple Silicon).
