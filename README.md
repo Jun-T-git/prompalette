@@ -14,6 +14,28 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 </div>
 
+## 📷 Screenshots
+
+<div align="center">
+  <img src="main-interface.png" alt="Main Interface" width="800">
+  <p><em>Main interface showing prompt management, palette system, and keyboard shortcuts</em></p>
+</div>
+
+<div align="center">
+  <img src="new-prompt-creation.png" alt="New Prompt Creation" width="800">
+  <p><em>Create new prompts with title, content, tags, and quick-access keys</em></p>
+</div>
+
+<div align="center">
+  <img src="search-tag-functionality.png" alt="Tag Search" width="800">
+  <p><em>Instant search with tag filtering (#tag) and smart autocomplete</em></p>
+</div>
+
+<div align="center">
+  <img src="search-quick-access.png" alt="Quick Access Search" width="800">
+  <p><em>Direct prompt access using quick-access keys (/key) for immediate results</em></p>
+</div>
+
 ## ✨ Features
 
 - 🚀 **Global Hotkeys** - System-wide access with Cmd+Ctrl+1-9,0 (macOS) / Ctrl+Ctrl+1-9,0 (Windows/Linux)
