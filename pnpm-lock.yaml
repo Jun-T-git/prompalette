@@ -175,12 +175,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@prompalette/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
-      '@prompalette/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@prompalette/ui':
         specifier: workspace:*
         version: link:../../packages/ui

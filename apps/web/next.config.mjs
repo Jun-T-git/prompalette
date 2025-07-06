@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@prompalette/core', '@prompalette/ui', '@prompalette/api-client'],
+  transpilePackages: ['@prompalette/ui'],
   eslint: {
     ignoreDuringBuilds: true,
   },
