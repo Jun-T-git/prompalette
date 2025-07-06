@@ -19,6 +19,16 @@ You'll see warnings like:
 🔶 Using mock Supabase client - configure real database for full functionality
 ```
 
+## Environment Configuration
+
+PromPalette supports multiple environments to match your desktop app deployment strategy:
+
+- **Development**: Local development with mock fallback
+- **Staging**: Pre-production testing environment
+- **Production**: Live production environment
+
+Each environment uses separate Supabase projects to ensure complete data isolation.
+
 ## Full Database Setup (Recommended)
 
 ### 1. Create Supabase Project

@@ -47,6 +47,10 @@ export interface Database {
           quick_access_key: string | null;
           view_count: number;
           like_count: number;
+          // Desktop compatibility fields (essential only)
+          pinned_position: number | null;
+          pinned_at: string | null;
+          // Core timestamps
           created_at: string;
           updated_at: string;
         };
@@ -60,6 +64,8 @@ export interface Database {
           quick_access_key?: string | null;
           view_count?: number;
           like_count?: number;
+          pinned_position?: number | null;
+          pinned_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -73,6 +79,8 @@ export interface Database {
           quick_access_key?: string | null;
           view_count?: number;
           like_count?: number;
+          pinned_position?: number | null;
+          pinned_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -142,6 +150,8 @@ function getValidatedDatabaseMode(): DatabaseMode {
   // Default to development for MVP phase
   return 'development';
 }
+
+
 
 /**
  * Get database configuration from environment
