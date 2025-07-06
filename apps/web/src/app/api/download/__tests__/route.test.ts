@@ -52,6 +52,60 @@ describe('Download API Route', () => {
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
     });
 
+    it('should return ok status for health check when asset is found', async () => {
+      const mockGitHubResponse = {
+        ok: true,
+        json: async () => ({
+          assets: [
+            {
+              name: 'prompalette-1.0.0.dmg',
+              browser_download_url: 'https://github.com/test/releases/download/v1.0.0/prompalette-1.0.0.dmg'
+            }
+          ]
+        })
+      };
+
+      (global.fetch as any).mockResolvedValueOnce(mockGitHubResponse);
+
+      const request = new NextRequest('http://localhost:3000/api/download?platform=macos&check=true', {
+        headers: {
+          'origin': 'http://localhost:3000'
+        }
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.status).toBe('ok');
+    });
+
+    it('should return fallback for health check when GitHub API fails', async () => {
+      (global.fetch as any).mockRejectedValueOnce(new Error('GitHub API error'));
+
+      const request = new NextRequest('http://localhost:3000/api/download?platform=macos&check=true', {
+        headers: {
+          'origin': 'http://localhost:3000'
+        }
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(202);
+      const body = await response.json();
+      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。');
+    });
+
+    it('should return error for health check with unsupported platform', async () => {
+      const request = new NextRequest('http://localhost:3000/api/download?platform=linux&check=true');
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe('現在、linux版は開発中です。GitHubのReleasesページでmacOS版をご利用ください。');
+    });
+
     it('should return fallback response when GitHub API fails', async () => {
       (global.fetch as any).mockRejectedValueOnce(new Error('GitHub API error'));
 
@@ -66,7 +120,7 @@ describe('Download API Route', () => {
       expect(response.status).toBe(202);
       
       const body = await response.json();
-      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubリリースページをご確認ください。');
+      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。');
       expect(body.github_url).toBe('https://github.com/Jun-T-git/prompalette/releases');
     });
 
@@ -92,7 +146,7 @@ describe('Download API Route', () => {
       expect(response.status).toBe(202);
       
       const body = await response.json();
-      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubリリースページをご確認ください。');
+      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。');
     });
 
     it('should return error for unsupported platform', async () => {
@@ -103,7 +157,7 @@ describe('Download API Route', () => {
       expect(response.status).toBe(400);
       
       const body = await response.json();
-      expect(body.error).toBe('Platform not supported');
+      expect(body.error).toBe('現在、linux版は開発中です。GitHubのReleasesページでmacOS版をご利用ください。');
       expect(body.supported_platforms).toEqual(['macos']);
     });
 
@@ -196,7 +250,7 @@ describe('Download API Route', () => {
 
       expect(response.status).toBe(202);
       const body = await response.json();
-      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubリリースページをご確認ください。');
+      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。');
     });
 
     it('should handle network timeout', async () => {
@@ -212,7 +266,7 @@ describe('Download API Route', () => {
 
       expect(response.status).toBe(202);
       const body = await response.json();
-      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubリリースページをご確認ください。');
+      expect(body.message).toBe('ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。');
     });
   });
 });

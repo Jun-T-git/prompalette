@@ -71,8 +71,14 @@ export default function DownloadPage() {
                       <span className="ml-2 text-sm opacity-90">(.dmg)</span>
                     </DownloadButton>
                     <p className="text-sm text-slate-500 mt-3">
-                      ユニバーサルバイナリ（Intel & Apple Silicon）
+                      Apple Silicon & Intel Mac対応 • 現在macOSのみ提供
                     </p>
+                    <div className="mt-4">
+                      <Link href="/download-guide" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        GitHubでのダウンロード手順を確認
+                      </Link>
+                    </div>
                   </div>
 
                   <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6">

@@ -28,7 +28,7 @@ export function getCorsConfig(): CorsConfig {
   
   const allowedOrigins = [...envOrigins, ...developmentOrigins, ...productionOrigins];
   
-  // 本番環境で環境変数が未設定の場合は警告
+  // 本番環境で環境変数が未設定の場合は警告（logWarnを使用予定だが、循環参照回避のためconsole.warnを使用）
   if (process.env.NODE_ENV === 'production' && envOrigins.length === 0) {
     console.warn('⚠️  CORS_ALLOWED_ORIGINS environment variable is not set in production. Using fallback origins.');
   }

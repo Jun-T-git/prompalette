@@ -30,13 +30,92 @@ export async function GET(request: NextRequest) {
   const origin = request.headers.get('origin');
   const { searchParams } = new URL(request.url);
   const platform = searchParams.get('platform') || 'macos';
+  const showGuide = searchParams.get('guide') === 'true';
+  const checkOnly = searchParams.get('check') === 'true';
   
   // ダウンロードリクエストをログ記録
   logInfo('Download request received', {
     platform,
     origin,
+    showGuide,
+    checkOnly,
     userAgent: request.headers.get('user-agent'),
   });
+
+  // ガイドページ表示が要求された場合
+  if (showGuide) {
+    const baseUrl = origin || 'https://prompalette.com';
+    return NextResponse.redirect(`${baseUrl}/download-guide`, 302);
+  }
+
+  // 健全性チェックのみが要求された場合（CORSエラー対策）
+  if (checkOnly) {
+    if (platform !== 'macos') {
+      const errorResponse: ErrorResponse = {
+        error: `現在、${platform}版は開発中です。GitHubのReleasesページでmacOS版をご利用ください。`,
+        supported_platforms: ['macos']
+      };
+      return NextResponse.json(errorResponse, { 
+        status: 400,
+        headers: createCorsHeaders(origin)
+      });
+    }
+    
+    // GitHub API の状態確認
+    const githubApiUrl = 'https://api.github.com/repos/Jun-T-git/prompalette/releases/latest';
+    try {
+      const githubResponse = await fetch(githubApiUrl, {
+        headers: {
+          'User-Agent': 'PromPalette-Download-Service/1.0',
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!githubResponse.ok) {
+        const fallbackResponse: DownloadResponse = {
+          message: 'ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。',
+          github_url: 'https://github.com/Jun-T-git/prompalette/releases',
+          platform: platform
+        };
+        return NextResponse.json(fallbackResponse, { 
+          status: 202,
+          headers: createCorsHeaders(origin)
+        });
+      }
+      
+      const release: GitHubRelease = await githubResponse.json();
+      const dmgAsset = release.assets?.find((asset: GitHubAsset) => 
+        asset.name.endsWith('.dmg') || asset.name.toLowerCase().includes('macos')
+      );
+      
+      if (!dmgAsset) {
+        const fallbackResponse: DownloadResponse = {
+          message: 'ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。',
+          github_url: 'https://github.com/Jun-T-git/prompalette/releases',
+          platform: platform
+        };
+        return NextResponse.json(fallbackResponse, { 
+          status: 202,
+          headers: createCorsHeaders(origin)
+        });
+      }
+      
+      return NextResponse.json({ status: 'ok' }, { 
+        status: 200,
+        headers: createCorsHeaders(origin)
+      });
+    } catch (error) {
+      const fallbackResponse: DownloadResponse = {
+        message: 'ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。',
+        github_url: 'https://github.com/Jun-T-git/prompalette/releases',
+        platform: platform
+      };
+      return NextResponse.json(fallbackResponse, { 
+        status: 202,
+        headers: createCorsHeaders(origin)
+      });
+    }
+  }
   
   if (platform === 'macos') {
     const githubApiUrl = 'https://api.github.com/repos/Jun-T-git/prompalette/releases/latest';
@@ -95,7 +174,7 @@ export async function GET(request: NextRequest) {
     
     // GitHub Releasesが利用できない場合は、適切なフォールバックレスポンスを返す
     const fallbackResponse: DownloadResponse = {
-      message: 'ダウンロードファイルを準備中です。GitHubリリースページをご確認ください。',
+      message: 'ダウンロードファイルを準備中です。GitHubのReleasesページで最新版（Latest）の.dmgファイルをダウンロードしてください。',
       github_url: 'https://github.com/Jun-T-git/prompalette/releases',
       platform: platform
     };
@@ -118,7 +197,7 @@ export async function GET(request: NextRequest) {
   });
   
   const errorResponse: ErrorResponse = {
-    error: 'Platform not supported',
+    error: `現在、${platform}版は開発中です。GitHubのReleasesページでmacOS版をご利用ください。`,
     supported_platforms: ['macos']
   };
   
