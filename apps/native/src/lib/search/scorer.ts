@@ -95,7 +95,7 @@ function scorePromptMatch(
     
     for (const term of query.textTerms) {
       const termLower = term.toLowerCase();
-      const titleLower = prompt.title.toLowerCase();
+      const titleLower = prompt.title?.toLowerCase() ?? '';
       const contentLower = prompt.content.toLowerCase();
       const quickAccessKeyLower = prompt.quickAccessKey?.toLowerCase() || '';
       const tagsLower = (prompt.tags || []).map(tag => tag.toLowerCase());
@@ -116,8 +116,8 @@ function scorePromptMatch(
         termMatched = true;
         hasTitleMatch = true; // Treat as high priority match
       }
-      // Check title match
-      else if (titleLower.includes(termLower)) {
+      // Check title match (only if title exists)
+      else if (prompt.title && titleLower.includes(termLower)) {
         totalScore += config.scores.titleMatch;
         matchedTerms.push(term);
         termMatched = true;

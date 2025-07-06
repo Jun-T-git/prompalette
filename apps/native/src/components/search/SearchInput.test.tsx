@@ -12,7 +12,7 @@ describe('SearchInput', () => {
 
   it('renders search input correctly', () => {
     const { container } = render(<SearchInput value="" onChange={vi.fn()} />)
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
     // Check for search icon by looking for the SVG element in the container
     expect(container.querySelector('svg')).toBeInTheDocument()
   })
@@ -36,7 +36,7 @@ describe('SearchInput', () => {
     const handleChange = vi.fn()
     render(<SearchInput value="" onChange={handleChange} debounceMs={300} />)
     
-    const input = screen.getByRole('textbox')
+    const input = screen.getByRole("searchbox")
     fireEvent.change(input, { target: { value: 'test' } })
     
     // Should not call immediately
@@ -55,7 +55,7 @@ describe('SearchInput', () => {
     const handleSearch = vi.fn()
     render(<SearchInput value="" onChange={vi.fn()} onSearch={handleSearch} />)
     
-    const input = screen.getByRole('textbox')
+    const input = screen.getByRole("searchbox")
     fireEvent.change(input, { target: { value: 'search term' } })
     
     act(() => {
@@ -89,7 +89,7 @@ describe('SearchInput', () => {
     const handleChange = vi.fn()
     render(<SearchInput value="" onChange={handleChange} debounceMs={300} />)
     
-    const input = screen.getByRole('textbox')
+    const input = screen.getByRole("searchbox")
     
     // First input
     fireEvent.change(input, { target: { value: 'first' } })
@@ -160,7 +160,7 @@ describe('SearchInput', () => {
         />
       )
       
-      const input = screen.getByRole('textbox')
+      const input = screen.getByRole("searchbox")
       fireEvent.keyDown(input, { key: 'Tab' })
       
       expect(handleChange).toHaveBeenCalledWith('/test')

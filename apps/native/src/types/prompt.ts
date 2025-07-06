@@ -5,8 +5,8 @@
 export interface Prompt {
   /** プロンプトの一意識別子 */
   id: string
-  /** プロンプトのタイトル（最大100文字） */
-  title: string
+  /** プロンプトのタイトル（最大100文字、任意） */
+  title: string | null
   /** プロンプトの本文内容 */
   content: string
   /** プロンプトに付与されたタグの配列（用途・技術・対象などを自由に設定） */
@@ -28,8 +28,8 @@ export interface Prompt {
  * APIで新しいプロンプトを作成する際に送信する情報
  */
 export interface CreatePromptRequest {
-  /** プロンプトのタイトル（必須、最大100文字） */
-  title: string
+  /** プロンプトのタイトル（任意、最大100文字） */
+  title: string | null | undefined
   /** プロンプトの本文内容（必須） */
   content: string
   /** プロンプトに付与するタグの配列（用途・技術・対象などを自由に設定、最大10個） */
@@ -123,5 +123,80 @@ export interface UnpinPromptRequest {
 export interface CopyPinnedPromptRequest {
   /** コピーする位置（1-10） */
   position: number
+}
+
+/**
+ * アップデート情報
+ */
+export interface UpdateInfo {
+  /** アップデートバージョン */
+  version: string
+  /** リリースノート */
+  notes?: string
+  /** 公開日時 */
+  pub_date?: string
+  /** ダウンロードURL */
+  url: string
+  /** 署名 */
+  signature?: string
+}
+
+/**
+ * アップデート状態
+ */
+export type UpdateStatus = 
+  | { type: 'NoUpdateAvailable' }
+  | { type: 'UpdateAvailable'; info: UpdateInfo }
+  | { type: 'Downloading'; progress: number }
+  | { type: 'Downloaded' }
+  | { type: 'Installing' }
+  | { type: 'Error'; message: string }
+
+/**
+ * データバックアップ結果
+ */
+export interface BackupResult {
+  /** バックアップ成功可否 */
+  success: boolean
+  /** バックアップファイルパス */
+  backup_path?: string
+  /** バックアップ作成日時 */
+  timestamp: string
+  /** エラーメッセージ */
+  error?: string
+}
+
+/**
+ * バックアップ詳細情報
+ */
+export interface BackupInfo {
+  /** ファイル名 */
+  filename: string
+  /** フルパス */
+  full_path: string
+  /** 作成日時 */
+  created_at: string
+  /** ファイルサイズ（バイト） */
+  size_bytes: number
+  /** 自動バックアップかどうか */
+  is_automatic: boolean
+}
+
+/**
+ * アップデート設定
+ */
+export interface UpdateConfig {
+  /** 現在の環境 */
+  environment: string
+  /** アップデート機能有効可否 */
+  updates_enabled: boolean
+  /** 自動チェック有効可否 */
+  auto_check_enabled: boolean
+  /** 手動承認が必要か */
+  requires_manual_approval: boolean
+  /** バックアップ機能有効可否 */
+  backup_enabled: boolean
+  /** 公開鍵（オプション） */
+  public_key?: string
 }
 

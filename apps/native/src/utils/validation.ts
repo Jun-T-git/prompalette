@@ -1,8 +1,8 @@
 /**
  * プロンプトタイトルのバリデーション
- * 空文字チェックと文字数制限を実施
+ * 文字数制限をチェック（任意項目）
  * 
- * @param title - 検証するタイトル文字列
+ * @param title - 検証するタイトル文字列（任意、nullも許可）
  * @returns エラーメッセージまたはnull（バリデーション成功時）
  * 
  * @example
@@ -13,16 +13,29 @@
  * }
  * ```
  */
-export function validatePromptTitle(title: string): string | null {
-  // 空文字・空白文字のみの場合はエラー
-  if (!title.trim()) {
-    return 'タイトルは必須です'
+export function validatePromptTitle(title?: string | null): string | null {
+  // null、undefinedの場合は問題なし（任意項目）
+  if (title === null || title === undefined) {
+    return null;
   }
-  // 100文字を超える場合はエラー
-  if (title.length > 100) {
-    return 'タイトルは100文字以内で入力してください'
+  
+  // 文字列でない場合は型エラー
+  if (typeof title !== 'string') {
+    return 'タイトルは文字列である必要があります';
   }
-  return null
+  
+  // 空文字やスペースのみの場合は問題なし（任意項目）
+  const trimmed = title.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  
+  // 文字数制限チェック
+  if (trimmed.length > 100) {
+    return 'タイトルは100文字以内で入力してください';
+  }
+  
+  return null;
 }
 
 /**

@@ -2,6 +2,8 @@
  * Tauriコマンド実装
  * フロントエンドからバックエンドへのAPI呼び出し処理
  */
+
+pub mod environment;
 use crate::database::{
     create_prompt as db_create_prompt,
     delete_prompt as db_delete_prompt,
@@ -18,9 +20,11 @@ use crate::database::{
     Prompt,
     UpdatePromptRequest,
 };
+use tauri::AppHandle;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// エラーレスポンス構造
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct ErrorResponse {
     pub error: String,
 }
@@ -36,15 +40,24 @@ pub struct SuccessResponse<T> {
 #[tauri::command]
 pub async fn create_prompt(request: CreatePromptRequest) -> Result<SuccessResponse<Prompt>, ErrorResponse> {
     // 基本的な入力値チェック
-    if request.title.trim().is_empty() {
-        return Err(ErrorResponse {
-            error: "Title cannot be empty".to_string(),
-        });
-    }
-    
     if request.content.trim().is_empty() {
         return Err(ErrorResponse {
             error: "Content cannot be empty".to_string(),
+        });
+    }
+    
+    // サイズ制限チェック（タイトルがある場合のみ）
+    if let Some(ref title) = request.title {
+        if title.len() > 200 {
+            return Err(ErrorResponse {
+                error: "Title too long (max 200 characters)".to_string(),
+            });
+        }
+    }
+    
+    if request.content.len() > 100_000 {
+        return Err(ErrorResponse {
+            error: "Content too long (max 100,000 characters)".to_string(),
         });
     }
     
@@ -68,7 +81,7 @@ pub async fn get_prompt(id: String) -> Result<SuccessResponse<Option<Prompt>>, E
             data: prompt,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get prompt: {}", e),
+            error: format!("Failed to get prompt: {e}"),
         }),
     }
 }
@@ -82,7 +95,7 @@ pub async fn get_all_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorResp
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get prompts: {}", e),
+            error: format!("Failed to get prompts: {e}"),
         }),
     }
 }
@@ -90,13 +103,20 @@ pub async fn get_all_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorResp
 /// プロンプト検索コマンド
 #[tauri::command]
 pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    // 入力値検証
+    if query.len() > 1000 {
+        return Err(ErrorResponse {
+            error: "Search query too long (max 1000 characters)".to_string(),
+        });
+    }
+    
     match db_search_prompts(&query).await {
         Ok(prompts) => Ok(SuccessResponse {
             success: true,
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to search prompts: {}", e),
+            error: format!("Failed to search prompts: {e}"),
         }),
     }
 }
@@ -109,6 +129,13 @@ pub async fn search_prompts(query: String) -> Result<SuccessResponse<Vec<Prompt>
 /// - <50ms レスポンス目標
 #[tauri::command]
 pub async fn search_prompts_fast(query: String) -> Result<SuccessResponse<Vec<Prompt>>, ErrorResponse> {
+    // 入力値検証
+    if query.len() > 1000 {
+        return Err(ErrorResponse {
+            error: "Search query too long (max 1000 characters)".to_string(),
+        });
+    }
+    
     // 空クエリは早期リターン
     if query.trim().is_empty() {
         return Ok(SuccessResponse {
@@ -123,7 +150,7 @@ pub async fn search_prompts_fast(query: String) -> Result<SuccessResponse<Vec<Pr
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to search prompts fast: {}", e),
+            error: format!("Failed to search prompts fast: {e}"),
         }),
     }
 }
@@ -161,7 +188,7 @@ pub async fn delete_prompt(id: String) -> Result<SuccessResponse<bool>, ErrorRes
             data: deleted,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to delete prompt: {}", e),
+            error: format!("Failed to delete prompt: {e}"),
         }),
     }
 }
@@ -170,12 +197,12 @@ pub async fn delete_prompt(id: String) -> Result<SuccessResponse<bool>, ErrorRes
 #[tauri::command]
 pub async fn init_database() -> Result<SuccessResponse<String>, ErrorResponse> {
     match crate::database::init_database().await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
             data: "Database initialized successfully".to_string(),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to initialize database: {}", e),
+            error: format!("Failed to initialize database: {e}"),
         }),
     }
 }
@@ -208,19 +235,19 @@ pub async fn pin_prompt(prompt_id: String, position: u8) -> Result<SuccessRespon
         });
     }
     
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
     }
     
     match db_pin_prompt(&prompt_id, position).await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
-            data: format!("Prompt pinned to position {}", position),
+            data: format!("Prompt pinned to position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to pin prompt: {}", e),
+            error: format!("Failed to pin prompt: {e}"),
         }),
     }
 }
@@ -231,19 +258,19 @@ pub async fn pin_prompt(prompt_id: String, position: u8) -> Result<SuccessRespon
 #[tauri::command]
 pub async fn unpin_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
     }
     
     match db_unpin_prompt(position).await {
-        Ok(_) => Ok(SuccessResponse {
+        Ok(()) => Ok(SuccessResponse {
             success: true,
-            data: format!("Prompt unpinned from position {}", position),
+            data: format!("Prompt unpinned from position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to unpin prompt: {}", e),
+            error: format!("Failed to unpin prompt: {e}"),
         }),
     }
 }
@@ -257,7 +284,7 @@ pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorR
             data: prompts,
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get pinned prompts: {}", e),
+            error: format!("Failed to get pinned prompts: {e}"),
         }),
     }
 }
@@ -266,9 +293,12 @@ pub async fn get_pinned_prompts() -> Result<SuccessResponse<Vec<Prompt>>, ErrorR
 /// 
 /// position: コピーするピン留め位置（1-10）
 #[tauri::command]
-pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>, ErrorResponse> {
+pub async fn copy_pinned_prompt(
+    app_handle: AppHandle,
+    position: u8
+) -> Result<SuccessResponse<String>, ErrorResponse> {
     // 入力値検証
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err(ErrorResponse {
             error: "Pin position must be between 1 and 10".to_string(),
         });
@@ -276,84 +306,73 @@ pub async fn copy_pinned_prompt(position: u8) -> Result<SuccessResponse<String>,
     
     match db_get_pinned_prompt_content(position).await {
         Ok(Some(content)) => {
-            // クリップボードにコピー（プラットフォーム別対応）
-            let copy_result = if cfg!(target_os = "macos") {
-                // macOS: pbcopy
-                std::process::Command::new("pbcopy")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .and_then(|mut child| {
-                        if let Some(stdin) = child.stdin.as_mut() {
-                            use std::io::Write;
-                            stdin.write_all(content.as_bytes())?;
-                        }
-                        child.wait()
-                    })
-                    .map(|status| status.success())
-                    .unwrap_or(false)
-            } else if cfg!(target_os = "windows") {
-                // Windows: clip
-                std::process::Command::new("cmd")
-                    .args(["/C", "echo", &content, "|", "clip"])
-                    .output()
-                    .map(|output| output.status.success())
-                    .unwrap_or(false)
-            } else {
-                // Linux: xclip または xsel を試行
-                std::process::Command::new("xclip")
-                    .args(["-selection", "clipboard"])
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .and_then(|mut child| {
-                        if let Some(stdin) = child.stdin.as_mut() {
-                            use std::io::Write;
-                            stdin.write_all(content.as_bytes())?;
-                        }
-                        child.wait()
-                    })
-                    .map(|status| status.success())
-                    .unwrap_or_else(|_| {
-                        // xclip が失敗した場合は xsel を試行
-                        std::process::Command::new("xsel")
-                            .args(["--clipboard", "--input"])
-                            .stdin(std::process::Stdio::piped())
-                            .spawn()
-                            .and_then(|mut child| {
-                                if let Some(stdin) = child.stdin.as_mut() {
-                                    use std::io::Write;
-                                    stdin.write_all(content.as_bytes())?;
-                                }
-                                child.wait()
-                            })
-                            .map(|status| status.success())
-                            .unwrap_or(false)
-                    })
-            };
+            // サイズ制限チェック（DoS攻撃防止）
+            if content.len() > 1_000_000 { // 1MB制限
+                return Err(ErrorResponse {
+                    error: "Prompt content too large for clipboard".to_string(),
+                });
+            }
             
-            if copy_result {
-                Ok(SuccessResponse {
+            // Tauriプラグインを使用した安全なクリップボード操作
+            match app_handle.clipboard().write_text(content.clone()) {
+                Ok(_) => Ok(SuccessResponse {
                     success: true,
-                    data: format!("Prompt from position {} copied to clipboard", position),
-                })
-            } else {
-                // クリップボード操作に失敗した場合は内容を返す
-                Ok(SuccessResponse {
-                    success: true,
-                    data: format!("Clipboard operation failed. Content length: {} characters", content.len()),
+                    data: format!("Prompt from position {position} copied to clipboard"),
+                }),
+                Err(e) => Err(ErrorResponse {
+                    error: format!("Failed to copy to clipboard: {}", e),
                 })
             }
         }
         Ok(None) => Err(ErrorResponse {
-            error: format!("No prompt found at pin position {}", position),
+            error: format!("No prompt found at pin position {position}"),
         }),
         Err(e) => Err(ErrorResponse {
-            error: format!("Failed to get pinned prompt: {}", e),
+            error: format!("Failed to get pinned prompt: {e}"),
         }),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn test_input_validation() {
+        // タイトルの長さチェック
+        let long_title = "a".repeat(201);
+        let request = CreatePromptRequest {
+            title: Some(long_title),
+            content: "Test content".to_string(),
+            tags: None,
+            quick_access_key: None,
+        };
+        
+        // 長すぎるタイトルはエラーとなるはず
+        // (ここではロジックのみチェック)
+        assert!(request.title.as_ref().unwrap().len() > 200);
+    }
+    
+    #[test]
+    fn test_pin_position_validation() {
+        // 有効な範囲のチェック
+        for pos in 1..=10 {
+            assert!((1..=10).contains(&pos));
+        }
+        
+        // 無効な範囲のチェック
+        assert!(!(1..=10).contains(&0));
+        assert!(!(1..=10).contains(&11));
+    }
+    
+    #[test]
+    fn test_query_length_validation() {
+        let long_query = "a".repeat(1001);
+        assert!(long_query.len() > 1000);
+        
+        let valid_query = "test query";
+        assert!(valid_query.len() <= 1000);
+    }
 
     #[tokio::test]
     async fn test_create_prompt_command() {

@@ -7,6 +7,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    exclude: [
+      'e2e/**',
+      '**/*.spec.ts',
+      'node_modules/**'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -18,7 +23,14 @@ export default defineConfig({
         '**/*.config.*',
         'dist/',
         'src-tauri/',
+        'e2e/**',
       ],
+      thresholds: {
+        statements: 70,
+        branches: 65,
+        functions: 70,
+        lines: 70,
+      },
     },
   },
   // @ts-expect-error vitest types

@@ -45,6 +45,17 @@ export class FileStorage {
     };
   }
 
+  async reset(): Promise<void> {
+    this.initialized = false;
+    this.data = {
+      users: {},
+      apiKeys: {},
+      prompts: {},
+      auditLogs: []
+    };
+    logger.info('FileStorage reset for test environment');
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
 

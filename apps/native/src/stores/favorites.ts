@@ -245,11 +245,15 @@ export const useFavoritesStore = create<FavoritesState>()(
           
           // 10個の位置配列を作成し、ピン留めされたプロンプトを適切な位置に配置
           const positionedPrompts = createEmptyPinnedPrompts()
-          pinnedPrompts.forEach(prompt => {
+          
+          pinnedPrompts.forEach((prompt) => {
             if (prompt.position >= 1 && prompt.position <= 10) {
-              positionedPrompts[prompt.position - 1] = prompt
+              const arrayIndex = prompt.position - 1;
+              positionedPrompts[arrayIndex] = prompt;
+            } else {
+              console.warn(`Invalid position ${prompt.position} for prompt "${prompt.title || 'Untitled'}"`);
             }
-          })
+          });
           
           set({ 
             pinnedPrompts: positionedPrompts,
@@ -281,8 +285,9 @@ export const useFavoritesStore = create<FavoritesState>()(
         try {
           logger.debug('Loading hotkey configuration')
           
-          // ローカルストレージから設定を読み込み
-          const savedConfig = localStorage.getItem('prompalette-hotkey-config')
+          // ローカルストレージから設定を読み込み（環境別）
+          const { envStorage } = await import('../utils')
+          const savedConfig = await envStorage.getItem('hotkey-config')
           if (savedConfig) {
             try {
               const config: HotkeyConfig[] = JSON.parse(savedConfig)
@@ -332,8 +337,9 @@ export const useFavoritesStore = create<FavoritesState>()(
         try {
           logger.debug('Saving hotkey configuration:', config)
           
-          // ローカルストレージに保存
-          localStorage.setItem('prompalette-hotkey-config', JSON.stringify(config))
+          // ローカルストレージに保存（環境別）
+          const { envStorage } = await import('../utils')
+          await envStorage.setItem('hotkey-config', JSON.stringify(config))
           set({ hotkeyConfig: config, isLoading: false })
           
           logger.info('Hotkey configuration saved successfully')

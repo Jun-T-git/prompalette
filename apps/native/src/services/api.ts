@@ -8,19 +8,39 @@ import type {
   PinnedPrompt,
   PinPromptRequest,
   UnpinPromptRequest,
-  CopyPinnedPromptRequest
+  CopyPinnedPromptRequest,
+  UpdateStatus,
+  BackupResult,
+  BackupInfo,
+  UpdateConfig
 } from '../types'
-import { logger, isTauriEnvironment } from '../utils'
+import { logger, getEnvironmentInfo } from '../utils'
+
+import { mockPromptsApi, mockPinnedPromptsApi, mockHealthApi } from './mockApi'
+
+/**
+ * E2Eテスト環境かどうかを判定
+ */
+function isE2ETestEnvironment(): boolean {
+  return typeof window !== 'undefined' && 
+         window.location.hostname === 'localhost' && 
+         window.location.port === '1420' &&
+         !('__TAURI_INTERNALS__' in window)
+}
 
 /**
  * Tauri invoke関数を安全に取得
  */
-function getTauriInvoke() {
-  if (!isTauriEnvironment()) {
-    return null
+async function getTauriInvoke() {
+  try {
+    const envInfo = await getEnvironmentInfo()
+    if (envInfo.isDevelopment || envInfo.isStaging || envInfo.isProduction) {
+      return invoke
+    }
+  } catch {
+    // Environment detection failed, not in Tauri environment
   }
-  
-  return invoke
+  return null
 }
 
 /**
@@ -69,17 +89,10 @@ async function invokeCommand<T>(
   args?: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<T> {
-  // Tauri環境でない場合は適切なエラーメッセージを表示
-  if (!isTauriEnvironment()) {
-    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
-    logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
-    throw new ApiError(errorMessage)
-  }
-
   // Tauri invoke関数を取得
-  const invoke = getTauriInvoke()
-  if (!invoke) {
-    const errorMessage = 'Failed to load Tauri API'
+  const invokeFunc = await getTauriInvoke()
+  if (!invokeFunc) {
+    const errorMessage = 'Tauri environment not available. Please run "pnpm dev" instead of "pnpm dev:web"'
     logger.error(`Tauri command "${command}" failed:`, { error: errorMessage, args })
     throw new ApiError(errorMessage)
   }
@@ -90,7 +103,7 @@ async function invokeCommand<T>(
       throw new Error('Request was cancelled')
     }
 
-    const response = await invoke<TauriResponse<T>>(command, args)
+    const response = await invokeFunc<TauriResponse<T>>(command, args)
     
     // Check for cancellation after the request
     if (signal?.aborted) {
@@ -182,6 +195,9 @@ export const promptsApi = {
    * @returns プロンプトの配列
    */
   async getAll(signal?: AbortSignal): Promise<Prompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.getAll()
+    }
     const rawPrompts = await invokeCommand<RawPrompt[]>('get_all_prompts', undefined, signal)
     return rawPrompts.map(transformPromptFromDatabase)
   },
@@ -193,6 +209,9 @@ export const promptsApi = {
    * @throws {ApiError} プロンプトが見つからない場合
    */
   async getById(id: string): Promise<Prompt | null> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.getById(id)
+    }
     const rawPrompt = await invokeCommand<RawPrompt | null>('get_prompt', { id })
     return rawPrompt ? transformPromptFromDatabase(rawPrompt) : null
   },
@@ -204,6 +223,9 @@ export const promptsApi = {
    * @throws {ApiError} 作成失敗時
    */
   async create(request: CreatePromptRequest): Promise<Prompt> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.create(request)
+    }
     const rawPrompt = await invokeCommand<RawPrompt>('create_prompt', { request })
     return transformPromptFromDatabase(rawPrompt)
   },
@@ -215,6 +237,9 @@ export const promptsApi = {
    * @throws {ApiError} 更新失敗時またはプロンプトが見つからない場合
    */
   async update(request: UpdatePromptRequest): Promise<Prompt | null> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.update(request)
+    }
     const rawPrompt = await invokeCommand<RawPrompt | null>('update_prompt', { 
       id: request.id, 
       request: {
@@ -234,6 +259,9 @@ export const promptsApi = {
    * @throws {ApiError} 削除失敗時またはプロンプトが見つからない場合
    */
   async delete(id: string): Promise<boolean> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.delete(id)
+    }
     return invokeCommand<boolean>('delete_prompt', { id })
   },
 
@@ -253,6 +281,9 @@ export const promptsApi = {
    * ```
    */
   async search(query: SearchQuery): Promise<Prompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPromptsApi.search(query)
+    }
     const searchQuery = query.q || ''
     const rawPrompts = await invokeCommand<RawPrompt[]>('search_prompts', { query: searchQuery })
     return rawPrompts.map(transformPromptFromDatabase)
@@ -283,6 +314,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} ピン留め失敗時
    */
   async pin(request: PinPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.pin(request)
+    }
     return invokeCommand<string>('pin_prompt', { 
       promptId: request.prompt_id, 
       position: request.position 
@@ -296,6 +330,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} ピン留め解除失敗時
    */
   async unpin(request: UnpinPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.unpin(request)
+    }
     return invokeCommand<string>('unpin_prompt', { position: request.position })
   },
 
@@ -306,14 +343,21 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} 取得失敗時
    */
   async getAll(signal?: AbortSignal): Promise<PinnedPrompt[]> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.getAll()
+    }
     const prompts = await invokeCommand<Prompt[]>('get_pinned_prompts', undefined, signal)
+    
     // Promptの配列をPinnedPromptの配列に変換
     // バックエンドから実際のposition情報を使用
-    return prompts.map((prompt) => ({
-      ...prompt,
-      position: prompt.pinned_position || 1, // バックエンドのpinned_positionフィールドを使用
-      pinned_at: prompt.pinned_at || new Date().toISOString() // バックエンドのpinned_atフィールドを使用
-    }))
+    const result = prompts
+      .filter(prompt => prompt.pinned_position != null) // pinned_positionがnullでないもののみ
+      .map((prompt) => ({
+        ...prompt,
+        position: prompt.pinned_position!, // 確実にnumberである
+        pinned_at: prompt.pinned_at || new Date().toISOString() // バックエンドのpinned_atフィールドを使用
+      }))
+    return result
   },
 
   /**
@@ -323,6 +367,9 @@ export const pinnedPromptsApi = {
    * @throws {ApiError} コピー失敗時
    */
   async copyToClipboard(request: CopyPinnedPromptRequest): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockPinnedPromptsApi.copyToClipboard(request)
+    }
     return invokeCommand<string>('copy_pinned_prompt', { position: request.position })
   },
 }
@@ -338,6 +385,9 @@ export const healthApi = {
    * @throws {ApiError} アプリ情報取得失敗時
    */
   async getAppInfo(): Promise<{ name: string; version: string; description: string }> {
+    if (isE2ETestEnvironment()) {
+      return mockHealthApi.getAppInfo()
+    }
     return invokeCommand('get_app_info')
   },
 
@@ -347,6 +397,100 @@ export const healthApi = {
    * @throws {ApiError} データベース初期化失敗時
    */
   async initDatabase(): Promise<string> {
+    if (isE2ETestEnvironment()) {
+      return mockHealthApi.initDatabase()
+    }
     return invokeCommand('init_database')
+  },
+}
+
+/**
+ * アップデート関連のAPI呼び出し関数群
+ * 自動更新機能とデータバックアップを提供
+ */
+export const updaterApi = {
+  /**
+   * アップデートをチェック
+   * @returns アップデート状況
+   * @throws {ApiError} チェック失敗時
+   */
+  async checkForUpdates(): Promise<UpdateStatus> {
+    return invokeCommand('check_for_updates')
+  },
+
+  /**
+   * データベースバックアップを作成（自動バックアップ）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createBackup(): Promise<BackupResult> {
+    return invokeCommand('create_backup')
+  },
+
+  /**
+   * 手動バックアップを作成
+   * @param name - バックアップ名（任意）
+   * @returns バックアップ結果
+   * @throws {ApiError} バックアップ失敗時
+   */
+  async createManualBackup(name?: string): Promise<BackupResult> {
+    return invokeCommand('create_manual_backup', { name })
+  },
+
+  /**
+   * アップデートをダウンロードして適用
+   * @returns アップデート進行状況
+   * @throws {ApiError} アップデート失敗時
+   */
+  async downloadAndApplyUpdate(): Promise<UpdateStatus> {
+    return invokeCommand('download_and_apply_update')
+  },
+
+  /**
+   * バックアップから復元
+   * @param backupPath - バックアップファイルパス
+   * @returns 復元成功可否
+   * @throws {ApiError} 復元失敗時
+   */
+  async restoreFromBackup(backupPath: string): Promise<boolean> {
+    return invokeCommand('restore_from_backup', { backupPath })
+  },
+
+  /**
+   * 利用可能なバックアップ一覧を取得（詳細情報付き）
+   * @returns バックアップ詳細情報配列
+   * @throws {ApiError} 取得失敗時
+   */
+  async listBackups(): Promise<BackupInfo[]> {
+    return invokeCommand('list_backups')
+  },
+
+  /**
+   * 古いバックアップファイルを削除
+   * @param keepCount - 保持するバックアップ数（デフォルト: 10）
+   * @returns 削除されたファイル数
+   * @throws {ApiError} 削除失敗時
+   */
+  async cleanupOldBackups(keepCount?: number): Promise<number> {
+    return invokeCommand('cleanup_old_backups', { keepCount })
+  },
+
+  /**
+   * 特定のバックアップファイルを削除
+   * @param filename - 削除するバックアップファイル名
+   * @returns 削除成功可否
+   * @throws {ApiError} 削除失敗時
+   */
+  async deleteBackup(filename: string): Promise<boolean> {
+    return invokeCommand('delete_backup', { filename })
+  },
+
+  /**
+   * アップデート設定を取得
+   * @returns アップデート設定情報
+   * @throws {ApiError} 取得失敗時
+   */
+  async getUpdateConfig(): Promise<UpdateConfig> {
+    return invokeCommand('get_update_config')
   },
 }

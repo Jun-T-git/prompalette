@@ -1,106 +1,56 @@
 # PromPalette Native App
 
-Tauri + React + TypeScript で構築されたネイティブデスクトップアプリケーション
+Desktop application built with Tauri, React, and TypeScript for macOS.
 
-## 🚀 起動方法
-
-### 推奨：Tauriアプリとして実行
+## Development
 
 ```bash
-# Tauri開発サーバーを起動（推奨）
-pnpm dev
-```
+# Install dependencies
+pnpm install
 
-これにより、TauriのネイティブウィンドウでReactアプリが起動し、データベース機能や他のネイティブ機能が利用できます。
+# Start development server
+pnpm dev                    # Development environment
+pnpm dev:staging           # Staging environment
 
-### 代替：ブラウザでのテスト
-
-```bash
-# Webブラウザでの開発・テスト（機能制限あり）
-pnpm dev:web
-```
-
-この方法では、TauriのネイティブAPIが利用できないため、環境エラー画面が表示されます。UI/UXのテストには利用できます。
-
-## 📦 ビルド
-
-```bash
-# フロントエンドのビルド
+# Build for production
 pnpm build
-
-# ネイティブアプリのビルド（配布用）
-pnpm tauri:build
+pnpm tauri:build:dev       # Development build
+pnpm tauri:build:staging   # Staging build
+pnpm tauri:build:production # Production build
 ```
 
-## 🧪 テスト・品質チェック
+### Environment Separation
 
-```bash
-# TypeScript型チェック
-pnpm typecheck
+The app supports independent installations for different environments:
 
-# ESLintによるコード品質チェック
-pnpm lint
+- **Development**: `PromPalette Dev` - Data stored in `PromPalette-Dev/` directory
+- **Staging**: `PromPalette Staging` - Data stored in `PromPalette-Staging/` directory  
+- **Production**: `PromPalette` - Data stored in `PromPalette/` directory
 
-# 単体テスト実行
-pnpm test
+Each environment uses separate:
+- App identifiers (`com.prompalette.app.dev`, etc.)
+- Database files (`prompalette-dev.db`, etc.)
+- Data directories
+- Window titles for visual identification
 
-# テストカバレッジ付きテスト
-pnpm test:coverage
-```
+Control via `APP_ENV` environment variable: `development`, `staging`, `production`.
 
-## 🏗️ アーキテクチャ
+## Architecture
 
-- **Frontend**: React 18 + TypeScript + Tailwind CSS
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Rust + Tauri
+- **Database**: SQLite
 - **State Management**: Zustand
-- **Native Backend**: Tauri (Rust)
-- **Database**: SQLite with sqlx
-- **Build Tool**: Vite
-- **Testing**: Vitest + React Testing Library
 
-## 🔧 開発時の注意点
+## Key Features
 
-### 1. 環境の違い
+- Local-first prompt storage
+- Fuzzy search with scoring
+- Keyboard shortcuts and navigation
+- Pin system for favorite prompts
+- Tag-based organization
+- Optional title support
 
-- `pnpm dev`: Tauriネイティブ環境（全機能利用可能）
-- `pnpm dev:web`: ブラウザ環境（UI確認のみ、API機能制限あり）
+## Distribution
 
-### 2. データベース
-
-アプリケーション初回起動時に自動的にSQLiteデータベースが初期化されます。
-
-### 3. エラーハンドリング
-
-環境エラーが発生した場合、専用のエラー画面で適切な解決方法が表示されます。
-
-## 📁 プロジェクト構造
-
-```
-src/
-├── components/          # Reactコンポーネント
-│   ├── common/         # 共通コンポーネント
-│   ├── prompt/         # プロンプト関連コンポーネント
-│   └── search/         # 検索機能コンポーネント
-├── services/           # API・外部サービス
-├── stores/             # Zustand状態管理
-├── types/              # TypeScript型定義
-├── utils/              # ユーティリティ関数
-└── App.tsx            # メインアプリケーション
-
-src-tauri/
-├── src/
-│   ├── commands.rs     # Tauriコマンド定義
-│   ├── database.rs     # データベース操作
-│   └── lib.rs          # メイン設定
-└── tauri.conf.json     # Tauri設定
-```
-
-## 🔐 セキュリティ
-
-- Content Security Policy (CSP) 設定済み
-- 入力値検証
-- 環境変数による設定管理
-- SQLインジェクション対策
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+The build process creates a DMG installer for macOS with universal support (Intel + Apple Silicon).

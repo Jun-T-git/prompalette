@@ -1,8 +1,10 @@
 import { useState } from 'react';
 
+import type { FormSubmitHandler } from '../../adapters/RealAppStoreAdapter';
 import { getPaletteColor } from '../../constants/palette';
 import { useFavoritesStore } from '../../stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from '../../types';
+import { getSafeTitle } from '../../utils/promptDisplay';
 import { ConfirmModal, PaletteDropdown, useToast } from '../common';
 import { PromptForm } from '../prompt';
 
@@ -37,6 +39,8 @@ interface AppContentAreaProps {
   onTagClick?: (tag: string) => void;
   /** クイックアクセスキークリック時の検索ハンドラー */
   onQuickAccessKeyClick?: (key: string) => void;
+  /** フォーム保存ハンドラーへの参照（キーボードショートカット用） */
+  formSubmitHandlerRef: React.MutableRefObject<FormSubmitHandler | null>;
 }
 
 /**
@@ -59,6 +63,7 @@ export function AppContentArea({
   onCancelEditForm,
   onTagClick,
   onQuickAccessKeyClick,
+  formSubmitHandlerRef,
 }: AppContentAreaProps) {
   const {
     pinnedPrompts,
@@ -99,7 +104,7 @@ export function AppContentArea({
       setConfirmOverwrite({
         show: true,
         position,
-        targetPromptTitle: targetPrompt.title,
+        targetPromptTitle: getSafeTitle(targetPrompt),
       });
       return;
     }
@@ -182,7 +187,7 @@ export function AppContentArea({
   };
 
   return (
-    <div className="content-area bg-white">
+    <div className="content-area bg-white" data-testid="content-area">
       {error && (
         <div className="p-4 bg-red-50 border-b border-red-200">
           <div className="text-red-800">{error}</div>
@@ -190,22 +195,24 @@ export function AppContentArea({
       )}
 
       {showCreateForm ? (
-        <div className="p-6">
+        <div className="p-6" data-testid="create-form">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">新規プロンプト作成</h2>
           <PromptForm
             onSubmit={onCreatePrompt}
             onCancel={onCancelCreateForm}
             isLoading={isLoading}
+            formSubmitHandlerRef={formSubmitHandlerRef}
           />
         </div>
       ) : showEditForm && selectedPrompt ? (
-        <div className="p-6">
+        <div className="p-6" data-testid="edit-form">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">プロンプト編集</h2>
           <PromptForm
             initialData={selectedPrompt}
             onSubmit={onUpdatePrompt}
             onCancel={onCancelEditForm}
             isLoading={isLoading}
+            formSubmitHandlerRef={formSubmitHandlerRef}
           />
         </div>
       ) : selectedPrompt ? (
@@ -215,7 +222,7 @@ export function AppContentArea({
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-medium text-gray-900 truncate mb-1">
-                  {selectedPrompt.title}
+                  {getSafeTitle(selectedPrompt)}
                 </h2>
 
                 {/* クイックアクセスキー */}

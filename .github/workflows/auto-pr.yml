@@ -6,6 +6,21 @@ on:
       - develop
       - staging
 
+# GitHub Actionsの権限設定についての注意事項:
+# このワークフローを使用するには、リポジトリの設定でGitHub ActionsがPRを作成できるように設定する必要があります。
+# 
+# 設定方法:
+# 1. リポジトリの Settings > Actions > General に移動
+# 2. "Workflow permissions" セクションで以下のいずれかを選択:
+#    - "Read and write permissions" を選択（推奨）
+#    - または "Read repository contents and packages permissions" を選択し、
+#      "Allow GitHub Actions to create and approve pull requests" にチェック
+# 3. Save をクリック
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   create-pr-to-staging:
     if: github.ref == 'refs/heads/develop'
@@ -28,7 +43,12 @@ jobs:
               --base staging \
               --head develop \
               --title "chore: develop → staging 自動PR" \
-              --body "developブランチの変更をstagingブランチへ自動同期"
+              --body "developブランチの変更をstagingブランチへ自動同期" || {
+              echo "::warning::PR creation failed. Please check repository settings:"
+              echo "::warning::1. Go to Settings > Actions > General"
+              echo "::warning::2. Enable 'Allow GitHub Actions to create and approve pull requests'"
+              exit 0
+            }
             echo "Created PR from develop to staging"
           else
             echo "PR from develop to staging already exists (#$existing_pr)"
@@ -55,7 +75,12 @@ jobs:
               --base main \
               --head staging \
               --title "chore: staging → main 自動PR" \
-              --body "stagingブランチの変更をmainブランチへ自動同期"
+              --body "stagingブランチの変更をmainブランチへ自動同期" || {
+              echo "::warning::PR creation failed. Please check repository settings:"
+              echo "::warning::1. Go to Settings > Actions > General"
+              echo "::warning::2. Enable 'Allow GitHub Actions to create and approve pull requests'"
+              exit 0
+            }
             echo "Created PR from staging to main"
           else
             echo "PR from staging to main already exists (#$existing_pr)"

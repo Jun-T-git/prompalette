@@ -12,7 +12,8 @@ describe('Prompts Route', () => {
   let testAuth: TestAuth;
 
   beforeEach(async () => {
-    // Ensure file storage is initialized before each test
+    // Reset file storage for clean test environment
+    await fileStorage.reset();
     await fileStorage.initialize();
     
     // Create test authentication dynamically
@@ -119,7 +120,7 @@ describe('Prompts Route', () => {
 
   it('should handle validation errors gracefully', async () => {
     const invalidData = {
-      title: '', // Invalid: empty title
+      title: 'a'.repeat(101), // Invalid: title too long
       content: 'Test content',
     };
 

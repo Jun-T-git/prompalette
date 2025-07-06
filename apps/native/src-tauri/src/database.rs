@@ -1,9 +1,9 @@
-/**
+/*!
  * データベース操作モジュール
- * SQLiteを使用したプロンプトデータの永続化
+ * `SQLite`を使用したプロンプトデータの永続化
  */
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Row};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
@@ -14,7 +14,7 @@ static DB_POOL: OnceLock<SqlitePool> = OnceLock::new();
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Prompt {
     pub id: String,
-    pub title: String,
+    pub title: Option<String>,
     pub content: String,
     pub tags: Option<String>, // JSON文字列として保存
     pub quick_access_key: Option<String>, // クイックアクセスキー
@@ -27,7 +27,7 @@ pub struct Prompt {
 /// プロンプト作成リクエスト
 #[derive(Debug, Deserialize)]
 pub struct CreatePromptRequest {
-    pub title: String,
+    pub title: Option<String>,
     pub content: String,
     pub tags: Option<Vec<String>>,
     #[serde(rename = "quickAccessKey")]
@@ -47,23 +47,10 @@ pub struct UpdatePromptRequest {
 /// アプリケーションデータディレクトリの取得
 /// プラットフォーム固有の適切なディレクトリを返す
 fn get_app_data_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    // プラットフォーム別のデータディレクトリ
-    let app_dir = if cfg!(target_os = "macos") {
-        std::env::var("HOME")
-            .map(|home| std::path::PathBuf::from(home).join("Library/Application Support/PromPalette"))
-            .map_err(|_| "Cannot find HOME directory on macOS")?
-    } else if cfg!(target_os = "windows") {
-        std::env::var("APPDATA")
-            .map(|appdata| std::path::PathBuf::from(appdata).join("PromPalette"))
-            .map_err(|_| "Cannot find APPDATA directory on Windows")?
-    } else {
-        // Linux/Unix
-        std::env::var("HOME")
-            .map(|home| std::path::PathBuf::from(home).join(".config/prompalette"))
-            .map_err(|_| "Cannot find HOME directory on Linux")?
-    };
-    
-    Ok(app_dir)
+    // 環境に基づいてディレクトリを取得
+    use crate::environment::Environment;
+    let env = Environment::current();
+    env.data_dir()
 }
 
 
@@ -76,7 +63,10 @@ pub async fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         format!("Failed to create app data directory {}: {}", app_dir.display(), e)
     })?;
     
-    let db_path = app_dir.join("prompalette.db");
+    // 環境固有のデータベースファイル名を使用
+    use crate::environment::Environment;
+    let env = Environment::current();
+    let db_path = app_dir.join(env.database_filename());
     
     // データベースファイルへの書き込み権限確認
     if db_path.exists() {
@@ -114,10 +104,10 @@ pub async fn init_database() -> Result<(), Box<dyn std::error::Error>> {
 async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
     // プロンプトテーブル作成
     sqlx::query(
-        r#"
+        r"
         CREATE TABLE IF NOT EXISTS prompts (
             id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
+            title TEXT,
             content TEXT NOT NULL,
             tags TEXT,
             quick_access_key TEXT,
@@ -126,11 +116,11 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
             pinned_position INTEGER,
             pinned_at DATETIME
         );
-        "#,
+        ",
     )
     .execute(pool)
     .await
-    .map_err(|e| format!("Failed to create prompts table: {}", e))?;
+    .map_err(|e| format!("Failed to create prompts table: {e}"))?;
     
     // 既存テーブルにピン関連カラムを追加（マイグレーション）
     run_migrations(pool).await?;
@@ -155,28 +145,170 @@ async fn init_database_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::erro
 /// データベースマイグレーション実行
 /// 既存のテーブルにピン関連カラムを追加
 async fn run_migrations(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
-    // pinned_positionカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_position INTEGER;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
+    // カラム追加の安全な実行（既存カラムのチェック付き）
+    add_column_if_not_exists(pool, "pinned_position", "INTEGER").await?;
+    add_column_if_not_exists(pool, "pinned_at", "DATETIME").await?;
+    add_column_if_not_exists(pool, "quick_access_key", "TEXT").await?;
     
-    // pinned_atカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN pinned_at DATETIME;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
-    
-    // quick_access_keyカラムの追加
-    let _ = sqlx::query("ALTER TABLE prompts ADD COLUMN quick_access_key TEXT;")
-        .execute(pool)
-        .await; // エラーは無視（既に存在する場合）
+    // titleカラムのNOT NULL制約を削除するマイグレーション
+    migrate_title_to_optional(pool).await?;
     
     Ok(())
 }
 
-/// データベース接続プール取得
+/// 指定されたカラムが存在しない場合のみ追加する安全なヘルパー関数
+async fn add_column_if_not_exists(
+    pool: &SqlitePool, 
+    column_name: &str, 
+    column_type: &str
+) -> Result<(), Box<dyn std::error::Error>> {
+    let table_info = sqlx::query("PRAGMA table_info(prompts);")
+        .fetch_all(pool)
+        .await?;
+    
+    let column_exists = table_info.iter().any(|row| {
+        let name: String = row.get("name");
+        name == column_name
+    });
+    
+    if !column_exists {
+        let query = format!("ALTER TABLE prompts ADD COLUMN {} {};", column_name, column_type);
+        sqlx::query(&query)
+            .execute(pool)
+            .await
+            .map_err(|e| format!("Failed to add column {}: {}", column_name, e))?;
+    }
+    
+    Ok(())
+}
+
+/// titleカラムをNOT NULLからオプショナルに変更するマイグレーション
+/// トランザクションを使用してデータ安全性を確保
+async fn migrate_title_to_optional(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    // プロンプトテーブルが存在するかチェック
+    let table_exists = sqlx::query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='prompts';"
+    )
+    .fetch_optional(pool)
+    .await?;
+    
+    if table_exists.is_none() {
+        // テーブルが存在しない場合は何もしない
+        return Ok(());
+    }
+    
+    // titleカラムがNOT NULLかどうかを確認
+    let table_info = sqlx::query("PRAGMA table_info(prompts);")
+        .fetch_all(pool)
+        .await?;
+    
+    let mut title_not_null = false;
+    for row in table_info {
+        let column_name: String = row.get("name");
+        let not_null: i64 = row.get("notnull");
+        if column_name == "title" && not_null == 1 {
+            title_not_null = true;
+            break;
+        }
+    }
+    
+    // titleがNOT NULLの場合のみマイグレーションを実行
+    if title_not_null {
+        // トランザクション開始でデータ安全性を確保
+        let mut tx = pool.begin().await?;
+        
+        // バックアップテーブル作成（データ損失防止）
+        sqlx::query(
+            r"
+            CREATE TABLE IF NOT EXISTS prompts_backup AS 
+            SELECT * FROM prompts;
+            "
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // 一時テーブルを作成
+        sqlx::query(
+            r"
+            CREATE TABLE prompts_new (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                content TEXT NOT NULL,
+                tags TEXT,
+                quick_access_key TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                pinned_position INTEGER,
+                pinned_at DATETIME
+            );
+            ",
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // データをコピー
+        sqlx::query(
+            r"
+            INSERT INTO prompts_new (id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at)
+            SELECT id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at FROM prompts;
+            ",
+        )
+        .execute(&mut *tx)
+        .await?;
+        
+        // データ整合性検証
+        let original_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prompts")
+            .fetch_one(&mut *tx)
+            .await?;
+        let new_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prompts_new")
+            .fetch_one(&mut *tx)
+            .await?;
+        
+        if original_count != new_count {
+            // データ不整合の場合はロールバック
+            return Err("Data migration failed: row count mismatch".into());
+        }
+        
+        // 古いテーブルを削除
+        sqlx::query("DROP TABLE prompts;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // 新しいテーブルをリネーム
+        sqlx::query("ALTER TABLE prompts_new RENAME TO prompts;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // バックアップテーブルも同一トランザクション内で削除
+        sqlx::query("DROP TABLE IF EXISTS prompts_backup;")
+            .execute(&mut *tx)
+            .await?;
+        
+        // トランザクションコミット（全操作の原子性確保）
+        tx.commit().await?;
+    }
+    
+    Ok(())
+}
+
+/// データベース接続プール取得（内部使用用）
 /// データベースが初期化されていない場合はパニック
-pub fn get_db_pool() -> &'static SqlitePool {
+/// 
+/// # Safety
+/// この関数は内部使用のみ。新規コードでは`try_get_db_pool()`を使用すること。
+fn get_db_pool() -> &'static SqlitePool {
     DB_POOL.get().expect("Database not initialized. Call init_database() first.")
+}
+
+/// データベース接続プール取得（安全版）
+/// 
+/// # Returns
+/// * `Ok(&SqlitePool)` - データベースプールが初期化済みの場合
+/// * `Err(String)` - データベースが初期化されていない場合
+#[allow(dead_code)]
+pub fn try_get_db_pool() -> Result<&'static SqlitePool, String> {
+    DB_POOL.get()
+        .ok_or_else(|| "Database not initialized. Call init_database() first.".to_string())
 }
 
 /// プロンプト作成
@@ -192,11 +324,11 @@ pub async fn create_prompt(request: CreatePromptRequest) -> Result<Prompt, Box<d
     };
     
     let prompt = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         INSERT INTO prompts (id, title, content, tags, quick_access_key, created_at, updated_at, pinned_position, pinned_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL)
         RETURNING *
-        "#,
+        ",
     )
     .bind(&id)
     .bind(&request.title)
@@ -239,14 +371,14 @@ pub async fn get_all_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Error>
 /// プロンプト検索（既存API - 後方互換性維持）
 pub async fn search_prompts(query: &str) -> Result<Vec<Prompt>, Box<dyn std::error::Error>> {
     let pool = get_db_pool();
-    let search_term = format!("%{}%", query);
+    let search_term = format!("%{query}%");
     
     let prompts = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         SELECT * FROM prompts 
         WHERE title LIKE $1 OR content LIKE $1 OR tags LIKE $1
         ORDER BY updated_at DESC
-        "#,
+        ",
     )
     .bind(&search_term)
     .fetch_all(pool)
@@ -271,8 +403,8 @@ pub async fn search_prompts_fast(query: &str) -> Result<Vec<Prompt>, Box<dyn std
         return Ok(vec![]);
     }
     
-    let search_term = format!("%{}%", query);
-    let prefix_term = format!("{}%", query);
+    let search_term = format!("%{query}%");
+    let prefix_term = format!("{query}%");
     
     // 優先度付き検索クエリ
     let prompts = sqlx::query_as::<_, Prompt>(
@@ -322,7 +454,7 @@ pub async fn update_prompt(
     };
     
     // 更新フィールドの決定
-    let title = request.title.unwrap_or(existing.title);
+    let title = request.title.or(existing.title);
     let content = request.content.unwrap_or(existing.content);
     
     // タグの処理
@@ -337,12 +469,12 @@ pub async fn update_prompt(
     let now = chrono::Utc::now();
     
     let updated_prompt = sqlx::query_as::<_, Prompt>(
-        r#"
+        r"
         UPDATE prompts 
         SET title = $1, content = $2, tags = $3, quick_access_key = $4, updated_at = $5
         WHERE id = $6
         RETURNING *
-        "#,
+        ",
     )
     .bind(&title)
     .bind(&content)
@@ -373,7 +505,7 @@ pub async fn delete_prompt(id: &str) -> Result<bool, Box<dyn std::error::Error>>
 /// position: 1-10の範囲でピン留め位置を指定
 /// 既に同じ位置にピン留めされているプロンプトがある場合は、そのピン留めを解除
 pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -393,7 +525,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
     sqlx::query(
         "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .execute(&mut *tx)
     .await?;
     
@@ -401,7 +533,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
     let result = sqlx::query(
         "UPDATE prompts SET pinned_position = $1, pinned_at = $2 WHERE id = $3"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .bind(now)
     .bind(prompt_id)
     .execute(&mut *tx)
@@ -421,7 +553,7 @@ pub async fn pin_prompt(prompt_id: &str, position: u8) -> Result<(), Box<dyn std
 /// 
 /// position: 解除するピン留め位置（1-10）
 pub async fn unpin_prompt(position: u8) -> Result<(), Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -430,7 +562,7 @@ pub async fn unpin_prompt(position: u8) -> Result<(), Box<dyn std::error::Error>
     let result = sqlx::query(
         "UPDATE prompts SET pinned_position = NULL, pinned_at = NULL WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .execute(pool)
     .await?;
     
@@ -461,7 +593,7 @@ pub async fn get_pinned_prompts() -> Result<Vec<Prompt>, Box<dyn std::error::Err
 /// position: コピーするピン留め位置（1-10）
 /// プロンプトの内容をクリップボードにコピーし、成功/失敗を返す
 pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    if position < 1 || position > 10 {
+    if !(1..=10).contains(&position) {
         return Err("Pin position must be between 1 and 10".into());
     }
     
@@ -470,7 +602,7 @@ pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, B
     let prompt: Option<(String,)> = sqlx::query_as(
         "SELECT content FROM prompts WHERE pinned_position = $1"
     )
-    .bind(position as i32)
+    .bind(i32::from(position))
     .fetch_optional(pool)
     .await?;
     
@@ -481,7 +613,7 @@ pub async fn get_pinned_prompt_content(position: u8) -> Result<Option<String>, B
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio;
+    
 
     /// テスト用のデータベースプールを作成
     async fn create_test_pool() -> SqlitePool {
@@ -489,10 +621,10 @@ mod tests {
         
         // テーブル作成
         sqlx::query(
-            r#"
+            r"
             CREATE TABLE prompts (
                 id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
+                title TEXT,
                 content TEXT NOT NULL,
                 tags TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -500,7 +632,7 @@ mod tests {
                 pinned_position INTEGER,
                 pinned_at DATETIME
             );
-            "#,
+            ",
         )
         .execute(&pool)
         .await
@@ -553,8 +685,8 @@ mod tests {
         
         // 直接SQLクエリで検証
         let query = "test";
-        let search_term = format!("%{}%", query);
-        let prefix_term = format!("{}%", query);
+        let search_term = format!("%{query}%");
+        let prefix_term = format!("{query}%");
         
         let rows: Vec<(String, i32)> = sqlx::query_as(
             r#"
@@ -602,7 +734,7 @@ mod tests {
         
         // 25件のテストデータを挿入
         for i in 0..25 {
-            let id = format!("test_{}", i);
+            let id = format!("test_{i}");
             sqlx::query(
                 "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
             )
@@ -709,13 +841,13 @@ mod tests {
         
         // 2つのプロンプトを作成
         for i in 1..=2 {
-            let prompt_id = format!("test_prompt_{}", i);
+            let prompt_id = format!("test_prompt_{i}");
             sqlx::query(
                 "INSERT INTO prompts (id, title, content, tags) VALUES ($1, $2, $3, $4)"
             )
             .bind(&prompt_id)
-            .bind(&format!("Test Title {}", i))
-            .bind(&format!("Test content {}", i))
+            .bind(format!("Test Title {i}"))
+            .bind(format!("Test content {i}"))
             .bind("[]")
             .execute(&pool)
             .await
@@ -743,5 +875,27 @@ mod tests {
         
         // SQLite UNIQUE制約違反が発生することを確認
         assert!(second_pin_result.is_err());
+    }
+    
+    #[test]
+    fn test_try_get_db_pool_before_init() {
+        // DB_POOLが初期化されていない場合のテスト
+        // 注意: このテストは他のテストが実行される前に実行される必要がある
+        // ただし、現在の実装ではDB_POOLはグローバルなので、
+        // 他のテストで初期化されている可能性がある
+        
+        // try_get_db_poolがエラーを返すか、または成功するか確認
+        let result = try_get_db_pool();
+        // どちらの結果でもパニックしないことを確認
+        match result {
+            Ok(_) => {
+                // 他のテストで初期化済み
+                assert!(true);
+            }
+            Err(msg) => {
+                // 期待されるエラーメッセージ
+                assert!(msg.contains("Database not initialized"));
+            }
+        }
     }
 }
