@@ -11,28 +11,54 @@ describe('HomePage', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('should render the tagline', () => {
+  it('should render the Japanese tagline', () => {
     render(<HomePage />);
     
-    const tagline = screen.getByText('Your AI Prompts, Beautifully Organized');
+    const tagline = screen.getByText(/でどこからでも瞬時に呼び出し/);
     expect(tagline).toBeInTheDocument();
   });
 
   it('should render the CTA buttons', () => {
     render(<HomePage />);
     
-    const getStartedButton = screen.getByRole('button', { name: 'Get Started' });
-    const learnMoreButton = screen.getByRole('button', { name: 'Learn More' });
+    const webAppButtons = screen.getAllByText('Webアプリを開始');
+    const desktopButton = screen.getByText('デスクトップ版をダウンロード');
     
-    expect(getStartedButton).toBeInTheDocument();
-    expect(learnMoreButton).toBeInTheDocument();
+    expect(webAppButtons).toHaveLength(2); // One in product section, one in CTA section
+    expect(desktopButton).toBeInTheDocument();
   });
 
-  it('should render all feature cards', () => {
+  it('should render key benefits section', () => {
     render(<HomePage />);
     
-    expect(screen.getByText('🚀 Instant Access')).toBeInTheDocument();
-    expect(screen.getByText('🔌 Cross-Platform')).toBeInTheDocument();
-    expect(screen.getByText('💾 Local-First')).toBeInTheDocument();
+    expect(screen.getByText('グローバルホットキー')).toBeInTheDocument();
+    expect(screen.getByText('即時検索')).toBeInTheDocument();
+    expect(screen.getByText('即時ペースト')).toBeInTheDocument();
+  });
+
+  it('should render problem section', () => {
+    render(<HomePage />);
+    
+    expect(screen.getByText('作業を中断していませんか？')).toBeInTheDocument();
+    expect(screen.getByText('アプリ切り替えの時間')).toBeInTheDocument();
+    expect(screen.getByText('検索の手間')).toBeInTheDocument();
+    expect(screen.getByText('思考の中断')).toBeInTheDocument();
+  });
+
+  it('should render product options', () => {
+    render(<HomePage />);
+    
+    expect(screen.getByText('PromPalette Web')).toBeInTheDocument();
+    expect(screen.getByText('PromPalette Desktop')).toBeInTheDocument();
+    expect(screen.getByText('バックグラウンドから1秒でアクセス')).toBeInTheDocument();
+  });
+
+  it('should render features section', () => {
+    render(<HomePage />);
+    
+    expect(screen.getByText('なぜ PromPalette なのか？')).toBeInTheDocument();
+    expect(screen.getByText('バックグラウンド起動')).toBeInTheDocument();
+    expect(screen.getByText('リアルタイム検索')).toBeInTheDocument();
+    expect(screen.getByText('プライバシー重視')).toBeInTheDocument();
   });
 });
