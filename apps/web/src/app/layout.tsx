@@ -7,8 +7,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'PromPalette - Your AI Prompts, Beautifully Organized',
-  description: 'Save, organize, and share your AI prompts across all platforms',
+  title: 'PromPalette - AIプロンプト管理の新しいスタンダード',
+  description: 'ウェブとデスクトップで使える、プロンプト管理のためのオールインワンプラットフォーム',
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ja">
       <body className={inter.className}>{children}</body>
     </html>
   );
