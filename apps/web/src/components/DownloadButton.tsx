@@ -9,53 +9,62 @@ interface DownloadButtonProps {
   className?: string;
   size?: 'sm' | 'lg';
   children?: React.ReactNode;
+  showPlatformWarning?: boolean;
 }
 
 export function DownloadButton({ 
   platform = 'macos', 
   className = '', 
   size = 'lg',
-  children 
+  children,
+  showPlatformWarning = true
 }: DownloadButtonProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownload = async () => {
+    // macOS以外の場合は警告を表示
+    if (platform !== 'macos' && showPlatformWarning) {
+      const confirmed = window.confirm(
+        `現在、${platform === 'windows' ? 'Windows' : 'Linux'}版は開発中です。\n` +
+        'GitHubのReleasesページでmacOS版をダウンロードしますか？'
+      );
+      if (!confirmed) return;
+    }
+
     setIsDownloading(true);
     
     try {
-      const response = await fetch(`/api/download?platform=${platform}`);
+      const downloadUrl = `/api/download?platform=${platform}`;
       
-      if (response.status === 302 || response.redirected) {
-        // リダイレクト先のURLを取得してダウンロード開始
-        window.open(response.url, '_blank');
-      } else if (response.status === 202) {
-        // ダウンロードファイルが準備中の場合
-        const data = await response.json();
-        alert(data.message);
-        if (data.github_url) {
-          window.open(data.github_url, '_blank');
-        }
-      } else if (response.ok) {
-        // 直接ファイルをダウンロード
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `PromPalette-${platform}.dmg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } else {
-        const errorData = await response.json();
-        console.error('ダウンロードに失敗しました:', errorData);
-        alert('ダウンロードに失敗しました。後でもう一度お試しください。');
+      // 新しいタブで開く（CORSエラー回避）
+      const newWindow = window.open(downloadUrl, '_blank');
+      
+      // ポップアップブロッカーのチェック
+      if (!newWindow || newWindow.closed) {
+        alert('ポップアップブロッカーが有効です。ダウンロードを許可してください。');
+        setIsDownloading(false);
+        return;
       }
+      
+      // API の健全性チェック（実際のファイルは取得せず）
+      const healthCheck = await fetch(`/api/download?platform=${platform}&check=true`);
+      if (!healthCheck.ok) {
+        const data = await healthCheck.json();
+        if (data.message) {
+          alert(data.message);
+        } else if (data.error) {
+          alert(data.error);
+        }
+      }
+      
     } catch (error) {
-      console.error('ダウンロードエラー:', error);
-      alert('ダウンロードエラーが発生しました。ネットワーク接続を確認してください。');
+      console.error('Download error:', error);
+      alert('ダウンロードに問題が発生しました。しばらくしてから再度お試しください。');
     } finally {
-      setIsDownloading(false);
+      // ダウンロード開始後、少し待ってからローディング状態を解除
+      setTimeout(() => {
+        setIsDownloading(false);
+      }, 2000);
     }
   };
 
