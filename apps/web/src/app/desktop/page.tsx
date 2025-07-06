@@ -2,12 +2,33 @@ import { Button } from '@prompalette/ui';
 import { Apple, BookOpen, Globe } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 import { DownloadButton } from '@/components/DownloadButton';
+import { StructuredData } from '@/components/StructuredData';
+
+export const metadata: Metadata = {
+  title: 'PromPalette Desktop - macOS用AIプロンプト管理アプリ',
+  description: 'macOS専用のネイティブデスクトップアプリ。⌘+Ctrlでグローバルアクセス、お気に入りプロンプトを瞬時に呼び出し。バックグラウンドから1秒でAIワークフローを最適化。',
+  openGraph: {
+    title: 'PromPalette Desktop - macOS用AIプロンプト管理アプリ',
+    description: 'macOS専用のネイティブデスクトップアプリ。⌘+Ctrlでグローバルアクセス、お気に入りプロンプトを瞬時に呼び出し。',
+    url: 'https://prompalette.com/desktop',
+  },
+};
 
 export default function DesktopLandingPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+    <>
+      <StructuredData
+        type="SoftwareApplication"
+        name="PromPalette Desktop"
+        description="macOS専用のネイティブデスクトップアプリ。⌘+Ctrlでグローバルアクセス、お気に入りプロンプトを瞬時に呼び出し。"
+        url="https://prompalette.com/desktop"
+        applicationCategory="ProductivityApplication"
+        operatingSystem="macOS"
+      />
+      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       <section className="relative overflow-hidden">
         <div className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 max-w-7xl">
           <div className="text-center mb-16">
@@ -117,6 +138,7 @@ export default function DesktopLandingPage() {
           <p className="text-blue-200 text-sm">無料 • オープンソース</p>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

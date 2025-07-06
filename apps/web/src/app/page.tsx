@@ -19,6 +19,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { DownloadButton } from '@/components/DownloadButton';
+import { StructuredData } from '@/components/StructuredData';
 import { TableOfContents } from '@/components/TableOfContents';
 
 export default function HomePage() {
@@ -31,8 +32,16 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-50 font-inter antialiased relative">
-      <TableOfContents sections={sections} />
+    <>
+      <StructuredData
+        type="WebApplication"
+        name="PromPalette"
+        description="AIプロンプト管理ツール - ウェブとデスクトップで使える、プロンプト管理のためのオールインワンプラットフォーム"
+        url="https://prompalette.com"
+        applicationCategory="ProductivityApplication"
+      />
+      <main className="min-h-screen bg-slate-50 font-inter antialiased relative">
+        <TableOfContents sections={sections} />
       {/* Hero Section */}
       <section
         id="hero"
@@ -468,6 +477,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }
