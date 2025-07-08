@@ -115,15 +115,7 @@ Please follow these steps to have your contribution considered by the maintainer
    pnpm install
    ```
 
-2. **Set up Tauri signing keys (for native app development):**
-
-   ```bash
-   cd apps/native
-   chmod +x scripts/setup-keys.sh
-   ./scripts/setup-keys.sh
-   ```
-
-3. **Start development servers:**
+2. **Start development servers:**
 
    ```bash
    # Start all apps in development mode
@@ -269,54 +261,6 @@ git commit -m "feat(api)!: change authentication method
 
 BREAKING CHANGE: API now uses JWT tokens instead of API keys"
 ```
-
-## 🔐 Code Signing & Security
-
-### Environment-Specific Signing
-
-- **Development**: Ad-hoc signing (no certificates required)
-- **Staging**: Ad-hoc signing (right-click to open on macOS)
-- **Production**: Apple Developer ID signing + notarization
-
-### Required Secrets (Production Only)
-
-For production builds, the following GitHub Secrets are required:
-
-#### Apple Code Signing
-- `APPLE_CERTIFICATE_BASE64`: Developer ID Application certificate (base64 encoded)
-- `APPLE_CERTIFICATE_PASSWORD`: Certificate password
-- `KEYCHAIN_PASSWORD`: Temporary keychain password
-
-#### Apple Notarization (Recommended)
-- `APPLE_ID`: Apple Developer account email
-- `APPLE_PASSWORD`: App-specific password
-- `APPLE_TEAM_ID`: Apple Developer Team ID
-
-#### Tauri Auto-Updates (Optional)
-- `TAURI_PRIVATE_KEY`: Tauri updater private key
-- `TAURI_KEY_PASSWORD`: Private key password
-
-### Setting Up Apple Developer Certificates
-
-1. Join the Apple Developer Program ($99/year)
-2. Create a Developer ID Application certificate
-3. Export as .p12 file with password
-4. Convert to base64: `base64 -i certificate.p12`
-5. Add to GitHub Secrets
-
-### Troubleshooting Common Issues
-
-#### "App is damaged" on macOS
-- **Cause**: Invalid or missing code signature
-- **Solution**: Ensure Apple certificates are properly configured for production builds
-
-#### Tauri signature generation fails
-- **Cause**: Missing or invalid TAURI_PRIVATE_KEY
-- **Solution**: Run `./scripts/setup-keys.sh` and add secrets to GitHub
-
-#### Build fails in CI
-- **Cause**: Missing dependencies or secrets
-- **Solution**: Check GitHub Actions logs and ensure all required secrets are set
 
 ## Questions?
 
