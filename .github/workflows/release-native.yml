@@ -95,50 +95,24 @@ jobs:
           echo "📋 Version: $VERSION"
 
       - name: Setup Apple Code Signing (Production only)
-        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_CERTIFICATE_BASE64 != '' && env.APPLE_CERTIFICATE_PASSWORD != '' }}
-        env:
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        if: ${{ steps.env.outputs.environment == 'production' && secrets.APPLE_CERTIFICATE_BASE64 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
         run: |
           echo "🔑 Setting up Apple Developer ID code signing for production..."
           
           # Create keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
           security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
           
           # Import certificate
-          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
           
           # Set signing identity
           echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')" >> $GITHUB_ENV
           
           echo "✅ Code signing setup completed for production"
-
-      - name: Debug signing configuration
-        run: |
-          echo "🔍 Checking signing configuration..."
-          echo "Environment: ${{ steps.env.outputs.environment }}"
-          
-          if [[ "${{ steps.env.outputs.environment }}" == "production" ]]; then
-            echo "📦 Production build - checking for signing certificates"
-            if [[ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]]; then
-              echo "✅ APPLE_CERTIFICATE_BASE64 is set"
-            else
-              echo "❌ APPLE_CERTIFICATE_BASE64 is NOT set"
-            fi
-            if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
-              echo "✅ APPLE_SIGNING_IDENTITY: $APPLE_SIGNING_IDENTITY"
-            else
-              echo "⚠️ APPLE_SIGNING_IDENTITY is NOT set - will use ad-hoc signing"
-            fi
-          else
-            echo "🔧 Non-production build - signing is optional"
-            echo "ℹ️ Will use ad-hoc signing for ${{ steps.env.outputs.environment }} environment"
-          fi
 
       - name: Build Tauri app (Environment-specific)
         env:
@@ -159,22 +133,13 @@ jobs:
           fi
           
           # Environment-specific signing configuration
-          if [[ "$APP_ENV" == "production" ]]; then
-            if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
-              echo "🔏 Building with Apple Developer ID signing for production..."
-              export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
-              export APPLE_SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
-              export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
-              export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-            else
-              echo "⚠️ Production build without Apple Developer ID!"
-              echo "❗ This will cause 'app is damaged' errors on user machines"
-              echo "🚫 Falling back to ad-hoc signing for production"
-              export APPLE_CODESIGN_IDENTITY="-"
-            fi
+          if [[ "$APP_ENV" == "production" ]] && [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "🔏 Building with Apple Developer ID signing for production..."
+            export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
+            export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
+            export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
           else
-            echo "🧪 Building $APP_ENV environment with ad-hoc signing"
-            echo "ℹ️ Non-production builds use ad-hoc signing (right-click to open)"
+            echo "🧪 Building with ad-hoc signing for $APP_ENV"
             export APPLE_CODESIGN_IDENTITY="-"
             # Still use Tauri signing for auto-updates if available
             if [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
@@ -259,11 +224,7 @@ jobs:
           echo "dmg_name=$(basename $SELECTED_DMG)" >> $GITHUB_OUTPUT
 
       - name: Notarize macOS app (Production only)
-        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_ID != '' && env.APPLE_PASSWORD != '' && env.APPLE_TEAM_ID != '' }}
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
         run: |
           cd apps/native
           DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
@@ -272,9 +233,9 @@ jobs:
           
           # Submit for notarization
           xcrun notarytool submit "$DMG_PATH" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
             --wait
           
           # Staple the notarization ticket
@@ -402,26 +363,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate staging signature
-        id: staging_signature
-        uses: ./.github/actions/generate-updater-signature
-        with:
-          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
-          environment: staging
-          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
-          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
-
-      - name: Create staging updater manifest
-        id: staging_manifest
-        uses: ./.github/actions/create-updater-manifest
-        with:
-          version: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
-          release-notes-file: notes.md
-          signature: ${{ steps.staging_signature.outputs.signature }}
-          dmg-file: ${{ steps.staging_signature.outputs.dmg-file }}
-          repository: ${{ github.repository }}
-          manifest-filename: updater-manifest-staging.json
+      - name: Skip updater signature for staging
+        run: |
+          echo "🧪 Staging build - skipping Tauri updater signature"
+          echo "ℹ️ Staging builds use ad-hoc signing and don't require updater manifests"
+          echo "🚀 Users can download DMG directly from releases"
 
       - name: Create pre-release
         uses: softprops/action-gh-release@v2
@@ -432,7 +378,6 @@ jobs:
           body_path: notes.md
           files: |
             ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
-            ./updater-manifest-staging.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
