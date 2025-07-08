@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { loadPublicKey } from './inject-pubkey.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,18 @@ if (env !== 'production' && fs.existsSync(envConfigPath)) {
     console.log('✅ Using production configuration');
 } else {
     console.warn(`⚠️  No specific configuration found for ${env} environment, using base configuration`);
+}
+
+// Inject Tauri public key if updater is active
+if (finalConfig.plugins?.updater?.active) {
+    try {
+        const publicKey = loadPublicKey();
+        finalConfig.plugins.updater.pubkey = publicKey;
+        console.log('🔑 Injected Tauri updater public key');
+    } catch (error) {
+        console.warn('⚠️ Failed to inject public key:', error.message);
+        console.warn('💡 Auto-update functionality may not work properly');
+    }
 }
 
 // 一時ファイルに出力

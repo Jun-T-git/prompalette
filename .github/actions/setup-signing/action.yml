@@ -1,0 +1,72 @@
+name: 'Setup Code Signing'
+description: 'Configure Apple Developer ID and Tauri signing based on environment'
+
+inputs:
+  environment:
+    description: 'Build environment (development, staging, production)'
+    required: true
+  apple-certificate:
+    description: 'Apple Developer ID certificate (base64)'
+    required: false
+  apple-password:
+    description: 'Apple certificate password'
+    required: false
+  keychain-password:
+    description: 'Keychain password'
+    required: false
+
+outputs:
+  apple-signing-enabled:
+    description: 'Whether Apple Developer ID signing is enabled'
+    value: ${{ steps.setup.outputs.apple-signing-enabled }}
+  signing-identity:
+    description: 'Apple signing identity'
+    value: ${{ steps.setup.outputs.signing-identity }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Apple Developer ID signing
+      id: setup
+      shell: bash
+      run: |
+        # Mask sensitive information
+        echo "::add-mask::${{ inputs.apple-password }}"
+        echo "::add-mask::${{ inputs.keychain-password }}"
+        
+        ENVIRONMENT="${{ inputs.environment }}"
+        
+        # Only enable Apple signing for production
+        if [[ "$ENVIRONMENT" == "production" ]] && [[ -n "${{ inputs.apple-certificate }}" ]] && [[ -n "${{ inputs.apple-password }}" ]]; then
+          echo "🔐 Setting up Apple Developer ID signing for production..."
+          
+          # Create secure keychain
+          security create-keychain -p "${{ inputs.keychain-password }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ inputs.keychain-password }}" build.keychain
+          
+          # Import certificate
+          echo "${{ inputs.apple-certificate }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${{ inputs.apple-password }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ inputs.keychain-password }}" build.keychain
+          
+          # Get signing identity
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')
+          
+          if [[ -n "$SIGNING_IDENTITY" ]]; then
+            echo "apple-signing-enabled=true" >> $GITHUB_OUTPUT
+            echo "signing-identity=$SIGNING_IDENTITY" >> $GITHUB_OUTPUT
+            echo "✅ Apple Developer ID signing configured"
+          else
+            echo "apple-signing-enabled=false" >> $GITHUB_OUTPUT
+            echo "signing-identity=" >> $GITHUB_OUTPUT
+            echo "❌ Failed to configure Apple signing"
+          fi
+          
+          # Cleanup
+          rm -f certificate.p12
+        else
+          echo "🧪 Using ad-hoc signing for $ENVIRONMENT environment"
+          echo "apple-signing-enabled=false" >> $GITHUB_OUTPUT
+          echo "signing-identity=" >> $GITHUB_OUTPUT
+        fi
