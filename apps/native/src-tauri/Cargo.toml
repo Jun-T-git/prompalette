@@ -1,6 +1,6 @@
 [package]
 name = "prompalette"
-version = "0.1.1"
+version = "0.1.2"
 description = "PromPalette Desktop Application - AI Prompt Management Tool"
 authors = ["PromPalette Team"]
 edition = "2021"
