@@ -146,8 +146,12 @@ jobs:
             export APPLE_CODESIGN_IDENTITY="-"
             # Still use Tauri signing for auto-updates if available
             if [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
+              echo "📝 Tauri signing keys detected, setting up..."
               export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
               export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
+              echo "✅ Tauri signing environment variables set"
+            else
+              echo "⚠️ No Tauri signing keys found for $APP_ENV"
             fi
           fi
           
