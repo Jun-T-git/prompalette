@@ -63,6 +63,10 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.15",
+      "entitlements": null,
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null,
       "dmg": {
         "appPosition": {
           "x": 180,
