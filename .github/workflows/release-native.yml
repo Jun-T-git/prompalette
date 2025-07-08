@@ -94,14 +94,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📋 Version: $VERSION"
 
-      - name: Setup code signing
-        id: signing
-        uses: ./.github/actions/setup-signing
-        with:
-          environment: ${{ steps.env.outputs.environment }}
-          apple-certificate: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          apple-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+      - name: Setup Apple Code Signing (Production only)
+        if: ${{ steps.env.outputs.environment == 'production' && secrets.APPLE_CERTIFICATE_BASE64 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+        run: |
+          echo "🔑 Setting up Apple Developer ID code signing for production..."
+          
+          # Create keychain
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Import certificate
+          echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          
+          # Set signing identity
+          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')" >> $GITHUB_ENV
+          
+          echo "✅ Code signing setup completed for production"
 
       - name: Build Tauri app (Environment-specific)
         env:
@@ -121,23 +132,20 @@ jobs:
             exit 1
           fi
           
-          # Configure signing based on environment
-          if [[ "${{ steps.signing.outputs.apple-signing-enabled }}" == "true" ]]; then
-            echo "🔏 Building with Apple Developer ID signing..."
-            export APPLE_CODESIGN_IDENTITY="${{ steps.signing.outputs.signing-identity }}"
-            export APPLE_SIGNING_IDENTITY="${{ steps.signing.outputs.signing-identity }}"
-          else
-            echo "🧪 Building with ad-hoc signing for $APP_ENV"
-            export APPLE_CODESIGN_IDENTITY="-"
-          fi
-          
-          # Configure Tauri updater signing if available
-          if [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]] && [[ -n "${{ secrets.TAURI_KEY_PASSWORD }}" ]]; then
-            echo "🔑 Configuring Tauri updater signing"
+          # Environment-specific signing configuration
+          if [[ "$APP_ENV" == "production" ]] && [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "🔏 Building with Apple Developer ID signing for production..."
+            export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
             export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
           else
-            echo "⚠️ Tauri updater signing not available"
+            echo "🧪 Building with ad-hoc signing for $APP_ENV"
+            export APPLE_CODESIGN_IDENTITY="-"
+            # Still use Tauri signing for auto-updates if available
+            if [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
+              export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
+              export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
+            fi
           fi
           
           export CI=true
@@ -216,40 +224,24 @@ jobs:
           echo "dmg_name=$(basename $SELECTED_DMG)" >> $GITHUB_OUTPUT
 
       - name: Notarize macOS app (Production only)
-        if: ${{ steps.env.outputs.environment == 'production' && steps.signing.outputs.apple-signing-enabled == 'true' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
         run: |
-          # Mask sensitive information
-          echo "::add-mask::$APPLE_PASSWORD"
-          
           cd apps/native
           DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
           
           echo "🍎 Notarizing production app with Apple..."
-          echo "Team ID: $APPLE_TEAM_ID"
-          echo "Apple ID: $APPLE_ID"
           
           # Submit for notarization
-          if xcrun notarytool submit "$DMG_PATH" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait; then
-            
-            echo "✅ Notarization submitted successfully"
-            
-            # Staple the notarization ticket
-            if xcrun stapler staple "$DMG_PATH"; then
-              echo "✅ Notarization ticket stapled successfully"
-            else
-              echo "⚠️ Failed to staple notarization ticket, but continuing"
-            fi
-          else
-            echo "::warning::Notarization failed, but continuing with signed app"
-          fi
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait
+          
+          # Staple the notarization ticket
+          xcrun stapler staple "$DMG_PATH"
+          
+          echo "✅ Notarization completed for production"
 
       - name: Set artifact name
         id: artifact
