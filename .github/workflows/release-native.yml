@@ -144,8 +144,12 @@ jobs:
           else
             echo "🧪 Building with ad-hoc signing for $APP_ENV"
             export APPLE_CODESIGN_IDENTITY="-"
-            # Still use Tauri signing for auto-updates if available
-            if [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
+            # Skip Tauri signing for staging environment
+            if [[ "$APP_ENV" == "staging" ]]; then
+              echo "🚫 Skipping Tauri signing for staging environment"
+              unset TAURI_SIGNING_PRIVATE_KEY
+              unset TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+            elif [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
               echo "📝 Tauri signing keys detected, setting up..."
               export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
               export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
@@ -185,6 +189,30 @@ jobs:
               }
               ;;
           esac
+          
+          cd ../..
+
+      - name: Fix macOS code signing resources
+        run: |
+          cd apps/native
+          echo "🔧 Fixing macOS code signing resources..."
+          
+          # Find the built app
+          APP_PATH=$(find src-tauri/target -name "*.app" -type d | head -1)
+          
+          if [ -n "$APP_PATH" ]; then
+            echo "📱 Found app at: $APP_PATH"
+            
+            # Re-sign with proper resource sealing
+            codesign --force --deep --sign - "$APP_PATH"
+            
+            echo "✅ Code signing resources fixed"
+            
+            # Verify the fix
+            codesign -dvvv "$APP_PATH" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
+          else
+            echo "❌ No app found to fix"
+          fi
           
           cd ../..
 
