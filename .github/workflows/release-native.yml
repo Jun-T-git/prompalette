@@ -197,21 +197,45 @@ jobs:
           cd apps/native
           echo "🔧 Fixing macOS code signing resources..."
           
-          # Find the built app
-          APP_PATH=$(find src-tauri/target -name "*.app" -type d | head -1)
+          # Find the DMG file
+          DMG_PATH=$(find src-tauri/target -name "*.dmg" | head -1)
           
-          if [ -n "$APP_PATH" ]; then
-            echo "📱 Found app at: $APP_PATH"
+          if [ -n "$DMG_PATH" ]; then
+            echo "📦 Found DMG at: $DMG_PATH"
             
-            # Re-sign with proper resource sealing
-            codesign --force --deep --sign - "$APP_PATH"
+            # Create temporary directory
+            TEMP_DIR=$(mktemp -d)
             
-            echo "✅ Code signing resources fixed"
+            # Mount the DMG
+            hdiutil attach "$DMG_PATH" -mountpoint "$TEMP_DIR/mount" -readonly -noautoopen
+            
+            # Copy the app to a writable location
+            cp -r "$TEMP_DIR/mount"/*.app "$TEMP_DIR/app.app"
+            
+            # Unmount the DMG
+            hdiutil detach "$TEMP_DIR/mount"
+            
+            # Apply the fix to the copied app
+            codesign --force --deep --sign - "$TEMP_DIR/app.app"
             
             # Verify the fix
-            codesign -dvvv "$APP_PATH" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
+            echo "🔍 Verifying code signing fix..."
+            codesign -dvvv "$TEMP_DIR/app.app" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
+            
+            # Create new DMG with the fixed app
+            DMG_NAME=$(basename "$DMG_PATH")
+            echo "📦 Creating new DMG with fixed app..."
+            hdiutil create -srcfolder "$TEMP_DIR/app.app" -volname "prompalette-staging" -ov -format UDZO "$DMG_PATH.tmp"
+            
+            # Replace the original DMG
+            mv "$DMG_PATH.tmp" "$DMG_PATH"
+            
+            # Clean up
+            rm -rf "$TEMP_DIR"
+            
+            echo "✅ Code signing resources fixed in DMG"
           else
-            echo "❌ No app found to fix"
+            echo "❌ No DMG found to fix"
           fi
           
           cd ../..
