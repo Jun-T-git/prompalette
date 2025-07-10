@@ -209,24 +209,33 @@ jobs:
             # Mount the DMG
             hdiutil attach "$DMG_PATH" -mountpoint "$TEMP_DIR/mount" -readonly -noautoopen
             
-            # Copy the app to a writable location
-            cp -r "$TEMP_DIR/mount"/*.app "$TEMP_DIR/app.app"
+            # Copy all DMG contents to preserve structure (Applications link, etc.)
+            mkdir -p "$TEMP_DIR/dmg_contents"
+            cp -r "$TEMP_DIR/mount"/* "$TEMP_DIR/dmg_contents/"
+            
+            # Find the app in the copied contents
+            APP_NAME=$(ls "$TEMP_DIR/dmg_contents" | grep "\.app$" | head -1)
+            if [ -z "$APP_NAME" ]; then
+              echo "❌ No app found in DMG contents"
+              exit 1
+            fi
             
             # Unmount the DMG
             hdiutil detach "$TEMP_DIR/mount"
             
-            # Apply the fix to the copied app
-            codesign --force --deep --sign - "$TEMP_DIR/app.app"
+            # Apply the fix to the app while preserving its name
+            echo "🔧 Applying code signing fix to $APP_NAME..."
+            codesign --force --deep --sign - "$TEMP_DIR/dmg_contents/$APP_NAME"
             
             # Verify the fix
             echo "🔍 Verifying code signing fix..."
-            codesign -dvvv "$TEMP_DIR/app.app" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
+            codesign -dvvv "$TEMP_DIR/dmg_contents/$APP_NAME" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
             
-            # Create new DMG with the fixed app
+            # Create new DMG with the fixed app and preserved structure
             DMG_NAME=$(basename "$DMG_PATH")
             TEMP_DMG_PATH="${DMG_PATH%.*}_temp"
-            echo "📦 Creating new DMG with fixed app..."
-            hdiutil create -srcfolder "$TEMP_DIR/app.app" -volname "prompalette-staging" -ov -format UDZO "$TEMP_DMG_PATH"
+            echo "📦 Creating new DMG with fixed app and preserved structure..."
+            hdiutil create -srcfolder "$TEMP_DIR/dmg_contents" -volname "prompalette-staging" -ov -format UDZO "$TEMP_DMG_PATH"
             
             # Replace the original DMG
             mv "$TEMP_DMG_PATH.dmg" "$DMG_PATH"
