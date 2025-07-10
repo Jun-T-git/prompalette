@@ -224,11 +224,12 @@ jobs:
             
             # Create new DMG with the fixed app
             DMG_NAME=$(basename "$DMG_PATH")
+            TEMP_DMG_PATH="${DMG_PATH%.*}_temp"
             echo "📦 Creating new DMG with fixed app..."
-            hdiutil create -srcfolder "$TEMP_DIR/app.app" -volname "prompalette-staging" -ov -format UDZO "$DMG_PATH.tmp"
+            hdiutil create -srcfolder "$TEMP_DIR/app.app" -volname "prompalette-staging" -ov -format UDZO "$TEMP_DMG_PATH"
             
             # Replace the original DMG
-            mv "$DMG_PATH.tmp" "$DMG_PATH"
+            mv "$TEMP_DMG_PATH.dmg" "$DMG_PATH"
             
             # Clean up
             rm -rf "$TEMP_DIR"
