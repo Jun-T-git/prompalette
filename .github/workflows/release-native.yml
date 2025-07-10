@@ -209,9 +209,32 @@ jobs:
             # Mount the DMG
             hdiutil attach "$DMG_PATH" -mountpoint "$TEMP_DIR/mount" -readonly -noautoopen
             
-            # Copy all DMG contents to preserve structure (Applications link, etc.)
+            # Check and copy only relevant DMG contents
             mkdir -p "$TEMP_DIR/dmg_contents"
-            cp -r "$TEMP_DIR/mount"/* "$TEMP_DIR/dmg_contents/"
+            
+            # List mounted contents for debugging
+            echo "🔍 Mounted DMG contents:"
+            ls -la "$TEMP_DIR/mount/"
+            
+            # Verify this is actually our DMG and not system Applications
+            if [ -f "$TEMP_DIR/mount/Applications" ]; then
+              # Applications is a symlink (normal DMG)
+              echo "✅ Found Applications symlink"
+              cp -r "$TEMP_DIR/mount"/* "$TEMP_DIR/dmg_contents/"
+            elif [ -d "$TEMP_DIR/mount/Applications" ] && [ "$(ls -1 "$TEMP_DIR/mount/" | wc -l)" -gt 10 ]; then
+              # Applications is a directory with many items (system mount - ERROR)
+              echo "❌ ERROR: Mounted system Applications folder instead of DMG"
+              echo "This indicates a problem with DMG creation or mounting"
+              exit 1
+            else
+              # Copy selectively to avoid system files
+              echo "⚠️ Selective copy to avoid system files"
+              for item in "$TEMP_DIR/mount"/*; do
+                if [[ "$(basename "$item")" == *.app ]] || [[ "$(basename "$item")" == "Applications" ]]; then
+                  cp -r "$item" "$TEMP_DIR/dmg_contents/"
+                fi
+              done
+            fi
             
             # Find the app in the copied contents
             APP_NAME=$(ls "$TEMP_DIR/dmg_contents" | grep "\.app$" | head -1)
