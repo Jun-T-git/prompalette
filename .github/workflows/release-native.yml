@@ -9,6 +9,8 @@ on:
       - 'apps/native/**'
       - '.github/workflows/release-native.yml'
       - '.github/actions/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
     inputs:
       release_type:
@@ -171,21 +173,21 @@ jobs:
               echo "🔧 Building for staging environment"
               pnpm tauri:build:staging 2>&1 | tee ../build.log || {
                 echo "❌ Staging build failed, trying fallback..."
-                APP_ENV=staging pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=staging pnpm tauri build --bundles dmg --verbose
               }
               ;;
             "production")
               echo "🚀 Building for production environment"
               pnpm tauri:build:production 2>&1 | tee ../build.log || {
                 echo "❌ Production build failed, trying fallback..."
-                APP_ENV=production pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=production pnpm tauri build --bundles dmg --verbose
               }
               ;;
             *)
               echo "🔨 Building for development environment"
               pnpm tauri:build:dev 2>&1 | tee ../build.log || {
                 echo "❌ Development build failed, trying fallback..."
-                APP_ENV=development pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=development pnpm tauri build --bundles dmg --verbose
               }
               ;;
           esac
@@ -258,7 +260,8 @@ jobs:
             DMG_NAME=$(basename "$DMG_PATH")
             TEMP_DMG_PATH="${DMG_PATH%.*}_temp"
             echo "📦 Creating new DMG with fixed app and preserved structure..."
-            hdiutil create -srcfolder "$TEMP_DIR/dmg_contents" -volname "prompalette-staging" -ov -format UDZO "$TEMP_DMG_PATH"
+            VOLUME_NAME="prompalette-${APP_ENV}"
+            hdiutil create -srcfolder "$TEMP_DIR/dmg_contents" -volname "$VOLUME_NAME" -ov -format UDZO "$TEMP_DMG_PATH"
             
             # Replace the original DMG
             mv "$TEMP_DMG_PATH.dmg" "$DMG_PATH"
@@ -273,17 +276,10 @@ jobs:
           
           cd ../..
 
-      - name: Debug build output
+      - name: Verify build output
         run: |
-          echo "=== Build Target Directories ==="
-          echo "ARM64 target:"
-          ls -la apps/native/src-tauri/target/release/bundle/dmg/ || echo "ARM64 DMG directory not found"
-          echo ""
-          echo "x86_64 target:"
-          ls -la apps/native/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/ || echo "x86_64 DMG directory not found"
-          echo ""
-          echo "Universal target:"
-          ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ || echo "Universal DMG directory not found"
+          echo "=== Checking for DMG files ==="
+          find apps/native/src-tauri/target -name "*.dmg" -type f || echo "No DMG files found"
 
       - name: Find DMG files
         id: find_dmg
@@ -356,11 +352,6 @@ jobs:
         run: |
           cd apps/native
           DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
-          DMG_NAME="${{ steps.find_dmg.outputs.dmg_name }}"
-          
-          echo "=== Creating artifact ==="
-          echo "DMG Path: $DMG_PATH"
-          echo "DMG Name: $DMG_NAME"
           
           # Create artifact directory
           mkdir -p "${{ steps.artifact.outputs.name }}"
@@ -368,8 +359,7 @@ jobs:
           # Copy DMG
           cp "$DMG_PATH" "${{ steps.artifact.outputs.name }}/"
           
-          # List artifact contents
-          echo "=== Artifact contents ==="
+          echo "✅ Artifact created with DMG: $(basename "$DMG_PATH")"
           ls -la "${{ steps.artifact.outputs.name }}/"
 
       - name: Upload artifacts
@@ -394,27 +384,18 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: ${{ needs.build-native.outputs.artifact-name }}
           path: ./dist
 
-      - name: Debug artifact structure
+      - name: Verify artifact contents
         run: |
-          echo "=== Working directory ==="
-          pwd
-          ls -la ./
-          echo "=== Check if dist exists ==="
-          if [ -d "./dist" ]; then
-            echo "dist directory exists"
-            find ./dist -type f -name "*.dmg" | head -10
-            echo "=== All files in dist ==="
-            ls -la ./dist/
-            if [ -d "./dist/${{ needs.build-native.outputs.artifact-name }}" ]; then
-              echo "=== DMG files in ${{ needs.build-native.outputs.artifact-name }} ==="
-              ls -la ./dist/${{ needs.build-native.outputs.artifact-name }}/
-            fi
+          echo "=== Verifying downloaded artifacts ==="
+          if [ -d "./dist" ] && [ -n "$(find ./dist -name '*.dmg' -type f)" ]; then
+            echo "✅ DMG files found:"
+            find ./dist -name '*.dmg' -type f
           else
-            echo "❌ dist directory does not exist"
-            echo "=== Available artifacts might be ==="
-            find . -name "*.dmg" 2>/dev/null || echo "No DMG files found"
+            echo "❌ No DMG files found in artifacts"
+            exit 1
           fi
 
       - name: Generate release notes
@@ -446,19 +427,6 @@ jobs:
               ;;
           esac
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Skip updater signature for staging
         run: |
           echo "🧪 Staging build - skipping Tauri updater signature"
@@ -473,7 +441,7 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
           body_path: notes.md
           files: |
-            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+            ./dist/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -496,13 +464,19 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: ${{ needs.build-native.outputs.artifact-name }}
           path: ./dist
 
-      - name: Debug artifact structure
+      - name: Verify artifact contents
         run: |
-          echo "=== Artifact contents ==="
-          ls -la ./dist/
-          find ./dist -type f -name "*.dmg" | head -10
+          echo "=== Verifying downloaded artifacts ==="
+          if [ -d "./dist" ] && [ -n "$(find ./dist -name '*.dmg' -type f)" ]; then
+            echo "✅ DMG files found:"
+            find ./dist -name '*.dmg' -type f
+          else
+            echo "❌ No DMG files found in artifacts"
+            exit 1
+          fi
 
       - name: Generate changelog
         run: |
@@ -590,7 +564,7 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
           files: |
-            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
+            ./dist/*.dmg
             ./updater-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
