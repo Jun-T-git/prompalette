@@ -96,70 +96,13 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📋 Version: $VERSION"
 
-      - name: Setup Apple Code Signing (Production only)
-        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_CERTIFICATE_BASE64 != '' && env.APPLE_CERTIFICATE_PASSWORD != '' }}
-        env:
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "🔑 Setting up Apple Developer ID code signing for production..."
-          
-          # Create keychain
-          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
-          
-          # Import certificate
-          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
-          
-          # Set signing identity
-          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')" >> $GITHUB_ENV
-          
-          echo "✅ Code signing setup completed for production"
 
       - name: Build Tauri app (Environment-specific)
         env:
           APP_ENV: ${{ steps.env.outputs.environment }}
         run: |
-          echo "=== Build Environment ==="
-          echo "APP_ENV: $APP_ENV"
-          echo "GITHUB_REF: ${{ github.ref }}"
-          echo "Current directory: $(pwd)"
-          echo "=== Directory structure ==="
-          
-          if [ -d "apps/native" ]; then
-            echo "✅ apps/native exists"
-            ls -la apps/native/
-          else
-            echo "❌ apps/native not found"
-            exit 1
-          fi
-          
-          # Environment-specific signing configuration
-          if [[ "$APP_ENV" == "production" ]] && [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "🔏 Building with Apple Developer ID signing for production..."
-            export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
-            export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
-            export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-          else
-            echo "🧪 Building with ad-hoc signing for $APP_ENV"
-            export APPLE_CODESIGN_IDENTITY="-"
-            # Skip Tauri signing for staging environment
-            if [[ "$APP_ENV" == "staging" ]]; then
-              echo "🚫 Skipping Tauri signing for staging environment"
-              unset TAURI_SIGNING_PRIVATE_KEY
-              unset TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-            elif [[ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]]; then
-              echo "📝 Tauri signing keys detected, setting up..."
-              export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
-              export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-              echo "✅ Tauri signing environment variables set"
-            else
-              echo "⚠️ No Tauri signing keys found for $APP_ENV"
-            fi
-          fi
+          echo "🔧 Building with ad-hoc signing for $APP_ENV environment"
+          export APPLE_CODESIGN_IDENTITY="-"
           
           export CI=true
           export SKIP_JENKINS=1
@@ -194,146 +137,24 @@ jobs:
           
           cd ../..
 
-      - name: Fix macOS code signing resources
-        run: |
-          cd apps/native
-          echo "🔧 Fixing macOS code signing resources..."
-          
-          # Find the DMG file
-          DMG_PATH=$(find src-tauri/target -name "*.dmg" | head -1)
-          
-          if [ -n "$DMG_PATH" ]; then
-            echo "📦 Found DMG at: $DMG_PATH"
-            
-            # Create temporary directory
-            TEMP_DIR=$(mktemp -d)
-            
-            # Mount the DMG
-            hdiutil attach "$DMG_PATH" -mountpoint "$TEMP_DIR/mount" -readonly -noautoopen
-            
-            # Check and copy only relevant DMG contents
-            mkdir -p "$TEMP_DIR/dmg_contents"
-            
-            # List mounted contents for debugging
-            echo "🔍 Mounted DMG contents:"
-            ls -la "$TEMP_DIR/mount/"
-            
-            # Verify this is actually our DMG and not system Applications
-            if [ -f "$TEMP_DIR/mount/Applications" ]; then
-              # Applications is a symlink (normal DMG)
-              echo "✅ Found Applications symlink"
-              cp -r "$TEMP_DIR/mount"/* "$TEMP_DIR/dmg_contents/"
-            elif [ -d "$TEMP_DIR/mount/Applications" ] && [ "$(ls -1 "$TEMP_DIR/mount/" | wc -l)" -gt 10 ]; then
-              # Applications is a directory with many items (system mount - ERROR)
-              echo "❌ ERROR: Mounted system Applications folder instead of DMG"
-              echo "This indicates a problem with DMG creation or mounting"
-              exit 1
-            else
-              # Copy selectively to avoid system files
-              echo "⚠️ Selective copy to avoid system files"
-              for item in "$TEMP_DIR/mount"/*; do
-                if [[ "$(basename "$item")" == *.app ]] || [[ "$(basename "$item")" == "Applications" ]]; then
-                  cp -r "$item" "$TEMP_DIR/dmg_contents/"
-                fi
-              done
-            fi
-            
-            # Find the app in the copied contents
-            APP_NAME=$(ls "$TEMP_DIR/dmg_contents" | grep "\.app$" | head -1)
-            if [ -z "$APP_NAME" ]; then
-              echo "❌ No app found in DMG contents"
-              exit 1
-            fi
-            
-            # Unmount the DMG
-            hdiutil detach "$TEMP_DIR/mount"
-            
-            # Apply the fix to the app while preserving its name
-            echo "🔧 Applying code signing fix to $APP_NAME..."
-            codesign --force --deep --sign - "$TEMP_DIR/dmg_contents/$APP_NAME"
-            
-            # Verify the fix
-            echo "🔍 Verifying code signing fix..."
-            codesign -dvvv "$TEMP_DIR/dmg_contents/$APP_NAME" | grep -E "(Sealed Resources|Info.plist)" || echo "⚠️ Verification incomplete"
-            
-            # Create new DMG with the fixed app and preserved structure
-            DMG_NAME=$(basename "$DMG_PATH")
-            TEMP_DMG_PATH="${DMG_PATH%.*}_temp"
-            echo "📦 Creating new DMG with fixed app and preserved structure..."
-            VOLUME_NAME="prompalette-${APP_ENV}"
-            hdiutil create -srcfolder "$TEMP_DIR/dmg_contents" -volname "$VOLUME_NAME" -ov -format UDZO "$TEMP_DMG_PATH"
-            
-            # Replace the original DMG
-            mv "$TEMP_DMG_PATH.dmg" "$DMG_PATH"
-            
-            # Clean up
-            rm -rf "$TEMP_DIR"
-            
-            echo "✅ Code signing resources fixed in DMG"
-          else
-            echo "❌ No DMG found to fix"
-          fi
-          
-          cd ../..
 
-      - name: Verify build output
-        run: |
-          echo "=== Checking for DMG files ==="
-          find apps/native/src-tauri/target -name "*.dmg" -type f || echo "No DMG files found"
 
       - name: Find DMG files
         id: find_dmg
         run: |
           cd apps/native
-          echo "=== Searching for DMG files ==="
           
-          # Find DMG files with prioritization
-          DMG_FILES=$(find src-tauri/target -name "*.dmg" -type f | grep -v "rw\." | sort)
+          # Find DMG file
+          DMG_PATH=$(find src-tauri/target -name "*.dmg" -type f | head -1)
           
-          if [ -z "$DMG_FILES" ]; then
-            echo "❌ No DMG files found!"
+          if [ -z "$DMG_PATH" ]; then
+            echo "❌ No DMG file found"
             exit 1
           fi
           
-          echo "Found DMG files:"
-          echo "$DMG_FILES"
-          
-          # Prioritize universal build
-          SELECTED_DMG=""
-          if echo "$DMG_FILES" | grep -q "universal-apple-darwin"; then
-            SELECTED_DMG=$(echo "$DMG_FILES" | grep "universal-apple-darwin" | head -n1)
-            echo "✅ Selected universal DMG: $SELECTED_DMG"
-          else
-            SELECTED_DMG=$(echo "$DMG_FILES" | head -n1)
-            echo "✅ Selected first available DMG: $SELECTED_DMG"
-          fi
-          
-          echo "dmg_path=$SELECTED_DMG" >> $GITHUB_OUTPUT
-          echo "dmg_name=$(basename $SELECTED_DMG)" >> $GITHUB_OUTPUT
+          echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename $DMG_PATH)" >> $GITHUB_OUTPUT
 
-      - name: Notarize macOS app (Production only)
-        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_SIGNING_IDENTITY != '' && env.APPLE_ID != '' && env.APPLE_PASSWORD != '' && env.APPLE_TEAM_ID != '' }}
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          cd apps/native
-          DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
-          
-          echo "🍎 Notarizing production app with Apple..."
-          
-          # Submit for notarization
-          xcrun notarytool submit "$DMG_PATH" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait
-          
-          # Staple the notarization ticket
-          xcrun stapler staple "$DMG_PATH"
-          
-          echo "✅ Notarization completed for production"
 
       - name: Set artifact name
         id: artifact
@@ -532,28 +353,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate updater signature
-        if: steps.check_release.outputs.exists == 'false'
-        id: signature
-        uses: ./.github/actions/generate-updater-signature
-        with:
-          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
-          environment: production
-          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
-          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
-
-      - name: Create production updater manifest
-        if: steps.check_release.outputs.exists == 'false'
-        id: manifest
-        uses: ./.github/actions/create-updater-manifest
-        with:
-          version: v${{ needs.build-native.outputs.version }}
-          release-notes-file: changelog.md
-          signature: ${{ steps.signature.outputs.signature }}
-          dmg-file: ${{ steps.signature.outputs.dmg-file }}
-          repository: ${{ github.repository }}
-          manifest-filename: updater-manifest.json
+      - name: Skip updater signature and manifest
+        run: |
+          echo "🚫 Skipping updater signature generation for simplified build process"
+          echo "ℹ️ Ad-hoc signed apps do not support auto-updates"
 
       - name: Create production release
         if: steps.check_release.outputs.exists == 'false'
@@ -565,7 +368,6 @@ jobs:
           body_path: changelog.md
           files: |
             ./dist/*.dmg
-            ./updater-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
