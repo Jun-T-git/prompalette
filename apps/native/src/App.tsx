@@ -23,6 +23,7 @@ import { KeyboardProvider } from './providers/KeyboardProvider';
 import { useFavoritesStore, usePromptStore } from './stores';
 import type { CreatePromptRequest, Prompt, UpdatePromptRequest } from './types';
 import { copyPromptToClipboard, logger } from './utils';
+import { DEBUG_ENABLED } from './utils/buildTimeEnvironment';
 import { getSafeTitle } from './utils/promptDisplay';
 
 // Constants for UI timing
@@ -684,7 +685,7 @@ function AppContent() {
           </div>
         )}
       </div>
-      <KeyboardDebugPanel />
+      {DEBUG_ENABLED && <KeyboardDebugPanel />}
     </KeyboardProvider>
   );
 }

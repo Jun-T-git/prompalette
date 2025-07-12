@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 
 import { useKeyboard } from '../providers/KeyboardProvider';
 import type { Modifier } from '../types/keyboard.types';
+import { DEBUG_ENABLED } from '../utils/buildTimeEnvironment';
 
 // Debug panel to show real-time keyboard system status
+// Only compiled in development builds - removed entirely in production
 export const KeyboardDebugPanel: React.FC = () => {
+  // Build-time check - this entire component will be tree-shaken in production
+  if (!DEBUG_ENABLED) {
+    return null;
+  }
   const [isVisible, setIsVisible] = useState(false);
   const [lastKeyEvent, setLastKeyEvent] = useState<string>('None');
   const { activeContext, registry } = useKeyboard();
