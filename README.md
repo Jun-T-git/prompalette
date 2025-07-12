@@ -14,32 +14,12 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 </div>
 
-## 📷 Screenshots
-
-<div align="center">
-  <img src="main-interface.png" alt="Main Interface" width="800">
-  <p><em>Main interface showing prompt management, palette system, and keyboard shortcuts</em></p>
-</div>
-
-<div align="center">
-  <img src="new-prompt-creation.png" alt="New Prompt Creation" width="800">
-  <p><em>Create new prompts with title, content, tags, and quick-access keys</em></p>
-</div>
-
-<div align="center">
-  <img src="search-tag-functionality.png" alt="Tag Search" width="800">
-  <p><em>Instant search with tag filtering (#tag) and smart autocomplete</em></p>
-</div>
-
-<div align="center">
-  <img src="search-quick-access.png" alt="Quick Access Search" width="800">
-  <p><em>Direct prompt access using quick-access keys (/key) for immediate results</em></p>
-</div>
-
 ## ✨ Features
 
+![PromPalette Desktop Interface](./apps/web/public/main-interface.gif)
+
 - 🚀 **Global Hotkeys** - System-wide access with Cmd+Ctrl+1-9,0 (macOS) / Ctrl+Ctrl+1-9,0 (Windows/Linux)
-- 💾 **Local-First Storage** - SQLite database with offline-first approach  
+- 💾 **Local-First Storage** - SQLite database with offline-first approach
 - 🏷️ **Advanced Search** - Text, tag (#tag), and quick-access (/key) search with smart scoring
 - 📌 **Pin System** - 10 pinnable positions with global hotkey integration
 - 🎯 **Flexible Titles** - Optional title support with content-based fallbacks
@@ -50,15 +30,17 @@
 ### Development Setup
 
 1. **Install Prerequisites**
+
    ```bash
    # Install Rust (required for native app)
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   
+
    # Install Node.js 20+ and pnpm 8+
    # (via nvm, homebrew, or package manager)
    ```
 
 2. **Clone and Setup**
+
    ```bash
    git clone https://github.com/Jun-T-git/prompalette.git
    cd prompalette
@@ -86,7 +68,7 @@ This will create a distributable DMG file for macOS.
 **⚠️ Security Considerations**:
 
 - **macOS**: Unsigned builds require users to right-click → "Open" and bypass Gatekeeper warnings
-- **Windows**: May trigger SmartScreen warnings for unsigned executables  
+- **Windows**: May trigger SmartScreen warnings for unsigned executables
 - **Linux**: Generally no restrictions, but some distributions may require additional permissions
 
 For production distribution, platform-specific code signing is recommended.
@@ -94,12 +76,14 @@ For production distribution, platform-specific code signing is recommended.
 ## 📋 System Requirements
 
 ### Supported Platforms
+
 - **macOS**: 10.15 or later (primary target)
 - **Windows**: 10 or later (development support)
 - **Linux**: Modern distributions (development support)
 
 ### Development Requirements
-- **Node.js**: 20 or later  
+
+- **Node.js**: 20 or later
 - **pnpm**: 8 or later
 - **Rust**: 1.77 or later (Tauri 2.0 requirement)
 
