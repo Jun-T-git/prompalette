@@ -54,8 +54,9 @@ export function getScrollBehavior(
 
 /**
  * Type guard for HTMLElement
+ * Handles both null and undefined cases for maximum type safety
  */
-export function isHTMLElement(element: Element | null): element is HTMLElement {
+export function isHTMLElement(element: Element | null | undefined): element is HTMLElement {
   return element instanceof HTMLElement;
 }
 

@@ -66,6 +66,10 @@ describe('scrollUtils', () => {
       expect(isHTMLElement(null)).toBe(false);
     });
 
+    it('should return false for undefined', () => {
+      expect(isHTMLElement(undefined)).toBe(false);
+    });
+
     it('should return false for non-HTMLElement', () => {
       const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       expect(isHTMLElement(svgElement)).toBe(false);
