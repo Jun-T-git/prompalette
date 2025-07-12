@@ -1,10 +1,25 @@
 'use client';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@prompalette/ui';
-import { DownloadButton } from '@/components/DownloadButton';
+import {
+  Apple,
+  BookOpen,
+  Download,
+  ExternalLink,
+  Github,
+  HelpCircle,
+  List,
+  Lock,
+  Menu,
+  MessageSquare,
+  RotateCcw,
+  Settings,
+  Zap,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Apple, Download, Zap, Menu, Settings, RotateCcw, Lock, Github, BookOpen, MessageSquare, ExternalLink, List, HelpCircle } from 'lucide-react';
+
+import { DownloadButton } from '@/components/DownloadButton';
 import { TableOfContents } from '@/components/TableOfContents';
 
 export default function DownloadPage() {
@@ -13,7 +28,7 @@ export default function DownloadPage() {
     { id: 'requirements', title: 'システム要件', icon: Settings },
     { id: 'installation', title: 'インストール', icon: List },
     { id: 'security', title: 'セキュリティ', icon: Lock },
-    { id: 'support', title: 'サポート', icon: HelpCircle }
+    { id: 'support', title: 'サポート', icon: HelpCircle },
   ];
 
   return (
@@ -63,7 +78,7 @@ export default function DownloadPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="text-center">
-                    <DownloadButton 
+                    <DownloadButton
                       platform="macos"
                       className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
                     >
@@ -74,7 +89,10 @@ export default function DownloadPage() {
                       Apple Silicon & Intel Mac対応 • 現在macOSのみ提供
                     </p>
                     <div className="mt-4">
-                      <Link href="/download-guide" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1">
+                      <Link
+                        href="/download-guide"
+                        className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1"
+                      >
                         <ExternalLink className="w-3 h-3" />
                         GitHubでのダウンロード手順を確認
                       </Link>
@@ -121,11 +139,13 @@ export default function DownloadPage() {
                       <div className="w-3 h-3 rounded-full bg-green-400"></div>
                     </div>
                     <div className="flex-1 text-center">
-                      <span className="text-sm text-slate-600 font-medium">PromPalette Desktop</span>
+                      <span className="text-sm text-slate-600 font-medium">
+                        PromPalette Desktop
+                      </span>
                     </div>
                   </div>
                   <Image
-                    src="/main-interface.png"
+                    src="/main-interface.gif"
                     alt="PromPalette Desktop インターフェース"
                     width={600}
                     height={400}
@@ -165,8 +185,7 @@ export default function DownloadPage() {
                       50 MB の空きディスク容量
                     </li>
                     <li className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
-                      4 GB RAM
+                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>4 GB RAM
                     </li>
                   </ul>
                 </div>
@@ -185,8 +204,7 @@ export default function DownloadPage() {
                       Apple Silicon Mac
                     </li>
                     <li className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                      8 GB RAM 以上
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>8 GB RAM 以上
                     </li>
                   </ul>
                 </div>
@@ -201,7 +219,9 @@ export default function DownloadPage() {
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">簡単インストール</h2>
-            <p className="text-base sm:text-lg text-slate-600">3ステップでPromPaletteをすぐに使い始められます</p>
+            <p className="text-base sm:text-lg text-slate-600">
+              3ステップでPromPaletteをすぐに使い始められます
+            </p>
           </div>
 
           <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -221,7 +241,9 @@ export default function DownloadPage() {
                   2
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">インストール</h3>
-                <p className="text-sm text-slate-600">PromPaletteをApplicationsフォルダにドラッグ</p>
+                <p className="text-sm text-slate-600">
+                  PromPaletteをApplicationsフォルダにドラッグ
+                </p>
               </CardContent>
             </Card>
 
@@ -252,14 +274,17 @@ export default function DownloadPage() {
               <div className="bg-orange-100/50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2">macOS Gatekeeperについて</h4>
                 <p className="text-sm leading-relaxed">
-                  PromPaletteは現在Apple Developer Program未署名のため、初回起動時にGatekeeperの警告が表示されます。
+                  PromPaletteは現在Apple Developer
+                  Program未署名のため、初回起動時にGatekeeperの警告が表示されます。
                   <strong>右クリック → 「開く」</strong>を選択してインストールを続行してください。
                   これはオープンソースアプリケーションでは一般的な手順です。
                 </p>
               </div>
               <div className="flex items-start gap-3 text-sm">
                 <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <span>アプリケーションはローカルで動作し、外部サーバーに個人データを送信しません</span>
+                <span>
+                  アプリケーションはローカルで動作し、外部サーバーに個人データを送信しません
+                </span>
               </div>
               <div className="flex items-start gap-3 text-sm">
                 <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
@@ -282,22 +307,39 @@ export default function DownloadPage() {
                 詳しいガイドやサポートリソースをご用意しています
               </p>
             </div>
-            
+
             <div className="flex gap-4 justify-center flex-wrap">
               <Link href="/desktop/getting-started">
-                <Button size="lg" variant="outline" className="text-base px-6 py-3 border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-base px-6 py-3 border-2 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50"
+                >
                   <BookOpen className="w-4 h-4 mr-2" />
                   インストールガイド
                 </Button>
               </Link>
               <Link href="/desktop/guide">
-                <Button size="lg" variant="outline" className="text-base px-6 py-3 border-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-base px-6 py-3 border-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50"
+                >
                   <BookOpen className="w-4 h-4 mr-2" />
                   ユーザーガイド
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" asChild className="text-base px-6 py-3 border-2 border-slate-200 hover:border-teal-300 hover:bg-teal-50">
-                <a href="https://github.com/Jun-T-git/prompalette/issues" target="_blank" rel="noopener noreferrer">
+              <Button
+                size="lg"
+                variant="outline"
+                asChild
+                className="text-base px-6 py-3 border-2 border-slate-200 hover:border-teal-300 hover:bg-teal-50"
+              >
+                <a
+                  href="https://github.com/Jun-T-git/prompalette/issues"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   問題を報告
                 </a>
@@ -313,7 +355,10 @@ export default function DownloadPage() {
           <div className="text-sm text-slate-600 space-y-2">
             <p>最新バージョン: v0.1.0 • リリース: 2025年7月</p>
             <p>
-              <Link href="https://github.com/Jun-T-git/prompalette" className="text-indigo-600 hover:text-indigo-700 hover:underline transition-colors inline-flex items-center gap-1">
+              <Link
+                href="https://github.com/Jun-T-git/prompalette"
+                className="text-indigo-600 hover:text-indigo-700 hover:underline transition-colors inline-flex items-center gap-1"
+              >
                 <Github className="w-4 h-4" />
                 GitHubでソースコードを見る
                 <ExternalLink className="w-3 h-3" />
