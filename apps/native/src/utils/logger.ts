@@ -62,21 +62,22 @@ class Logger {
 
   /**
    * 現在のログレベルを取得
-   * 優先度: config > VITE_LOG_LEVEL > 'info'
+   * 優先度: config > VITE_LOG_LEVEL > build-time default
    * @returns 現在のログレベル
    */
   private getLogLevel(): LogLevel {
-    const level = this.config.logLevel || import.meta.env.VITE_LOG_LEVEL || 'info'
+    // Use build-time environment for consistent behavior
+    const level = this.config.logLevel || import.meta.env.VITE_LOG_LEVEL || (__IS_DEVELOPMENT__ ? 'debug' : 'info')
     return isValidLogLevel(level) ? level : 'info'
   }
 
   /**
    * 現在の実行環境を取得
-   * 優先度: config > VITE_NODE_ENV > 'production'
+   * 優先度: config > build-time environment > VITE_NODE_ENV fallback
    * @returns 実行環境
    */
   private getNodeEnv(): string {
-    return this.config.nodeEnv || import.meta.env.VITE_NODE_ENV || 'production'
+    return this.config.nodeEnv || __APP_ENV__ || import.meta.env.VITE_NODE_ENV || 'production'
   }
 
   /**
