@@ -1,4 +1,5 @@
 import type { AppStores } from '../services/AppActionAdapter';
+import { DEFAULT_NAVIGATION_CONFIG } from '../config/navigation';
 import { useFavoritesStore } from '../stores/favorites';
 import { usePromptStore } from '../stores/prompt';
 import type { Prompt } from '../types';
@@ -9,8 +10,8 @@ export interface FormSubmitHandler {
   (): Promise<void>;
 }
 
-// Throttle navigation to prevent too-fast movement during key repeat
-const NAVIGATION_THROTTLE_MS = 50;
+// Use centralized navigation configuration
+const NAVIGATION_THROTTLE_MS = DEFAULT_NAVIGATION_CONFIG.navigationThrottleMs;
 let lastNavigationTime = 0;
 
 const shouldThrottleNavigation = (): boolean => {

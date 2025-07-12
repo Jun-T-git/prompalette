@@ -1,6 +1,13 @@
 import { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
 
+import { DEFAULT_NAVIGATION_CONFIG } from '../../config/navigation';
 import type { Prompt } from '../../types';
+import { 
+  createRapidNavigationDetector, 
+  isHTMLElement, 
+  isElementInView, 
+  scrollElementIntoView 
+} from '../../utils/scrollUtils';
 import { Button } from '../common';
 import { SidebarPromptPalette } from '../favorites';
 import { PromptCard } from '../prompt';
@@ -45,7 +52,15 @@ interface AppSidebarProps {
 
 /**
  * アプリケーションのサイドバーコンポーネント
- * 検索フィールドとプロンプト一覧を含む
+ * 
+ * 検索フィールドとプロンプト一覧を含み、以下の機能を提供します：
+ * - インテリジェントなキーボードナビゲーション
+ * - 適応的スクロール動作（長押し検出とアクセシビリティ対応）
+ * - 型安全なDOM操作
+ * - エラー耐性のある実装
+ * 
+ * @param props - AppSidebarProps
+ * @returns JSX.Element
  */
 export function AppSidebar({
   searchQuery,
@@ -141,14 +156,27 @@ export function AppSidebar({
   );
 }
 
-// 外部からsearchInputRefにアクセスできるようにする
+/**
+ * AppSidebar の参照インターフェース
+ * 外部からsearchInputRefにアクセスするためのインターフェース
+ */
 export type AppSidebarRef = {
+  /** 検索フィールドにフォーカスを設定 */
   focusSearchInput: () => void;
+  /** 検索フィールドにフォーカスし、テキストを選択 */
   selectSearchInput: () => void;
 };
 
-// forwardRefでsearchInputRefを外部に公開
-
+/**
+ * forwardRefを使用したAppSidebarコンポーネント
+ * 
+ * 外部からsearchInputRefにアクセス可能にし、
+ * キーボードショートカットなどからの検索フィールド操作を実現します。
+ * 
+ * @param props - AppSidebarProps
+ * @param ref - AppSidebarRef
+ * @returns JSX.Element
+ */
 export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
   function AppSidebarWithRef(
     {
@@ -185,30 +213,37 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
       },
     }));
 
-    // Scroll function to handle keyboard navigation
+    /**
+     * Adaptive scroll function with rapid navigation detection and accessibility support
+     * 
+     * Features:
+     * - Type-safe DOM element handling
+     * - Automatic rapid navigation detection
+     * - Accessibility (prefers-reduced-motion) support
+     * - Robust error handling
+     */
+    const detectRapidNavigation = useRef(
+      createRapidNavigationDetector(DEFAULT_NAVIGATION_CONFIG)
+    ).current;
     
     const scrollToSelected = useCallback(() => {
-      if (selectedIndexKeyboard >= 0 && promptListRef.current) {
-        const selectedElement = promptListRef.current.children[selectedIndexKeyboard] as HTMLElement;
-        if (selectedElement) {
-          // Check if element is already in view to avoid unnecessary scrolling
-          const containerRect = promptListRef.current.getBoundingClientRect();
-          const elementRect = selectedElement.getBoundingClientRect();
-          
-          const isInView = 
-            elementRect.top >= containerRect.top &&
-            elementRect.bottom <= containerRect.bottom;
-          
-          if (!isInView) {
-            selectedElement.scrollIntoView({
-              behavior: 'instant',
-              block: 'nearest',
-              inline: 'nearest'
-            });
-          }
-        }
+      // Defensive programming: ensure valid state
+      if (selectedIndexKeyboard < 0 || !promptListRef.current) {
+        return;
       }
-    }, [selectedIndexKeyboard]);
+      
+      // Type-safe element access
+      const selectedElement = promptListRef.current.children[selectedIndexKeyboard];
+      if (!isHTMLElement(selectedElement)) {
+        return;
+      }
+      
+      // Check if element is already in view to avoid unnecessary scrolling
+      if (!isElementInView(selectedElement, promptListRef.current)) {
+        const isRapidNavigation = detectRapidNavigation();
+        scrollElementIntoView(selectedElement, isRapidNavigation, DEFAULT_NAVIGATION_CONFIG);
+      }
+    }, [selectedIndexKeyboard, detectRapidNavigation]);
 
     // Auto-scroll to selected item immediately
     useEffect(() => {
