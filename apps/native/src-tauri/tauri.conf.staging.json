@@ -20,12 +20,7 @@
   },
   "plugins": {
     "updater": {
-      "active": true,
-      "endpoints": [
-        "https://api.github.com/repos/Jun-T-git/prompalette/releases"
-      ],
-      "dialog": true,
-      "pubkey": ""
+      "active": false
     }
   }
 }

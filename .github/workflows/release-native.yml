@@ -9,6 +9,8 @@ on:
       - 'apps/native/**'
       - '.github/workflows/release-native.yml'
       - '.github/actions/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
     inputs:
       release_type:
@@ -94,14 +96,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📋 Version: $VERSION"
 
-      - name: Setup Apple Code Signing (if credentials available)
-        if: ${{ env.APPLE_CERTIFICATE_BASE64 != '' && env.APPLE_CERTIFICATE_PASSWORD != '' }}
+      - name: Setup Apple Code Signing (Production only)
+        if: ${{ steps.env.outputs.environment == 'production' }}
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          echo "🔑 Setting up Apple Developer ID code signing..."
+          echo "🔑 Setting up Apple Developer ID code signing for production..."
           
           # Create keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -114,35 +116,26 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           
           # Set signing identity
-          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')" >> $GITHUB_ENV
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')
+          echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
           
-          echo "✅ Code signing setup completed"
+          echo "✅ Code signing setup completed for production"
+
+
 
       - name: Build Tauri app (Environment-specific)
         env:
           APP_ENV: ${{ steps.env.outputs.environment }}
         run: |
-          echo "=== Build Environment ==="
-          echo "APP_ENV: $APP_ENV"
-          echo "GITHUB_REF: ${{ github.ref }}"
-          echo "Current directory: $(pwd)"
-          echo "=== Directory structure ==="
-          
-          if [ -d "apps/native" ]; then
-            echo "✅ apps/native exists"
-            ls -la apps/native/
+          # Use proper signing for production, ad-hoc for others
+          if [[ "$APP_ENV" == "production" ]] && [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "🔏 Building with Apple Developer ID for production"
+            export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
           else
-            echo "❌ apps/native not found"
-            exit 1
+            echo "🔧 Building with ad-hoc signing for $APP_ENV environment"
+            export APPLE_CODESIGN_IDENTITY="-"
           fi
           
-          if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "🔏 Building with code signing..."
-            export TAURI_SIGNING_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
-            export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-          else
-            echo "⚠️ Building without code signing (credentials not available)"
-          fi
           
           export CI=true
           export SKIP_JENKINS=1
@@ -156,68 +149,70 @@ jobs:
               echo "🔧 Building for staging environment"
               pnpm tauri:build:staging 2>&1 | tee ../build.log || {
                 echo "❌ Staging build failed, trying fallback..."
-                APP_ENV=staging pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=staging pnpm tauri build --bundles dmg --verbose
               }
               ;;
             "production")
               echo "🚀 Building for production environment"
               pnpm tauri:build:production 2>&1 | tee ../build.log || {
                 echo "❌ Production build failed, trying fallback..."
-                APP_ENV=production pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=production pnpm tauri build --bundles dmg --verbose
               }
               ;;
             *)
               echo "🔨 Building for development environment"
               pnpm tauri:build:dev 2>&1 | tee ../build.log || {
                 echo "❌ Development build failed, trying fallback..."
-                APP_ENV=development pnpm tauri build --target universal-apple-darwin --bundles dmg --verbose
+                APP_ENV=development pnpm tauri build --bundles dmg --verbose
               }
               ;;
           esac
           
           cd ../..
 
-      - name: Debug build output
-        run: |
-          echo "=== Build Target Directories ==="
-          echo "ARM64 target:"
-          ls -la apps/native/src-tauri/target/release/bundle/dmg/ || echo "ARM64 DMG directory not found"
-          echo ""
-          echo "x86_64 target:"
-          ls -la apps/native/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/ || echo "x86_64 DMG directory not found"
-          echo ""
-          echo "Universal target:"
-          ls -la apps/native/src-tauri/target/universal-apple-darwin/release/bundle/dmg/ || echo "Universal DMG directory not found"
+
 
       - name: Find DMG files
         id: find_dmg
         run: |
           cd apps/native
-          echo "=== Searching for DMG files ==="
           
-          # Find DMG files with prioritization
-          DMG_FILES=$(find src-tauri/target -name "*.dmg" -type f | grep -v "rw\." | sort)
+          # Find DMG file
+          DMG_PATH=$(find src-tauri/target -name "*.dmg" -type f | head -1)
           
-          if [ -z "$DMG_FILES" ]; then
-            echo "❌ No DMG files found!"
+          if [ -z "$DMG_PATH" ]; then
+            echo "❌ No DMG file found"
             exit 1
           fi
           
-          echo "Found DMG files:"
-          echo "$DMG_FILES"
+          echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename $DMG_PATH)" >> $GITHUB_OUTPUT
+
+      - name: Notarize macOS app (Production only)
+        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd apps/native
+          DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
           
-          # Prioritize universal build
-          SELECTED_DMG=""
-          if echo "$DMG_FILES" | grep -q "universal-apple-darwin"; then
-            SELECTED_DMG=$(echo "$DMG_FILES" | grep "universal-apple-darwin" | head -n1)
-            echo "✅ Selected universal DMG: $SELECTED_DMG"
-          else
-            SELECTED_DMG=$(echo "$DMG_FILES" | head -n1)
-            echo "✅ Selected first available DMG: $SELECTED_DMG"
-          fi
+          echo "🍎 Notarizing production app with Apple..."
           
-          echo "dmg_path=$SELECTED_DMG" >> $GITHUB_OUTPUT
-          echo "dmg_name=$(basename $SELECTED_DMG)" >> $GITHUB_OUTPUT
+          # Submit for notarization
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          
+          # Staple the notarization ticket
+          xcrun stapler staple "$DMG_PATH"
+          
+          echo "✅ Notarization completed for production"
+
+
 
       - name: Set artifact name
         id: artifact
@@ -236,11 +231,6 @@ jobs:
         run: |
           cd apps/native
           DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
-          DMG_NAME="${{ steps.find_dmg.outputs.dmg_name }}"
-          
-          echo "=== Creating artifact ==="
-          echo "DMG Path: $DMG_PATH"
-          echo "DMG Name: $DMG_NAME"
           
           # Create artifact directory
           mkdir -p "${{ steps.artifact.outputs.name }}"
@@ -248,8 +238,7 @@ jobs:
           # Copy DMG
           cp "$DMG_PATH" "${{ steps.artifact.outputs.name }}/"
           
-          # List artifact contents
-          echo "=== Artifact contents ==="
+          echo "✅ Artifact created with DMG: $(basename "$DMG_PATH")"
           ls -la "${{ steps.artifact.outputs.name }}/"
 
       - name: Upload artifacts
@@ -274,27 +263,18 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: ${{ needs.build-native.outputs.artifact-name }}
           path: ./dist
 
-      - name: Debug artifact structure
+      - name: Verify artifact contents
         run: |
-          echo "=== Working directory ==="
-          pwd
-          ls -la ./
-          echo "=== Check if dist exists ==="
-          if [ -d "./dist" ]; then
-            echo "dist directory exists"
-            find ./dist -type f -name "*.dmg" | head -10
-            echo "=== All files in dist ==="
-            ls -la ./dist/
-            if [ -d "./dist/${{ needs.build-native.outputs.artifact-name }}" ]; then
-              echo "=== DMG files in ${{ needs.build-native.outputs.artifact-name }} ==="
-              ls -la ./dist/${{ needs.build-native.outputs.artifact-name }}/
-            fi
+          echo "=== Verifying downloaded artifacts ==="
+          if [ -d "./dist" ] && [ -n "$(find ./dist -name '*.dmg' -type f)" ]; then
+            echo "✅ DMG files found:"
+            find ./dist -name '*.dmg' -type f
           else
-            echo "❌ dist directory does not exist"
-            echo "=== Available artifacts might be ==="
-            find . -name "*.dmg" 2>/dev/null || echo "No DMG files found"
+            echo "❌ No DMG files found in artifacts"
+            exit 1
           fi
 
       - name: Generate release notes
@@ -326,39 +306,11 @@ jobs:
               ;;
           esac
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate staging signature
-        id: staging_signature
-        uses: ./.github/actions/generate-updater-signature
-        with:
-          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
-          environment: staging
-          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
-          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
-
-      - name: Create staging updater manifest
-        id: staging_manifest
-        uses: ./.github/actions/create-updater-manifest
-        with:
-          version: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
-          release-notes-file: notes.md
-          signature: ${{ steps.staging_signature.outputs.signature }}
-          dmg-file: ${{ steps.staging_signature.outputs.dmg-file }}
-          repository: ${{ github.repository }}
-          manifest-filename: updater-manifest-staging.json
+      - name: Skip updater signature for staging
+        run: |
+          echo "🧪 Staging build - skipping Tauri updater signature"
+          echo "ℹ️ Staging builds use ad-hoc signing and don't require updater manifests"
+          echo "🚀 Users can download DMG directly from releases"
 
       - name: Create pre-release
         uses: softprops/action-gh-release@v2
@@ -368,8 +320,7 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}-${{ needs.build-native.outputs.environment }}.${{ github.run_number }}
           body_path: notes.md
           files: |
-            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
-            ./updater-manifest-staging.json
+            ./dist/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -392,13 +343,19 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: ${{ needs.build-native.outputs.artifact-name }}
           path: ./dist
 
-      - name: Debug artifact structure
+      - name: Verify artifact contents
         run: |
-          echo "=== Artifact contents ==="
-          ls -la ./dist/
-          find ./dist -type f -name "*.dmg" | head -10
+          echo "=== Verifying downloaded artifacts ==="
+          if [ -d "./dist" ] && [ -n "$(find ./dist -name '*.dmg' -type f)" ]; then
+            echo "✅ DMG files found:"
+            find ./dist -name '*.dmg' -type f
+          else
+            echo "❌ No DMG files found in artifacts"
+            exit 1
+          fi
 
       - name: Generate changelog
         run: |
@@ -454,28 +411,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate updater signature
-        if: steps.check_release.outputs.exists == 'false'
-        id: signature
-        uses: ./.github/actions/generate-updater-signature
-        with:
-          artifact-name: ${{ needs.build-native.outputs.artifact-name }}
-          environment: production
-          tauri-private-key: ${{ secrets.TAURI_PRIVATE_KEY }}
-          tauri-key-password: ${{ secrets.TAURI_KEY_PASSWORD }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
-
-      - name: Create production updater manifest
-        if: steps.check_release.outputs.exists == 'false'
-        id: manifest
-        uses: ./.github/actions/create-updater-manifest
-        with:
-          version: v${{ needs.build-native.outputs.version }}
-          release-notes-file: changelog.md
-          signature: ${{ steps.signature.outputs.signature }}
-          dmg-file: ${{ steps.signature.outputs.dmg-file }}
-          repository: ${{ github.repository }}
-          manifest-filename: updater-manifest.json
+      - name: Skip updater signature and manifest
+        run: |
+          echo "🚫 Skipping updater signature generation for simplified build process"
+          echo "ℹ️ Ad-hoc signed apps do not support auto-updates"
 
       - name: Create production release
         if: steps.check_release.outputs.exists == 'false'
@@ -486,8 +425,7 @@ jobs:
           name: v${{ needs.build-native.outputs.version }}
           body_path: changelog.md
           files: |
-            ./dist/${{ needs.build-native.outputs.artifact-name }}/*.dmg
-            ./updater-manifest.json
+            ./dist/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

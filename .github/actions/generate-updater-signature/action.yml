@@ -83,10 +83,10 @@ runs:
           (umask 077 && echo "$TAURI_PRIVATE_KEY" > "$TEMP_KEY_FILE")
           
           # Generate signature
+          echo "🔑 Generating Tauri updater signature..."
+          
           SIGNATURE=$(pnpm tauri signer sign "$DMG_FILE" --private-key-path "$TEMP_KEY_FILE" --password "$TAURI_KEY_PASSWORD" 2>&1)
           SIGN_EXIT_CODE=$?
-          
-          # Cleanup is handled by trap
           
           if [ $SIGN_EXIT_CODE -eq 0 ] && [ -n "$SIGNATURE" ]; then
             echo "signature=$SIGNATURE" >> $GITHUB_OUTPUT
@@ -96,6 +96,15 @@ runs:
             echo "❌ Failed to generate signature (exit code: $SIGN_EXIT_CODE)"
             echo "signature=" >> $GITHUB_OUTPUT
             echo "dmg-file=$DMG_FILE" >> $GITHUB_OUTPUT
+            
+            # For non-production environments, continue without failing
+            if [ "${{ inputs.environment }}" != "production" ]; then
+              echo "⚠️ Non-production build - continuing without signature"
+              exit 0
+            else
+              echo "🚫 Production build requires valid signature"
+              exit 1
+            fi
           fi
         else
           echo "⚠️ Signing keys not available, skipping signature generation"
