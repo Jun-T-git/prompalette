@@ -1,5 +1,5 @@
 import { Button } from '@prompalette/ui';
-import { Apple, BookOpen, Globe, Zap, Search, Command, Pin, ArrowRight } from 'lucide-react';
+import { Apple, ArrowRight, BookOpen, Command, Globe, Pin, Search, Zap } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -86,15 +86,17 @@ export default function DesktopLandingPage() {
 
             <div className="relative mx-auto max-w-6xl">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-600 rounded-3xl blur-3xl opacity-20 transform scale-110"></div>
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20 w-2/3 mx-auto">
-                <div className="bg-slate-100/90 backdrop-blur-sm px-6 py-4 flex items-center gap-3 border-b border-slate-200/50">
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20 sm:w-2/3 mx-auto">
+                <div className="bg-slate-100/90 backdrop-blur-sm px-6 py-1.5 sm:py-4 flex items-center gap-3 border-b border-slate-200/50">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-400"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
                     <div className="w-3 h-3 rounded-full bg-green-400"></div>
                   </div>
                   <div className="flex-1 text-center">
-                    <span className="text-sm text-slate-700 font-medium">PromPalette Desktop</span>
+                    <span className="text-xs sm:text-sm text-slate-700 font-medium">
+                      PromPalette Desktop
+                    </span>
                   </div>
                 </div>
                 <Image
@@ -130,11 +132,15 @@ export default function DesktopLandingPage() {
                     <h3 className="text-xl font-bold text-slate-800 mb-3">瞬時起動</h3>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">⌘⇧P</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          ⌘⇧P
+                        </kbd>
                         <span className="text-slate-600 text-sm">どこからでも起動</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">⌘⌃1</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          ⌘⌃1
+                        </kbd>
                         <span className="text-slate-600 text-sm">お気に入り直接</span>
                       </div>
                     </div>
@@ -151,11 +157,15 @@ export default function DesktopLandingPage() {
                     <h3 className="text-xl font-bold text-slate-800 mb-3">即時検索</h3>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">#tag</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          #tag
+                        </kbd>
                         <span className="text-slate-600 text-sm">タグで絞り込み</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">/key</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          /key
+                        </kbd>
                         <span className="text-slate-600 text-sm">クイックアクセス</span>
                       </div>
                     </div>
@@ -172,11 +182,15 @@ export default function DesktopLandingPage() {
                     <h3 className="text-xl font-bold text-slate-800 mb-3">ピン留め</h3>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">1-0</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          1-0
+                        </kbd>
                         <span className="text-slate-600 text-sm">10個まで保存</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">Enter</kbd>
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">
+                          Enter
+                        </kbd>
                         <span className="text-slate-600 text-sm">即座にコピー</span>
                       </div>
                     </div>
@@ -192,9 +206,7 @@ export default function DesktopLandingPage() {
                     <h3 className="text-2xl md:text-3xl font-bold mb-4">
                       3秒でプロンプトからペーストまで
                     </h3>
-                    <p className="text-blue-200 text-lg">
-                      考える時間を削らず、実行に集中
-                    </p>
+                    <p className="text-blue-200 text-lg">考える時間を削らず、実行に集中</p>
                   </div>
                   <div className="flex items-center justify-center gap-4 md:gap-8 flex-wrap">
                     <div className="flex items-center gap-3">
