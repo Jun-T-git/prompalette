@@ -96,13 +96,46 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📋 Version: $VERSION"
 
+      - name: Setup Apple Code Signing (Production only)
+        if: ${{ steps.env.outputs.environment == 'production' }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "🔑 Setting up Apple Developer ID code signing for production..."
+          
+          # Create keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          
+          # Import certificate
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          
+          # Set signing identity
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | grep -o '[A-Z0-9]\{40\}')
+          echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+          
+          echo "✅ Code signing setup completed for production"
+
+
 
       - name: Build Tauri app (Environment-specific)
         env:
           APP_ENV: ${{ steps.env.outputs.environment }}
         run: |
-          echo "🔧 Building with ad-hoc signing for $APP_ENV environment"
-          export APPLE_CODESIGN_IDENTITY="-"
+          # Use proper signing for production, ad-hoc for others
+          if [[ "$APP_ENV" == "production" ]] && [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "🔏 Building with Apple Developer ID for production"
+            export APPLE_CODESIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
+          else
+            echo "🔧 Building with ad-hoc signing for $APP_ENV environment"
+            export APPLE_CODESIGN_IDENTITY="-"
+          fi
+          
           
           export CI=true
           export SKIP_JENKINS=1
@@ -154,6 +187,31 @@ jobs:
           
           echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
           echo "dmg_name=$(basename $DMG_PATH)" >> $GITHUB_OUTPUT
+
+      - name: Notarize macOS app (Production only)
+        if: ${{ steps.env.outputs.environment == 'production' && env.APPLE_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd apps/native
+          DMG_PATH="${{ steps.find_dmg.outputs.dmg_path }}"
+          
+          echo "🍎 Notarizing production app with Apple..."
+          
+          # Submit for notarization
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          
+          # Staple the notarization ticket
+          xcrun stapler staple "$DMG_PATH"
+          
+          echo "✅ Notarization completed for production"
+
 
 
       - name: Set artifact name
