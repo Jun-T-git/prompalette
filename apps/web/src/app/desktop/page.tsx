@@ -1,5 +1,5 @@
 import { Button } from '@prompalette/ui';
-import { Apple, BookOpen, Globe } from 'lucide-react';
+import { Apple, BookOpen, Globe, Zap, Search, Command, Pin, Hash, ArrowRight } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -61,14 +61,14 @@ export default function DesktopLandingPage() {
                 >
                   無料ダウンロード
                 </DownloadButton>
-                <Link href="/desktop/getting-started">
+                <Link href="/desktop/guide">
                   <Button
                     size="lg"
                     variant="outline"
                     className="text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
                   >
                     <BookOpen className="w-5 h-5 mr-2" />
-                    クイックスタート
+                    ユーザガイド
                   </Button>
                 </Link>
               </div>
@@ -107,6 +107,120 @@ export default function DesktopLandingPage() {
                 />
               </div>
             </div>
+
+            {/* Features Showcase */}
+            <div className="mt-32 max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
+                  なぜもっと早く使わなかったのか
+                </h2>
+                <p className="text-lg text-slate-600">
+                  キーボード一つで完結する、究極のプロンプト体験
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {/* Global Hotkeys */}
+                <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/50">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/30 to-purple-200/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                      <Zap className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-3">瞬時起動</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">⌘⇧P</kbd>
+                        <span className="text-slate-600 text-sm">どこからでも起動</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">⌘⌃1</kbd>
+                        <span className="text-slate-600 text-sm">お気に入り直接</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Smart Search */}
+                <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/50">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-teal-200/30 to-green-200/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                      <Search className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-3">即時検索</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">#tag</kbd>
+                        <span className="text-slate-600 text-sm">タグで絞り込み</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">/key</kbd>
+                        <span className="text-slate-600 text-sm">クイックアクセス</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pin System */}
+                <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/50">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-200/30 to-pink-200/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                      <Pin className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-3">ピン留め</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">1-0</kbd>
+                        <span className="text-slate-600 text-sm">10個まで保存</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <kbd className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-mono">Enter</kbd>
+                        <span className="text-slate-600 text-sm">即座にコピー</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workflow Demo */}
+              <div className="mt-20 bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent"></div>
+                <div className="relative">
+                  <div className="text-center mb-12">
+                    <h3 className="text-2xl md:text-3xl font-bold mb-4">
+                      3秒でプロンプトからペーストまで
+                    </h3>
+                    <p className="text-blue-200 text-lg">
+                      考える時間を削らず、実行に集中
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center gap-4 md:gap-8 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-400/30">
+                        <Command className="w-6 h-6 text-blue-300" />
+                      </div>
+                      <span className="text-sm md:text-base">⌘⇧P で起動</span>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-blue-300 hidden md:block" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center border border-teal-400/30">
+                        <Search className="w-6 h-6 text-teal-300" />
+                      </div>
+                      <span className="text-sm md:text-base">タイプして検索</span>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-blue-300 hidden md:block" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center border border-purple-400/30">
+                        <kbd className="text-purple-300 font-mono text-sm">⏎</kbd>
+                      </div>
+                      <span className="text-sm md:text-base">Enter でコピー</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -126,14 +240,14 @@ export default function DesktopLandingPage() {
                 <Apple className="w-5 h-5 mr-2" />
                 macOS版を無料ダウンロード
               </DownloadButton>
-              <Link href="/desktop/getting-started">
+              <Link href="/desktop/guide">
                 <Button
                   size="lg"
                   variant="outline"
                   className="text-lg px-10 py-4 bg-white text-blue-600 hover:bg-blue-50 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <BookOpen className="w-5 h-5 mr-2" />
-                  インストールガイド
+                  ユーザガイド
                 </Button>
               </Link>
             </div>

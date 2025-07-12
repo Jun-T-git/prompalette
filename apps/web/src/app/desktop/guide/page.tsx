@@ -114,7 +114,7 @@ export default function GuidePageJA() {
                   <span className="bg-indigo-100 text-indigo-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">1</span>
                   <div>
                     <strong>ダウンロード</strong>：{' '}
-                    <Link href="/desktop/download" className="text-indigo-600 hover:underline">ダウンロードページ</Link>
+                    <Link href="/desktop" className="text-indigo-600 hover:underline">デスクトップページ</Link>
                     からお使いのオペレーティングシステムに適したバージョンをダウンロードします。
                   </div>
                 </li>
@@ -463,11 +463,8 @@ export default function GuidePageJA() {
           さらにヘルプが必要ですか？他のリソースもご確認ください：
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
-          <Link href="/desktop/getting-started">
-            <Button variant="outline">クイックスタートガイド</Button>
-          </Link>
-          <Link href="/desktop/download">
-            <Button variant="outline">ダウンロードページ</Button>
+          <Link href="/desktop">
+            <Button variant="outline">デスクトップページ</Button>
           </Link>
           <Button variant="outline" asChild>
             <a href="https://github.com/Jun-T-git/prompalette/issues" target="_blank" rel="noopener noreferrer">
