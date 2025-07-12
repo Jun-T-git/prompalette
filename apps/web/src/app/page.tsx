@@ -19,11 +19,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { DownloadButton } from '@/components/DownloadButton';
+import { PageLayout } from '@/components/PageLayout';
 import { StructuredData } from '@/components/StructuredData';
 
 export default function HomePage() {
   return (
-    <>
+    <PageLayout>
       <StructuredData
         type="WebApplication"
         name="PromPalette"
@@ -31,7 +32,7 @@ export default function HomePage() {
         url="https://prompalette.com"
         applicationCategory="ProductivityApplication"
       />
-      <main className="min-h-screen bg-slate-50 font-inter antialiased relative">
+      <div className="bg-slate-50 font-inter antialiased relative">
         {/* Hero Section */}
         <section
           id="hero"
@@ -201,10 +202,11 @@ export default function HomePage() {
                       </div>
                     </div>
                     <Button
-                      className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                      disabled
+                      className="w-full bg-gray-300 text-gray-500 font-semibold py-4 rounded-2xl shadow-lg cursor-not-allowed"
                       size="lg"
                     >
-                      Webアプリを開始
+Webアプリを開始（開発中）
                     </Button>
                     <p className="text-sm text-slate-500 text-center mt-4">
                       完全無料 • アカウント登録不要
@@ -244,7 +246,7 @@ export default function HomePage() {
                           <Search className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-800">⌘+Ctrl+P で即時検索</h4>
+                          <h4 className="font-semibold text-gray-800">⌘+⇧+P で即時検索</h4>
                           <p className="text-sm text-gray-600">入力しながらリアルタイム絞り込み</p>
                         </div>
                       </div>
@@ -445,11 +447,12 @@ export default function HomePage() {
             </p>
             <div className="flex gap-6 justify-center flex-wrap mb-12">
               <Button
+                disabled
                 size="lg"
-                className="text-lg px-12 py-5 bg-white text-gray-900 hover:bg-gray-50 rounded-2xl font-semibold shadow-2xl hover:shadow-white/25 transition-all duration-300 hover:scale-[1.02]"
+                className="text-lg px-12 py-5 bg-gray-300 text-gray-500 rounded-2xl font-semibold shadow-lg cursor-not-allowed"
               >
                 <Globe className="w-5 h-5 mr-2" />
-                Webアプリを開始
+                Webアプリを開始（開発中）
               </Button>
               <DownloadButton
                 platform="macos"
@@ -474,7 +477,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-      </main>
-    </>
+      </div>
+    </PageLayout>
   );
 }

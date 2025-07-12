@@ -1,6 +1,13 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
 
+import { DEFAULT_NAVIGATION_CONFIG } from '../../config/navigation';
 import type { Prompt } from '../../types';
+import { 
+  createRapidNavigationDetector, 
+  isHTMLElement, 
+  isElementInView, 
+  scrollElementIntoView 
+} from '../../utils/scrollUtils';
 import { Button } from '../common';
 import { SidebarPromptPalette } from '../favorites';
 import { PromptCard } from '../prompt';
@@ -45,7 +52,15 @@ interface AppSidebarProps {
 
 /**
  * アプリケーションのサイドバーコンポーネント
- * 検索フィールドとプロンプト一覧を含む
+ * 
+ * 検索フィールドとプロンプト一覧を含み、以下の機能を提供します：
+ * - インテリジェントなキーボードナビゲーション
+ * - 適応的スクロール動作（長押し検出とアクセシビリティ対応）
+ * - 型安全なDOM操作
+ * - エラー耐性のある実装
+ * 
+ * @param props - AppSidebarProps
+ * @returns JSX.Element
  */
 export function AppSidebar({
   searchQuery,
@@ -118,7 +133,7 @@ export function AppSidebar({
           </div>
         ) : (
           <div
-            className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto"
+            className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto prompt-list-scroll"
             data-testid="prompt-list"
           >
             {filteredPrompts.map((prompt, index) => (
@@ -141,14 +156,27 @@ export function AppSidebar({
   );
 }
 
-// 外部からsearchInputRefにアクセスできるようにする
+/**
+ * AppSidebar の参照インターフェース
+ * 外部からsearchInputRefにアクセスするためのインターフェース
+ */
 export type AppSidebarRef = {
+  /** 検索フィールドにフォーカスを設定 */
   focusSearchInput: () => void;
+  /** 検索フィールドにフォーカスし、テキストを選択 */
   selectSearchInput: () => void;
 };
 
-// forwardRefでsearchInputRefを外部に公開
-
+/**
+ * forwardRefを使用したAppSidebarコンポーネント
+ * 
+ * 外部からsearchInputRefにアクセス可能にし、
+ * キーボードショートカットなどからの検索フィールド操作を実現します。
+ * 
+ * @param props - AppSidebarProps
+ * @param ref - AppSidebarRef
+ * @returns JSX.Element
+ */
 export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
   function AppSidebarWithRef(
     {
@@ -173,6 +201,7 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
     ref,
   ) {
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const promptListRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       focusSearchInput: () => {
@@ -183,6 +212,43 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
         searchInputRef.current?.select();
       },
     }));
+
+    /**
+     * Adaptive scroll function with rapid navigation detection and accessibility support
+     * 
+     * Features:
+     * - Type-safe DOM element handling
+     * - Automatic rapid navigation detection
+     * - Accessibility (prefers-reduced-motion) support
+     * - Robust error handling
+     */
+    const detectRapidNavigation = useRef(
+      createRapidNavigationDetector(DEFAULT_NAVIGATION_CONFIG)
+    ).current;
+    
+    const scrollToSelected = useCallback(() => {
+      // Defensive programming: ensure valid state
+      if (selectedIndexKeyboard < 0 || !promptListRef.current) {
+        return;
+      }
+      
+      // Type-safe element access
+      const selectedElement = promptListRef.current.children[selectedIndexKeyboard];
+      if (!isHTMLElement(selectedElement)) {
+        return;
+      }
+      
+      // Check if element is already in view to avoid unnecessary scrolling
+      if (!isElementInView(selectedElement, promptListRef.current)) {
+        const isRapidNavigation = detectRapidNavigation();
+        scrollElementIntoView(selectedElement, isRapidNavigation, DEFAULT_NAVIGATION_CONFIG);
+      }
+    }, [selectedIndexKeyboard, detectRapidNavigation]);
+
+    // Auto-scroll to selected item immediately
+    useEffect(() => {
+      scrollToSelected();
+    }, [selectedIndexKeyboard, scrollToSelected]);
 
     return (
       <div className="sidebar" data-testid="sidebar">
@@ -250,7 +316,8 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
                 </div>
               ) : (
                 <div
-                  className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto"
+                  ref={promptListRef}
+                  className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto prompt-list-scroll"
                   data-testid="prompt-list"
                 >
                   {filteredPrompts.map((prompt, index) => (

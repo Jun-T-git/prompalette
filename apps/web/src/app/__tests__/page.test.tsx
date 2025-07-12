@@ -21,7 +21,7 @@ describe('HomePage', () => {
   it('should render the CTA buttons', () => {
     render(<HomePage />);
     
-    const webAppButtons = screen.getAllByText('Webアプリを開始');
+    const webAppButtons = screen.getAllByText('Webアプリを開始（開発中）');
     const desktopButton = screen.getByText('デスクトップ版をダウンロード');
     
     expect(webAppButtons).toHaveLength(2); // One in product section, one in CTA section

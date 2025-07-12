@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { DownloadButton } from '@/components/DownloadButton';
+import { PageLayout } from '@/components/PageLayout';
 import { StructuredData } from '@/components/StructuredData';
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function DesktopLandingPage() {
   return (
-    <>
+    <PageLayout>
       <StructuredData
         type="SoftwareApplication"
         name="PromPalette Desktop"
@@ -30,7 +31,7 @@ export default function DesktopLandingPage() {
         applicationCategory="ProductivityApplication"
         operatingSystem="macOS"
       />
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+      <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
         <section className="relative overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 max-w-7xl">
             <div className="text-center mb-16">
@@ -266,7 +267,7 @@ export default function DesktopLandingPage() {
             <p className="text-blue-200 text-sm">無料 • オープンソース</p>
           </div>
         </section>
-      </main>
-    </>
+      </div>
+    </PageLayout>
   );
 }
