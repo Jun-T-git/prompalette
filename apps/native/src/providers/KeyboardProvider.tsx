@@ -114,13 +114,10 @@ export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
 
   // Debug: expose keyboard context to window for E2E testing (development only)
   React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    // Build-time environment check - this code will be removed in production builds
+    if (__IS_DEVELOPMENT__ && typeof window !== 'undefined') {
       // Type-safe window extension for debugging
-      interface DebugWindow extends Window {
-        __keyboardContext?: ContextId;
-        __keyboardProvider?: KeyboardContextValue;
-      }
-      const debugWindow = window as DebugWindow;
+      const debugWindow = window as Window;
       debugWindow.__keyboardContext = activeContext;
       debugWindow.__keyboardProvider = contextValue;
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { getEnvironmentInfo } from '../utils'
+import { IS_DEVELOPMENT, IS_STAGING, IS_PRODUCTION } from '../utils/buildTimeEnvironment'
 
 /**
  * 環境エラー表示コンポーネント
@@ -105,7 +106,7 @@ export function EnvironmentError({ error, onRetry }: EnvironmentErrorProps) {
           <p>環境情報:</p>
           <ul className="list-disc list-inside mt-1 space-y-1">
             <li>Tauri環境: {isTauri ? 'はい' : 'いいえ'}</li>
-            <li>Node環境: {process.env.NODE_ENV || 'unknown'}</li>
+            <li>Node環境: {IS_DEVELOPMENT ? 'development' : IS_STAGING ? 'staging' : IS_PRODUCTION ? 'production' : 'unknown'}</li>
             <li>ユーザーエージェント: {typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 50) + '...' : 'unknown'}</li>
           </ul>
         </div>
