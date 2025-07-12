@@ -44,7 +44,7 @@ export const logContextChange = (
   newContext: ContextId,
   uiState: UIState
 ) => {
-  if (process.env.NODE_ENV === 'development' && previousContext !== newContext) {
+  if (__IS_DEVELOPMENT__ && previousContext !== newContext) {
     console.log('🔧 Context derived from UI state:', {
       from: previousContext,
       to: newContext,

@@ -69,4 +69,8 @@ local-docs/
 **/test-results/
 **/playwright-report/
 
+# Data files - contains user data and should not be committed
+apps/api/data/*.json
+apps/api/data/prompts.json
+
 CLAUDE.md
