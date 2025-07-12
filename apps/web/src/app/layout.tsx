@@ -57,7 +57,6 @@ export const metadata: Metadata = {
     title: 'PromPalette - AIプロンプト管理の新しいスタンダード',
     description: 'ウェブとデスクトップで使える、プロンプト管理のためのオールインワンプラットフォーム。⌘+Ctrlでどこからでも瞬時にアクセス、お気に入りプロンプトは即座にペースト。',
     images: ['/og-image.png'],
-    creator: '@prompalette',
   },
   robots: {
     index: true,
@@ -69,9 +68,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  verification: {
-    google: 'google-site-verification-code',
   },
   category: 'productivity',
 };

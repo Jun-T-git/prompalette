@@ -5,6 +5,7 @@ import { Apple, Keyboard, Lightbulb, Rocket, Settings, Zap } from 'lucide-react'
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { PageLayout } from '@/components/PageLayout';
 import { TableOfContents } from '@/components/TableOfContents';
 
 export default function GuidePageJA() {
@@ -26,8 +27,9 @@ export default function GuidePageJA() {
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <div className="flex max-w-7xl mx-auto">
+    <PageLayout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+        <div className="flex max-w-7xl mx-auto">
         {/* Sidebar */}
         <div className="hidden lg:block w-64 xl:w-80 flex-shrink-0">
           <div className="sticky top-6 p-6">
@@ -661,7 +663,8 @@ export default function GuidePageJA() {
             </div>
           </section>
         </div>
+        </div>
       </div>
-    </main>
+    </PageLayout>
   );
 }
