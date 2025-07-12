@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "prompalette-staging",
+  "productName": "prompalette",
   "version": "0.1.4",
-  "identifier": "com.prompalette.app.staging",
+  "identifier": "com.prompalette.app",
   "build": {
     "beforeDevCommand": "pnpm dev:web",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "PromPalette [STAGING]"
+        "title": "PromPalette"
       }
     ],
     "security": {
@@ -56,7 +56,7 @@
   },
   "plugins": {
     "updater": {
-      "active": false,
+      "active": true,
       "endpoints": [
         "https://api.github.com/repos/Jun-T-git/prompalette/releases/latest"
       ],
