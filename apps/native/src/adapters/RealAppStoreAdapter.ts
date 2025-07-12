@@ -1,3 +1,4 @@
+import { DEFAULT_NAVIGATION_CONFIG } from '../config/navigation';
 import type { AppStores } from '../services/AppActionAdapter';
 import { useFavoritesStore } from '../stores/favorites';
 import { usePromptStore } from '../stores/prompt';
@@ -8,6 +9,19 @@ import { getEnvironmentInfo } from '../utils';
 export interface FormSubmitHandler {
   (): Promise<void>;
 }
+
+// Use centralized navigation configuration
+const NAVIGATION_THROTTLE_MS = DEFAULT_NAVIGATION_CONFIG.navigationThrottleMs;
+let lastNavigationTime = 0;
+
+const shouldThrottleNavigation = (): boolean => {
+  const now = Date.now();
+  if (now - lastNavigationTime < NAVIGATION_THROTTLE_MS) {
+    return true;
+  }
+  lastNavigationTime = now;
+  return false;
+};
 
 // Real app store adapter that connects to actual Zustand stores
 export const createRealAppStores = (
@@ -43,31 +57,47 @@ export const createRealAppStores = (
         }
       },
       navigateUp: () => {
+        if (shouldThrottleNavigation()) {
+          return;
+        }
+        
         if (!filteredPrompts || filteredPrompts.length === 0) {
           return;
         }
         
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : 0;
-        const newIndex = currentIndex > 0 ? currentIndex - 1 : filteredPrompts.length - 1;
-        const newPrompt = filteredPrompts[newIndex];
         
-        if (newPrompt) {
-          setSelectedPrompt(newPrompt);
+        // Stop at the top instead of wrapping to bottom
+        if (currentIndex > 0) {
+          const newIndex = currentIndex - 1;
+          const newPrompt = filteredPrompts[newIndex];
+          
+          if (newPrompt) {
+            setSelectedPrompt(newPrompt);
+          }
         }
       },
       navigateDown: () => {
+        if (shouldThrottleNavigation()) {
+          return;
+        }
+        
         if (!filteredPrompts || filteredPrompts.length === 0) {
           return;
         }
         
         const currentIndex = selectedPrompt ? 
           filteredPrompts.findIndex(p => p.id === selectedPrompt.id) : -1;
-        const newIndex = currentIndex < filteredPrompts.length - 1 ? currentIndex + 1 : 0;
-        const newPrompt = filteredPrompts[newIndex];
         
-        if (newPrompt) {
-          setSelectedPrompt(newPrompt);
+        // Stop at the bottom instead of wrapping to top
+        if (currentIndex < filteredPrompts.length - 1) {
+          const newIndex = currentIndex + 1;
+          const newPrompt = filteredPrompts[newIndex];
+          
+          if (newPrompt) {
+            setSelectedPrompt(newPrompt);
+          }
         }
       },
       selectFirst: () => {

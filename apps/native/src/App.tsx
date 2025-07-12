@@ -119,6 +119,12 @@ function AppContent() {
     return searchResults?.map((result) => result.item) || [];
   }, [searchResults]);
 
+  // Calculate selected index for keyboard navigation
+  const selectedIndexKeyboard = useMemo(() => {
+    if (!selectedPrompt || !filteredPrompts.length) return -1;
+    return filteredPrompts.findIndex(prompt => prompt.id === selectedPrompt.id);
+  }, [selectedPrompt, filteredPrompts]);
+
   // filteredPromptsの最新値を参照するためのRef
   const filteredPromptsRef = useRef(filteredPrompts);
 
@@ -486,7 +492,7 @@ function AppContent() {
             prompts={prompts}
             filteredPrompts={filteredPrompts}
             selectedPrompt={selectedPrompt}
-            selectedIndexKeyboard={-1}
+            selectedIndexKeyboard={selectedIndexKeyboard}
             isLoading={isLoading}
             isComposing={false}
             onSearchFocusChange={() => {}}
