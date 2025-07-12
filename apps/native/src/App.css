@@ -22,6 +22,11 @@
   background: #94a3b8;
 }
 
+/* Smooth scrolling for prompt list */
+.prompt-list-scroll {
+  scroll-behavior: smooth;
+}
+
 /* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;

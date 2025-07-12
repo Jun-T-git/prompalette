@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
 
 import type { Prompt } from '../../types';
 import { Button } from '../common';
@@ -118,7 +118,7 @@ export function AppSidebar({
           </div>
         ) : (
           <div
-            className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto"
+            className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto prompt-list-scroll"
             data-testid="prompt-list"
           >
             {filteredPrompts.map((prompt, index) => (
@@ -173,6 +173,7 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
     ref,
   ) {
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const promptListRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       focusSearchInput: () => {
@@ -183,6 +184,36 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
         searchInputRef.current?.select();
       },
     }));
+
+    // Scroll function to handle keyboard navigation
+    
+    const scrollToSelected = useCallback(() => {
+      if (selectedIndexKeyboard >= 0 && promptListRef.current) {
+        const selectedElement = promptListRef.current.children[selectedIndexKeyboard] as HTMLElement;
+        if (selectedElement) {
+          // Check if element is already in view to avoid unnecessary scrolling
+          const containerRect = promptListRef.current.getBoundingClientRect();
+          const elementRect = selectedElement.getBoundingClientRect();
+          
+          const isInView = 
+            elementRect.top >= containerRect.top &&
+            elementRect.bottom <= containerRect.bottom;
+          
+          if (!isInView) {
+            selectedElement.scrollIntoView({
+              behavior: 'instant',
+              block: 'nearest',
+              inline: 'nearest'
+            });
+          }
+        }
+      }
+    }, [selectedIndexKeyboard]);
+
+    // Auto-scroll to selected item immediately
+    useEffect(() => {
+      scrollToSelected();
+    }, [selectedIndexKeyboard, scrollToSelected]);
 
     return (
       <div className="sidebar" data-testid="sidebar">
@@ -250,7 +281,8 @@ export const AppSidebarWithRef = forwardRef<AppSidebarRef, AppSidebarProps>(
                 </div>
               ) : (
                 <div
-                  className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto"
+                  ref={promptListRef}
+                  className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto prompt-list-scroll"
                   data-testid="prompt-list"
                 >
                   {filteredPrompts.map((prompt, index) => (
