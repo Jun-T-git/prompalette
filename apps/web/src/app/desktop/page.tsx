@@ -1,5 +1,5 @@
 import { Button } from '@prompalette/ui';
-import { Apple, BookOpen, Globe, Zap, Search, Command, Pin, Hash, ArrowRight } from 'lucide-react';
+import { Apple, BookOpen, Globe, Zap, Search, Command, Pin, ArrowRight } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';

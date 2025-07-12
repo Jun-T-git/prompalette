@@ -3,10 +3,16 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 
+interface TOCSubsection {
+  id: string;
+  title: string;
+}
+
 interface TOCSection {
   id: string;
   title: string;
   icon: React.ComponentType<{ className?: string }>;
+  subsections?: TOCSubsection[];
 }
 
 interface TableOfContentsProps {
@@ -58,6 +64,21 @@ export function TableOfContents({ sections }: TableOfContentsProps) {
                     <Icon className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     {section.title}
                   </button>
+                  {section.subsections && (
+                    <ul className="ml-7 mt-2 space-y-2">
+                      {section.subsections.map((subsection) => (
+                        <li key={subsection.id}>
+                          <button
+                            onClick={() => handleSectionClick(subsection.id)}
+                            className="flex items-center text-xs text-gray-500 hover:text-indigo-400 transition-colors w-full text-left"
+                          >
+                            <span className="w-1.5 h-1.5 bg-gray-300 rounded-full mr-2 flex-shrink-0"></span>
+                            {subsection.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               );
             })}
@@ -86,6 +107,21 @@ export function TableOfContents({ sections }: TableOfContentsProps) {
                       <Icon className="w-4 h-4 group-hover:scale-110 transition-transform" />
                       {section.title}
                     </button>
+                    {section.subsections && (
+                      <ul className="ml-7 mt-2 space-y-2">
+                        {section.subsections.map((subsection) => (
+                          <li key={subsection.id}>
+                            <button
+                              onClick={() => handleSectionClick(subsection.id)}
+                              className="flex items-center text-xs text-gray-500 hover:text-indigo-400 transition-colors w-full text-left"
+                            >
+                              <span className="w-1.5 h-1.5 bg-gray-300 rounded-full mr-2 flex-shrink-0"></span>
+                              {subsection.title}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 );
               })}
