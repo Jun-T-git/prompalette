@@ -19,11 +19,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { DownloadButton } from '@/components/DownloadButton';
+import { PageLayout } from '@/components/PageLayout';
 import { StructuredData } from '@/components/StructuredData';
 
 export default function HomePage() {
   return (
-    <>
+    <PageLayout>
       <StructuredData
         type="WebApplication"
         name="PromPalette"
@@ -31,7 +32,7 @@ export default function HomePage() {
         url="https://prompalette.com"
         applicationCategory="ProductivityApplication"
       />
-      <main className="min-h-screen bg-slate-50 font-inter antialiased relative">
+      <div className="bg-slate-50 font-inter antialiased relative">
         {/* Hero Section */}
         <section
           id="hero"
@@ -474,7 +475,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-      </main>
-    </>
+      </div>
+    </PageLayout>
   );
 }
