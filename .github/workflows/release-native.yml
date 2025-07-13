@@ -9,6 +9,7 @@ on:
       - 'apps/native/**'
       - '.github/workflows/release-native.yml'
       - '.github/actions/**'
+      - 'scripts/signing/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -306,11 +307,46 @@ jobs:
               ;;
           esac
 
-      - name: Skip updater signature for staging
+      - name: Setup OpenSSL for Ed25519 signing
         run: |
-          echo "🧪 Staging build - skipping Tauri updater signature"
-          echo "ℹ️ Staging builds use ad-hoc signing and don't require updater manifests"
-          echo "🚀 Users can download DMG directly from releases"
+          echo "🔧 Setting up OpenSSL with Ed25519 support"
+          
+          # Check current OpenSSL version
+          openssl version
+          
+          # Install OpenSSL 3.x if needed (Ubuntu 22.04+ has it by default)
+          if ! openssl list -public-key-algorithms | grep -i ed25519 >/dev/null 2>&1; then
+            echo "Installing OpenSSL 3.x for Ed25519 support..."
+            sudo apt-get update
+            sudo apt-get install -y openssl
+          fi
+          
+          # Verify Ed25519 support
+          echo "✅ OpenSSL Ed25519 support:"
+          openssl list -public-key-algorithms | grep -i ed25519 || echo "❌ Ed25519 not supported"
+          
+      - name: Sign update for auto-update (Staging)
+        if: needs.build-native.outputs.environment == 'staging'
+        run: |
+          echo "🔑 Signing staging update for auto-update system"
+          
+          # Find DMG file
+          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
+          if [ -z "$DMG_FILE" ]; then
+            echo "❌ No DMG file found for signing"
+            exit 1
+          fi
+          
+          # Run signing script
+          export STAGING_SIGNING_PRIVATE_KEY="${{ secrets.STAGING_SIGNING_PRIVATE_KEY }}"
+          export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          
+          if ! ./scripts/signing/sign-update.sh staging "$DMG_FILE" "${{ needs.build-native.outputs.version }}"; then
+            echo "❌ Staging signing failed"
+            exit 1
+          fi
+          
+          echo "✅ Staging update signed successfully"
 
       - name: Create pre-release
         uses: softprops/action-gh-release@v2
@@ -411,10 +447,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Skip updater signature and manifest
+      - name: Setup OpenSSL for Ed25519 signing
         run: |
-          echo "🚫 Skipping updater signature generation for simplified build process"
-          echo "ℹ️ Ad-hoc signed apps do not support auto-updates"
+          echo "🔧 Setting up OpenSSL with Ed25519 support"
+          
+          # Check current OpenSSL version
+          openssl version
+          
+          # Install OpenSSL 3.x if needed (Ubuntu 22.04+ has it by default)
+          if ! openssl list -public-key-algorithms | grep -i ed25519 >/dev/null 2>&1; then
+            echo "Installing OpenSSL 3.x for Ed25519 support..."
+            sudo apt-get update
+            sudo apt-get install -y openssl
+          fi
+          
+          # Verify Ed25519 support
+          echo "✅ OpenSSL Ed25519 support:"
+          openssl list -public-key-algorithms | grep -i ed25519 || echo "❌ Ed25519 not supported"
+
+      - name: Sign update for auto-update (Production)
+        if: needs.build-native.outputs.environment == 'production'
+        run: |
+          echo "🔑 Signing production update for auto-update system"
+          
+          # Find DMG file
+          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
+          if [ -z "$DMG_FILE" ]; then
+            echo "❌ No DMG file found for signing"
+            exit 1
+          fi
+          
+          # Run signing script
+          export PRODUCTION_SIGNING_PRIVATE_KEY="${{ secrets.PRODUCTION_SIGNING_PRIVATE_KEY }}"
+          export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          
+          if ! ./scripts/signing/sign-update.sh production "$DMG_FILE" "${{ needs.build-native.outputs.version }}"; then
+            echo "❌ Production signing failed"
+            exit 1
+          fi
+          
+          echo "✅ Production update signed successfully"
 
       - name: Create production release
         if: steps.check_release.outputs.exists == 'false'
