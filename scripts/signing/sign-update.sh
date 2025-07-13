@@ -100,7 +100,13 @@ fi
 
 # Convert signature to base64
 SIGNATURE_B64="$TEMP_DIR/signature.base64"
-base64 -i "$SIGNATURE_FILE" -o "$SIGNATURE_B64"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS base64
+    base64 -i "$SIGNATURE_FILE" -o "$SIGNATURE_B64"
+else
+    # Linux base64
+    base64 -w 0 < "$SIGNATURE_FILE" > "$SIGNATURE_B64"
+fi
 SIGNATURE=$(cat "$SIGNATURE_B64")
 
 log_success "File signed successfully"
