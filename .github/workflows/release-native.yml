@@ -306,6 +306,24 @@ jobs:
               ;;
           esac
 
+      - name: Setup OpenSSL for Ed25519 signing
+        run: |
+          echo "🔧 Setting up OpenSSL with Ed25519 support"
+          
+          # Check current OpenSSL version
+          openssl version
+          
+          # Install OpenSSL 3.x if needed (Ubuntu 22.04+ has it by default)
+          if ! openssl list -public-key-algorithms | grep -i ed25519 >/dev/null 2>&1; then
+            echo "Installing OpenSSL 3.x for Ed25519 support..."
+            sudo apt-get update
+            sudo apt-get install -y openssl
+          fi
+          
+          # Verify Ed25519 support
+          echo "✅ OpenSSL Ed25519 support:"
+          openssl list -public-key-algorithms | grep -i ed25519 || echo "❌ Ed25519 not supported"
+          
       - name: Sign update for auto-update (Staging)
         if: needs.build-native.outputs.environment == 'staging'
         run: |
@@ -427,6 +445,24 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup OpenSSL for Ed25519 signing
+        run: |
+          echo "🔧 Setting up OpenSSL with Ed25519 support"
+          
+          # Check current OpenSSL version
+          openssl version
+          
+          # Install OpenSSL 3.x if needed (Ubuntu 22.04+ has it by default)
+          if ! openssl list -public-key-algorithms | grep -i ed25519 >/dev/null 2>&1; then
+            echo "Installing OpenSSL 3.x for Ed25519 support..."
+            sudo apt-get update
+            sudo apt-get install -y openssl
+          fi
+          
+          # Verify Ed25519 support
+          echo "✅ OpenSSL Ed25519 support:"
+          openssl list -public-key-algorithms | grep -i ed25519 || echo "❌ Ed25519 not supported"
 
       - name: Sign update for auto-update (Production)
         if: needs.build-native.outputs.environment == 'production'

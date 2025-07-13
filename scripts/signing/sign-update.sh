@@ -75,10 +75,26 @@ if ! openssl pkey -in "$PRIVATE_KEY" -text -noout >/dev/null 2>&1; then
     exit 1
 fi
 
-# Sign the update file
+# Sign the update file  
 SIGNATURE_FILE="$TEMP_DIR/signature.sig"
-if ! openssl pkeyutl -sign -inkey "$PRIVATE_KEY" -in "$UPDATE_FILE" -out "$SIGNATURE_FILE"; then
-    log_error "Failed to create signature"
+
+# Check OpenSSL version for Ed25519 support
+OPENSSL_VERSION=$(openssl version | cut -d' ' -f2)
+log_info "Using OpenSSL version: $OPENSSL_VERSION"
+
+# Ed25519 signing - try pkeyutl first, then fallback methods
+if openssl pkeyutl -sign -inkey "$PRIVATE_KEY" -in "$UPDATE_FILE" -out "$SIGNATURE_FILE" 2>/dev/null; then
+    log_info "Signed using pkeyutl"
+elif openssl pkeyutl -sign -inkey "$PRIVATE_KEY" -rawin -in "$UPDATE_FILE" -out "$SIGNATURE_FILE" 2>/dev/null; then
+    log_info "Signed using pkeyutl with -rawin flag"
+else
+    log_error "Ed25519 signing failed. OpenSSL may not support Ed25519 with pkeyutl."
+    log_error "OpenSSL version: $(openssl version)"
+    log_error "Available algorithms: $(openssl list -public-key-algorithms | grep -i ed25519 || echo 'Ed25519 not found')"
+    
+    # Check if key is actually Ed25519
+    KEY_INFO=$(openssl pkey -in "$PRIVATE_KEY" -text -noout 2>/dev/null | head -1)
+    log_error "Key type: $KEY_INFO"
     exit 1
 fi
 
