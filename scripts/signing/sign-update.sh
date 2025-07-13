@@ -98,9 +98,9 @@ else
     exit 1
 fi
 
-# Convert signature to base64
+# Convert signature to base64 (cross-platform compatible)
 SIGNATURE_B64="$TEMP_DIR/signature.base64"
-base64 -i "$SIGNATURE_FILE" -o "$SIGNATURE_B64"
+base64 < "$SIGNATURE_FILE" > "$SIGNATURE_B64"
 SIGNATURE=$(cat "$SIGNATURE_B64")
 
 log_success "File signed successfully"
