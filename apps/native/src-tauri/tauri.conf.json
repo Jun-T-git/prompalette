@@ -58,10 +58,10 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://api.github.com/repos/Jun-T-git/prompalette/releases/latest"
+        "https://github.com/Jun-T-git/prompalette/releases/download/latest/latest.json"
       ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVFNzRCRDIyNjM4OTY1RDQKUldUVVpZbGpJcjEwWGxJUHRmUCtWSWVKd2I4Uk9yR2M5cFI3THc0eEQwdHZ2ZEI2d25wNVEwVjEK"
+      "pubkey": "uACEWqEBtooDicZFZg4YupE/aTN+92LxoxGIyWgQr3E="
     }
   },
   "bundle": {

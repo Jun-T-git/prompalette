@@ -16,6 +16,9 @@ describe('Prompts Route', () => {
     await fileStorage.reset();
     await fileStorage.initialize();
     
+    // Wait a bit to ensure file storage is fully initialized
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
     // Create test authentication dynamically
     testAuth = await createTestAuth(['read', 'write', 'admin']);
     

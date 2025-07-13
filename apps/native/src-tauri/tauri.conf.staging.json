@@ -20,7 +20,12 @@
   },
   "plugins": {
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://github.com/Jun-T-git/prompalette/releases/download/latest-staging/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "MG22G98uBSZ+Wek6YyzWFd362m64pgk5KzK1EfDjM7E="
     }
   }
 }
