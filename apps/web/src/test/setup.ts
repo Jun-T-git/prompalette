@@ -4,6 +4,7 @@
  */
 import '@testing-library/jest-dom'
 import '@testing-library/jest-dom/vitest'
+import { vi } from 'vitest'
 
 // グローバル設定
 global.ResizeObserver = class ResizeObserver {
@@ -12,10 +13,29 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
-// Next.jsのルーターモック
 // @ts-expect-error - Next.js router mock
 global.IntersectionObserver = class IntersectionObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
 }
+
+// Mock window.alert for tests
+global.alert = vi.fn()
+
+// Mock window.confirm for tests
+global.confirm = vi.fn(() => true)
+
+// Mock console methods to avoid noise in tests
+global.console = {
+  ...console,
+  log: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+}
+
+// Mock environment variables for tests
+process.env.NODE_ENV = 'development'  // ローカル開発環境として設定
+process.env.NEXT_PUBLIC_SUPABASE_URL = ''
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
+process.env.SUPABASE_SERVICE_ROLE_KEY = ''

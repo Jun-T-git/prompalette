@@ -63,7 +63,7 @@ export default function DownloadGuidePage() {
           </Button>
           
           <div className="text-sm text-slate-600">
-            <Link href="/desktop" className="text-indigo-600 hover:text-indigo-700 hover:underline">
+            <Link href="/docs/desktop" className="text-indigo-600 hover:text-indigo-700 hover:underline">
               ← デスクトップページに戻る
             </Link>
           </div>
