@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@prompalette/ui';
-import { Search, Plus, User, LogOut } from 'lucide-react';
+import { Search, Plus, LogOut } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';

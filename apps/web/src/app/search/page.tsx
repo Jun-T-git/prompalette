@@ -2,7 +2,6 @@
 
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@prompalette/ui';
 import { Search, Copy, Globe, User, Hash, Zap } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -225,7 +224,7 @@ export default function SearchPage() {
           ) : searchQuery && (
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                "{searchQuery}" の検索結果
+                &quot;{searchQuery}&quot; の検索結果
               </h2>
               <div className="flex items-center gap-4 text-sm text-gray-600">
                 <span>{results.length} 件見つかりました</span>

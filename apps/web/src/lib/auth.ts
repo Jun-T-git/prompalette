@@ -4,7 +4,6 @@ import GoogleProvider from 'next-auth/providers/google';
 
 import { getSupabaseServiceClient } from '@/lib/supabase';
 import { logError } from '@/lib/logger';
-import type { Database } from './database.types';
 
 // Check if Supabase is properly configured
 const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,7 +20,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user }) {
       if (!user.email) return false;
 
       // If Supabase is not configured, allow signin for development

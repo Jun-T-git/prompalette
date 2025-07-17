@@ -35,7 +35,11 @@ global.console = {
 }
 
 // Mock environment variables for tests
-process.env.NODE_ENV = 'development'  // ローカル開発環境として設定
+Object.defineProperty(process.env, 'NODE_ENV', {
+  value: 'test',
+  writable: true,
+  configurable: true
+});
 process.env.NEXT_PUBLIC_SUPABASE_URL = ''
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 process.env.SUPABASE_SERVICE_ROLE_KEY = ''

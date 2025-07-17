@@ -14,15 +14,6 @@ export const setSupabaseAuth = async (session: Session | null) => {
   try {
     const supabase = createClientSupabase();
     
-    // カスタムJWTを作成（開発用）
-    const customToken = {
-      sub: session.user.id,
-      email: session.user.email,
-      role: 'authenticated',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 3600, // 1時間後に期限切れ
-    };
-
     // Supabaseクライアントの認証状態を手動で設定
     // 注意: これは開発/デモ用の実装です
     await supabase.auth.setSession({

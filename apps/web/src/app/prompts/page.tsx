@@ -77,7 +77,7 @@ export default function PromptsPage() {
     };
 
     loadPrompts();
-  }, [currentSession]);
+  }, [currentSession, session, shouldUseSupabase]);
 
   const filteredPrompts = prompts.filter(prompt => {
     const matchesSearch = prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

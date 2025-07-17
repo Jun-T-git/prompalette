@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { createClientSupabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
@@ -16,7 +16,7 @@ export const usePrompts = () => {
   const supabase = createClientSupabase();
 
   // Fetch user's prompts
-  const fetchPrompts = async () => {
+  const fetchPrompts = useCallback(async () => {
     if (!session?.user?.id || !supabase) return;
 
     try {
@@ -34,7 +34,7 @@ export const usePrompts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session?.user?.id, supabase]);
 
   // Create new prompt
   const createPrompt = async (prompt: Omit<PromptInsert, 'user_id'>) => {
@@ -162,7 +162,7 @@ export const usePrompts = () => {
 
   useEffect(() => {
     fetchPrompts();
-  }, [session?.user?.id]);
+  }, [fetchPrompts]);
 
   return {
     prompts,

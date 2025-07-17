@@ -16,7 +16,7 @@ export interface ServiceContainer {
 
 // サービスファクトリー
 export class ServiceFactory {
-  private static instance: ServiceFactory;
+  private static instance: ServiceFactory | undefined;
   private container: ServiceContainer | null = null;
 
   private constructor(private config: AppConfig) {}
