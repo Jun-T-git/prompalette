@@ -33,6 +33,19 @@ export async function GET(request: NextRequest) {
   const showGuide = searchParams.get('guide') === 'true';
   const checkOnly = searchParams.get('check') === 'true';
   
+  // Basic input validation for platform parameter
+  const validPlatforms = ['macos', 'windows', 'linux'];
+  if (platform !== 'macos' && !validPlatforms.includes(platform)) {
+    logWarn('Invalid platform parameter', { platform, validPlatforms });
+    return NextResponse.json(
+      { error: 'Invalid platform parameter', supported_platforms: validPlatforms },
+      { 
+        status: 400,
+        headers: createCorsHeaders(origin),
+      }
+    );
+  }
+  
   // ダウンロードリクエストをログ記録
   logInfo('Download request received', {
     platform,

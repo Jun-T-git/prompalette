@@ -53,9 +53,25 @@ export function isOriginAllowed(origin: string | null, config: CorsConfig): bool
  */
 export function createCorsHeaders(origin?: string | null): Record<string, string> {
   const config = getCorsConfig();
+  
+  // Production: Strict origin checking
+  if (process.env.NODE_ENV === 'production') {
+    const allowedOrigin = origin && isOriginAllowed(origin, config) ? origin : null;
+    if (!allowedOrigin) {
+      throw new Error(`CORS: Origin ${origin} not allowed in production`);
+    }
+    
+    return {
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Access-Control-Allow-Methods': config.allowedMethods.join(', '),
+      'Access-Control-Allow-Headers': config.allowedHeaders.join(', '),
+    };
+  }
+  
+  // Development: Allow origin if valid, fallback to localhost
   const allowedOrigin = origin && isOriginAllowed(origin, config) 
     ? origin 
-    : config.allowedOrigins[0] || 'http://localhost:3000'; // フォールバック保証
+    : config.allowedOrigins[0] || 'http://localhost:3000';
   
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
