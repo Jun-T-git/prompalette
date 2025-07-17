@@ -639,7 +639,7 @@ export default function GuidePageJA() {
           {/* Footer */}
           <section className="py-12 text-center border-t border-slate-200/50 mt-8">
             <div className="flex gap-4 justify-center flex-wrap">
-              <Link href="/desktop">
+              <Link href="/docs/desktop">
                 <Button
                   variant="outline"
                   className="bg-white/80 backdrop-blur-sm hover:bg-white/90"

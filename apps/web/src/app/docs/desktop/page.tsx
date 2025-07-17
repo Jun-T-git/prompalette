@@ -62,7 +62,7 @@ export default function DesktopLandingPage() {
                 >
                   無料ダウンロード
                 </DownloadButton>
-                <Link href="/desktop/guide">
+                <Link href="/docs/desktop/guide">
                   <Button
                     size="lg"
                     variant="outline"
@@ -74,13 +74,10 @@ export default function DesktopLandingPage() {
                 </Link>
               </div>
               <div className="flex gap-4 justify-center mb-8">
-                <Link
-                  href="/en/desktop"
-                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors inline-flex items-center gap-1"
-                >
+                <span className="text-sm text-gray-400 inline-flex items-center gap-1">
                   <Globe className="w-4 h-4" />
-                  English Version
-                </Link>
+                  English Version (Coming Soon)
+                </span>
               </div>
               <p className="text-sm text-slate-500">完全無料 • macOS専用 • オープンソース</p>
             </div>
@@ -253,7 +250,7 @@ export default function DesktopLandingPage() {
                 <Apple className="w-5 h-5 mr-2" />
                 macOS版を無料ダウンロード
               </DownloadButton>
-              <Link href="/desktop/guide">
+              <Link href="/docs/desktop/guide">
                 <Button
                   size="lg"
                   variant="outline"
