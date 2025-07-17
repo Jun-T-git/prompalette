@@ -77,7 +77,7 @@ describe('ServiceFactory', () => {
       expect(services.promptService).toBeDefined();
     });
 
-    it('should return stub service when Supabase is not configured in production (client-side)', () => {
+    it('should return stub service when Supabase is not configured in production (CI environment)', () => {
       const config: AppConfig = {
         environment: 'production',
         isLocalDevelopment: false,

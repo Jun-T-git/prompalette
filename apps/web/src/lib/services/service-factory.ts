@@ -66,7 +66,9 @@ export class ServiceFactory {
       }
       
       if (!this.config.supabase.enabled) {
-        throw new Error('Supabase configuration is required for production');
+        // Supabaseが設定されていない場合（CI環境など）はスタブを使用
+        const repository = new StubPromptRepository();
+        return createPromptService(repository);
       }
       
       const supabase = getSupabaseServiceClient();
