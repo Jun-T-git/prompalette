@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { getServerSession } from 'next-auth';
+
+import { SessionProvider } from '@/components/providers/SessionProvider';
+import { authOptions } from '@/lib/auth';
 
 import '@prompalette/ui/styles.css';
 import './globals.css';
@@ -72,11 +76,13 @@ export const metadata: Metadata = {
   category: 'productivity',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="ja">
       <head>
@@ -88,7 +94,11 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#6366f1" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <SessionProvider session={session}>
+          {children}
+        </SessionProvider>
+      </body>
     </html>
   );
 }

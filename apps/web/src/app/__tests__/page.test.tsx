@@ -1,64 +1,72 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { vi, describe, expect, it, beforeEach } from 'vitest';
 
-import HomePage from '../page';
+// Mock Next.js redirect
+const mockRedirect = vi.fn();
+vi.mock('next/navigation', () => ({
+  redirect: mockRedirect,
+}));
+
+const mockGetServerSession = vi.fn();
+vi.mock('next-auth', () => ({
+  getServerSession: mockGetServerSession,
+}));
+
+vi.mock('@/lib/auth', () => ({
+  authOptions: {},
+}));
+
+const mockAuthStub = {
+  isLocalDevelopment: false,
+  STUB_USER_SESSION: null as any,
+};
+
+vi.mock('@/lib/auth-stub', () => mockAuthStub);
 
 describe('HomePage', () => {
-  it('should render the main heading', () => {
-    render(<HomePage />);
+  beforeEach(() => {
+    vi.clearAllMocks();
     
-    const heading = screen.getByRole('heading', { name: 'PromPalette', level: 1 });
-    expect(heading).toBeInTheDocument();
+    // モックの状態を安定した初期値にリセット
+    mockAuthStub.isLocalDevelopment = false;
+    mockAuthStub.STUB_USER_SESSION = null;
   });
 
-  it('should render the Japanese tagline', () => {
-    render(<HomePage />);
+  it('should redirect to dashboard when user is authenticated', async () => {
+    mockGetServerSession.mockResolvedValue({
+      user: { id: 'test-user' },
+    });
     
-    const tagline = screen.getByText(/でどこからでも瞬時に呼び出し/);
-    expect(tagline).toBeInTheDocument();
+    const HomePage = (await import('../page')).default;
+    await HomePage();
+    
+    expect(mockRedirect).toHaveBeenCalledWith('/dashboard');
   });
 
-  it('should render the CTA buttons', () => {
-    render(<HomePage />);
+  it('should redirect to explore when user is not authenticated', async () => {
+    mockGetServerSession.mockResolvedValue(null);
     
-    const webAppButtons = screen.getAllByText('Webアプリを開始（開発中）');
-    const desktopButton = screen.getByText('デスクトップ版をダウンロード');
+    const HomePage = (await import('../page')).default;
+    await HomePage();
     
-    expect(webAppButtons).toHaveLength(2); // One in product section, one in CTA section
-    expect(desktopButton).toBeInTheDocument();
+    expect(mockRedirect).toHaveBeenCalledWith('/docs');
   });
 
-  it('should render key benefits section', () => {
-    render(<HomePage />);
+  it('should use local development stub when configured', async () => {
+    // isLocalDevelopmentをtrueに設定
+    mockAuthStub.isLocalDevelopment = true;
+    mockAuthStub.STUB_USER_SESSION = { 
+      user: { id: 'stub-user', email: 'test@example.com', name: 'Test User' },
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
     
-    expect(screen.getByText('グローバルホットキー')).toBeInTheDocument();
-    expect(screen.getByText('即時検索')).toBeInTheDocument();
-    expect(screen.getByText('即時ペースト')).toBeInTheDocument();
-  });
-
-  it('should render problem section', () => {
-    render(<HomePage />);
+    // モジュールキャッシュをクリアして再インポート
+    vi.resetModules();
+    const HomePage = (await import('../page')).default;
+    await HomePage();
     
-    expect(screen.getByText('作業を中断していませんか？')).toBeInTheDocument();
-    expect(screen.getByText('アプリ切り替えの時間')).toBeInTheDocument();
-    expect(screen.getByText('検索の手間')).toBeInTheDocument();
-    expect(screen.getByText('思考の中断')).toBeInTheDocument();
-  });
-
-  it('should render product options', () => {
-    render(<HomePage />);
+    // スタブユーザーでリダイレクト
+    expect(mockRedirect).toHaveBeenCalledWith('/dashboard');
     
-    expect(screen.getByText('PromPalette Web')).toBeInTheDocument();
-    expect(screen.getByText('PromPalette Desktop')).toBeInTheDocument();
-    expect(screen.getByText('バックグラウンドから1秒でアクセス')).toBeInTheDocument();
-  });
-
-  it('should render features section', () => {
-    render(<HomePage />);
-    
-    expect(screen.getByText('なぜ PromPalette なのか？')).toBeInTheDocument();
-    expect(screen.getByText('バックグラウンド起動')).toBeInTheDocument();
-    expect(screen.getByText('リアルタイム検索')).toBeInTheDocument();
-    expect(screen.getByText('プライバシー重視')).toBeInTheDocument();
+    // beforeEachで自動リセットされるため手動リセット不要
   });
 });
