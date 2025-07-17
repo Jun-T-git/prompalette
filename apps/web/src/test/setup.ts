@@ -35,11 +35,7 @@ global.console = {
 }
 
 // Mock environment variables for tests
-Object.defineProperty(process.env, 'NODE_ENV', {
-  value: 'test',
-  writable: true,
-  configurable: true
-});
+// Note: NODE_ENV is handled by Vitest automatically, so we don't need to set it
 process.env.NEXT_PUBLIC_SUPABASE_URL = ''
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 process.env.SUPABASE_SERVICE_ROLE_KEY = ''

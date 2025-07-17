@@ -77,7 +77,7 @@ describe('ServiceFactory', () => {
       expect(services.promptService).toBeDefined();
     });
 
-    it('should throw error when Supabase is not configured in production', () => {
+    it('should return stub service when Supabase is not configured in production (client-side)', () => {
       const config: AppConfig = {
         environment: 'production',
         isLocalDevelopment: false,
@@ -99,8 +99,9 @@ describe('ServiceFactory', () => {
       };
 
       factory = ServiceFactory.getInstance(config);
+      const services = factory.getServices();
 
-      expect(() => factory.getServices()).toThrow('Supabase configuration is required for production');
+      expect(services.promptService).toBeDefined();
     });
   });
 

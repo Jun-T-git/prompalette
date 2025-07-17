@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { createAppConfig, validateConfig, getEnvironmentInfo } from '../config';
+import { createAppConfig, validateConfig } from '../config';
 
 describe('Config Management', () => {
   const originalEnv = process.env;
@@ -211,11 +211,14 @@ describe('Config Management', () => {
   });
 
   describe('getEnvironmentInfo', () => {
-    it('should return environment information', () => {
+    it('should return environment information', async () => {
       Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-      const info = getEnvironmentInfo();
+      // configモジュールをリロードして新しい環境変数を反映
+      vi.resetModules();
+      const { getEnvironmentInfo: getEnvInfo } = await import('../config');
+      const info = getEnvInfo();
 
       expect(info.environment).toBe('development');
       expect(info.isLocalDevelopment).toBe(true);
