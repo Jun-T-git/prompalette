@@ -105,7 +105,7 @@ describe('/api/prompts', () => {
       (getServerSession as any).mockResolvedValue(null);
       mockValidateAuthentication.mockResolvedValue({
         success: false,
-        error: 'Unauthorized',
+        user: null as any,
       });
 
       const request = new NextRequest('http://localhost:3000/api/prompts', {
@@ -295,7 +295,7 @@ describe('/api/prompts', () => {
       (getServerSession as any).mockResolvedValue(null);
       mockValidateAuthentication.mockResolvedValue({
         success: false,
-        error: 'Unauthorized',
+        user: null as any,
       });
 
       const request = new NextRequest('http://localhost:3000/api/prompts');

@@ -18,7 +18,7 @@ describe('Auth Stub', () => {
     });
 
     it('should return true when NODE_ENV is development and NEXT_PUBLIC_SUPABASE_URL is not set', async () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       
       // Re-import to get updated value
@@ -29,7 +29,7 @@ describe('Auth Stub', () => {
     });
 
     it('should return false when NODE_ENV is production', async () => {
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       
       vi.resetModules();
@@ -39,7 +39,7 @@ describe('Auth Stub', () => {
     });
 
     it('should return false when NEXT_PUBLIC_SUPABASE_URL is set', async () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
       
       vi.resetModules();

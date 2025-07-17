@@ -17,7 +17,7 @@ vi.mock('@/lib/auth', () => ({
 
 const mockAuthStub = {
   isLocalDevelopment: false,
-  STUB_USER_SESSION: null,
+  STUB_USER_SESSION: null as any,
 };
 
 vi.mock('@/lib/auth-stub', () => mockAuthStub);
@@ -54,7 +54,10 @@ describe('HomePage', () => {
   it('should use local development stub when configured', async () => {
     // isLocalDevelopmentをtrueに設定
     mockAuthStub.isLocalDevelopment = true;
-    mockAuthStub.STUB_USER_SESSION = { user: { id: 'stub-user' } };
+    mockAuthStub.STUB_USER_SESSION = { 
+      user: { id: 'stub-user', email: 'test@example.com', name: 'Test User' },
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
     
     // モジュールキャッシュをクリアして再インポート
     vi.resetModules();

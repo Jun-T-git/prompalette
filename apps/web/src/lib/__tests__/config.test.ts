@@ -16,7 +16,7 @@ describe('Config Management', () => {
 
   describe('createAppConfig', () => {
     it('should create local development config', () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -28,7 +28,7 @@ describe('Config Management', () => {
     });
 
     it('should create production config with Supabase', () => {
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true });
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
@@ -46,7 +46,7 @@ describe('Config Management', () => {
     });
 
     it('should create development config with Supabase (not local)', () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 
@@ -58,7 +58,7 @@ describe('Config Management', () => {
     });
 
     it('should handle missing environment variables', () => {
-      delete process.env.NODE_ENV;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: undefined, writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -212,7 +212,7 @@ describe('Config Management', () => {
 
   describe('getEnvironmentInfo', () => {
     it('should return environment information', () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 
       const info = getEnvironmentInfo();
@@ -226,7 +226,7 @@ describe('Config Management', () => {
 
     it('should return validation errors in environment info', async () => {
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true });
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXTAUTH_SECRET;
 
@@ -241,7 +241,7 @@ describe('Config Management', () => {
       expect(info.errors.length).toBeGreaterThan(0);
 
       // 環境変数を元に戻す
-      process.env.NODE_ENV = originalNodeEnv;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: originalNodeEnv, writable: true });
     });
   });
 });

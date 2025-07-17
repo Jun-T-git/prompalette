@@ -170,7 +170,7 @@ describe('Error Handling', () => {
           status: 500,
           statusText: 'Internal Server Error',
           json: async () => { throw new Error('Not JSON'); },
-        } as Response;
+        } as unknown as Response;
 
         const result = await handleApiError(mockResponse);
 

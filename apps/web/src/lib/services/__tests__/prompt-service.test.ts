@@ -305,7 +305,7 @@ describe('PromptServiceImpl', () => {
     });
 
     it('should search user-specific prompts', async () => {
-      const result = await service.search('test', 'user-123');
+      await service.search('test', 'user-123');
 
       expect(repository.search).toHaveBeenCalledWith('test', 'user-123');
     });
