@@ -11,6 +11,7 @@ const mockPromptData = vi.hoisted(() => ({
   content: 'Test content',
   tags: ['test'],
   quick_access_key: 'test-key',
+  slug: 'test-prompt',
   is_public: true,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
@@ -24,6 +25,8 @@ const mockPromptService = vi.hoisted(() => ({
   update: vi.fn(),
   delete: vi.fn(),
   search: vi.fn(),
+  getByUsernameAndSlug: vi.fn(),
+  getByUsername: vi.fn(),
 }));
 
 // Mock dependencies

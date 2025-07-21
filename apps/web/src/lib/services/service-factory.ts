@@ -8,10 +8,14 @@ import { getSupabaseServiceClient } from '@/lib/supabase';
 import { createPromptService, type PromptService } from './prompt-service';
 import { SupabasePromptRepository } from '@/lib/repositories/supabase-prompt-repository';
 import { StubPromptRepository } from '@/lib/repositories/stub-prompt-repository';
+import { createSyncService, type SyncService } from './sync-service';
+import { SupabaseSyncRepository } from '@/lib/repositories/supabase-sync-repository';
+import { StubSyncRepository } from '@/lib/repositories/stub-sync-repository';
 
 // サービスコンテナ
 export interface ServiceContainer {
   promptService: PromptService;
+  syncService: SyncService;
 }
 
 // サービスファクトリー
@@ -45,9 +49,11 @@ export class ServiceFactory {
   private createServices(): ServiceContainer {
     // 環境に応じてプロンプトサービスを構築
     const promptService = this.createPromptService();
+    const syncService = this.createSyncService();
 
     return {
       promptService,
+      syncService,
     };
   }
 
@@ -77,6 +83,32 @@ export class ServiceFactory {
     }
   }
 
+  private createSyncService(): SyncService {
+    if (this.config.isLocalDevelopment) {
+      // ローカル開発環境: スタブレポジトリを使用
+      const repository = new StubSyncRepository();
+      return createSyncService(repository);
+    } else {
+      // 本番環境: クライアントサイドではスタブを返す（APIルート経由での利用を想定）
+      // サーバーサイドでのみSupabaseレポジトリを使用
+      if (typeof window !== 'undefined') {
+        // クライアントサイドでは基本的な操作のみサポートするスタブを返す
+        const repository = new StubSyncRepository();
+        return createSyncService(repository);
+      }
+      
+      if (!this.config.supabase.enabled) {
+        // Supabaseが設定されていない場合（CI環境など）はスタブを使用
+        const repository = new StubSyncRepository();
+        return createSyncService(repository);
+      }
+      
+      const supabase = getSupabaseServiceClient();
+      const repository = new SupabaseSyncRepository(supabase);
+      return createSyncService(repository);
+    }
+  }
+
   // テスト用のリセット機能
   reset(): void {
     this.container = null;
@@ -87,6 +119,17 @@ export class ServiceFactory {
 export function getServices(): ServiceContainer {
   const factory = ServiceFactory.getInstance();
   return factory.getServices();
+}
+
+// 個別サービス取得（新しいページで使用）
+export function getPromptService(): PromptService {
+  const factory = ServiceFactory.getInstance();
+  return factory.getServices().promptService;
+}
+
+export function getSyncService(): SyncService {
+  const factory = ServiceFactory.getInstance();
+  return factory.getServices().syncService;
 }
 
 // テスト用のサービス取得（開発環境のみ）

@@ -4,128 +4,81 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@prompalette/u
 import { Search, Copy, Globe, User, Hash, Zap } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
-import { stubPromptStorage, isLocalDevelopment } from '@/lib/auth-stub';
-import { getSupabaseClient } from '@/lib/supabase';
 import { WebAppLayout } from '@/components/WebAppLayout';
-
-interface Prompt {
-  id: string;
-  user_id: string;
-  title: string;
-  content: string;
-  tags: string[];
-  quick_access_key: string | null;
-  is_public: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { GuestLayout } from '@/components/GuestLayout';
+import { Prompt } from '@/lib/types';
 
 export default function SearchPage() {
+  const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [results, setResults] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const performSearch = async (query: string) => {
     if (!query.trim()) {
       setResults([]);
+      setError(null);
       return;
     }
 
     setLoading(true);
+    setError(null);
     
     try {
-      let searchResults: Prompt[] = [];
+      // ネットワークタイムアウトを設定
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
 
-      if (isLocalDevelopment) {
-        // スタブデータで検索
-        // @username 検索
-        if (query.startsWith('@')) {
-          const username = query.substring(1);
-          // スタブデータでは簡単な実装
-          if (username === 'stub-user') {
-            searchResults = stubPromptStorage.getByUserId('stub-user-123').filter(p => p.is_public);
-          } else if (username === 'other-user') {
-            searchResults = stubPromptStorage.getByUserId('other-user-456').filter(p => p.is_public);
-          }
+      // サーバーサイドAPIを使用して検索
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&limit=20&offset=0`,
+        {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-        // #tag 検索
-        else if (query.startsWith('#')) {
-          const tag = query.substring(1);
-          searchResults = stubPromptStorage.getPublic().filter(p => 
-            p.tags.some(t => t.toLowerCase().includes(tag.toLowerCase()))
-          );
-        }
-        // /quickkey 検索
-        else if (query.startsWith('/')) {
-          const quickkey = query.substring(1);
-          searchResults = stubPromptStorage.getPublic().filter(p => 
-            p.quick_access_key?.toLowerCase().includes(quickkey.toLowerCase())
-          );
-        }
-        // 通常の検索
-        else {
-          searchResults = stubPromptStorage.search(query).filter(p => p.is_public);
-        }
-      } else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        // Supabaseで検索
-        const supabase = getSupabaseClient();
-        
-        if (query.startsWith('@')) {
-          // ユーザー名検索 (将来実装予定)
-          const { data, error } = await supabase
-            .from('prompts')
-            .select('*')
-            .eq('is_public', true)
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          searchResults = data || [];
-        } else if (query.startsWith('#')) {
-          // タグ検索
-          const tag = query.substring(1);
-          const { data, error } = await supabase
-            .from('prompts')
-            .select('*')
-            .eq('is_public', true)
-            .contains('tags', [tag])
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          searchResults = data || [];
-        } else if (query.startsWith('/')) {
-          // クイックキー検索
-          const quickkey = query.substring(1);
-          const { data, error } = await supabase
-            .from('prompts')
-            .select('*')
-            .eq('is_public', true)
-            .ilike('quick_access_key', `%${quickkey}%`)
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          searchResults = data || [];
+      );
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 500) {
+          throw new Error('サーバーエラーが発生しました。しばらく時間をおいて再度お試しください。');
+        } else if (response.status === 404) {
+          throw new Error('検索サービスが見つかりません。');
         } else {
-          // 通常の検索
-          const { data, error } = await supabase
-            .from('prompts')
-            .select('*')
-            .eq('is_public', true)
-            .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          searchResults = data || [];
+          throw new Error(`検索リクエストが失敗しました (${response.status})`);
         }
-      } else {
-        // Supabaseが設定されていない場合は空の結果
-        searchResults = [];
       }
 
-      setResults(searchResults);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setResults(data.data.prompts);
+        setError(null);
+      } else {
+        const errorMessage = data.error?.message || '検索中にエラーが発生しました';
+        setError(errorMessage);
+        setResults([]);
+      }
     } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setError('検索がタイムアウトしました。ネットワーク接続を確認してください。');
+        } else if (error.message.includes('Failed to fetch')) {
+          setError('ネットワーク接続エラーです。インターネット接続を確認してください。');
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError('予期しないエラーが発生しました。');
+      }
       console.error('Search error:', error);
       setResults([]);
     } finally {
@@ -160,8 +113,10 @@ export default function SearchPage() {
     return 'キーワード';
   };
 
+  const Layout = session ? WebAppLayout : GuestLayout;
+
   return (
-    <WebAppLayout>
+    <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -215,13 +170,40 @@ export default function SearchPage() {
             </CardContent>
           </Card>
 
+          {/* Error Display */}
+          {error && (
+            <Card className="mb-6 border-red-200 bg-red-50">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-red-900">検索エラー</h3>
+                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                  </div>
+                  <button
+                    onClick={() => setError(null)}
+                    className="ml-auto text-red-400 hover:text-red-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Search Results */}
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
               <p className="text-gray-600">検索中...</p>
             </div>
-          ) : searchQuery && (
+          ) : searchQuery && !error && (
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 &quot;{searchQuery}&quot; の検索結果
@@ -298,9 +280,26 @@ export default function SearchPage() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>
-                        更新: {new Date(prompt.updated_at).toLocaleDateString('ja-JP')}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span>
+                          更新: {new Date(prompt.updated_at).toLocaleDateString('ja-JP')}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center">
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            {prompt.view_count || 0}
+                          </span>
+                          <span className="flex items-center">
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            {prompt.copy_count || 0}
+                          </span>
+                        </div>
+                      </div>
                       {prompt.quick_access_key && (
                         <button
                           onClick={() => {
@@ -365,6 +364,6 @@ export default function SearchPage() {
           )}
         </div>
       </div>
-    </WebAppLayout>
+    </Layout>
   );
 }

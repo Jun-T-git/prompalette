@@ -12,6 +12,7 @@ class MockPromptRepository implements PromptRepository {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       ...prompt,
+      slug: prompt.slug || 'test-slug', // Use provided slug or default
     };
     this.prompts.push(newPrompt);
     return newPrompt;
@@ -57,6 +58,18 @@ class MockPromptRepository implements PromptRepository {
     );
   });
 
+  findByUsernameAndSlug = vi.fn().mockImplementation(async (username: string, slug: string) => {
+    return this.prompts.find(p => p.user?.username === username && p.slug === slug) || null;
+  });
+
+  findByUsername = vi.fn().mockImplementation(async (username: string, includePrivate: boolean = false) => {
+    let results = this.prompts.filter(p => p.user?.username === username);
+    if (!includePrivate) {
+      results = results.filter(p => p.is_public);
+    }
+    return results;
+  });
+
   // テスト用のヘルパー
   reset() {
     this.prompts = [];
@@ -96,11 +109,15 @@ describe('PromptServiceImpl', () => {
         content: 'Test content',
         tags: ['tag1', 'tag2'],
         quick_access_key: 'test',
+        slug: '',
         is_public: true,
+        view_count: 0,
+        copy_count: 0,
       });
 
       expect(result).toMatchObject({
         id: 'test-id',
+        slug: 'test-slug', // Slug is generated in repository layer
         user_id: userId,
         title: 'Test Prompt',
         content: 'Test content',
@@ -308,6 +325,65 @@ describe('PromptServiceImpl', () => {
       await service.search('test', 'user-123');
 
       expect(repository.search).toHaveBeenCalledWith('test', 'user-123');
+    });
+  });
+
+  describe('getByUsernameAndSlug', () => {
+    it('should return prompt by username and slug', async () => {
+      const prompt = {
+        id: 'test-id',
+        slug: 'test-slug',
+        user: { username: 'testuser' },
+        title: 'Test Prompt',
+        content: 'Test content',
+        tags: [],
+        quick_access_key: null,
+        is_public: true,
+      };
+
+      repository.addPrompt(prompt);
+
+      const result = await service.getByUsernameAndSlug('testuser', 'test-slug');
+
+      expect(repository.findByUsernameAndSlug).toHaveBeenCalledWith('testuser', 'test-slug');
+      expect(result).toEqual(prompt);
+    });
+
+    it('should return null for non-existent prompt', async () => {
+      const result = await service.getByUsernameAndSlug('nonexistent', 'nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getByUsername', () => {
+    it('should return public prompts by default', async () => {
+      const prompts = [
+        { id: '1', user: { username: 'testuser' }, is_public: true },
+        { id: '2', user: { username: 'testuser' }, is_public: false },
+        { id: '3', user: { username: 'otheruser' }, is_public: true },
+      ];
+
+      prompts.forEach(p => repository.addPrompt(p));
+
+      const result = await service.getByUsername('testuser');
+
+      expect(repository.findByUsername).toHaveBeenCalledWith('testuser', false);
+      expect(result).toHaveLength(1);
+    });
+
+    it('should include private prompts when requested', async () => {
+      const prompts = [
+        { id: '1', user: { username: 'testuser' }, is_public: true },
+        { id: '2', user: { username: 'testuser' }, is_public: false },
+      ];
+
+      prompts.forEach(p => repository.addPrompt(p));
+
+      const result = await service.getByUsername('testuser', true);
+
+      expect(repository.findByUsername).toHaveBeenCalledWith('testuser', true);
+      expect(result).toHaveLength(2);
     });
   });
 });

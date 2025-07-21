@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { getServerSession } from 'next-auth';
 
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { ToastProvider } from '@/components/providers/ToastProvider';
 import { authOptions } from '@/lib/auth';
 
 import '@prompalette/ui/styles.css';
@@ -96,7 +97,9 @@ export default async function RootLayout({
       </head>
       <body className={inter.className}>
         <SessionProvider session={session}>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

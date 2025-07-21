@@ -4,7 +4,7 @@ import { appConfig, type AppConfig } from './config';
 
 export const STUB_USER_SESSION: Session = {
   user: {
-    id: 'stub-user-123',
+    id: '550e8400-e29b-41d4-a716-446655440000',
     email: 'stub@example.com',
     name: 'スタブユーザー',
     image: 'https://github.com/github.png',
@@ -17,34 +17,40 @@ export const STUB_USER_SESSION: Session = {
 export const STUB_PROMPTS = [
   {
     id: 'prompt-1',
-    user_id: 'stub-user-123',
+    user_id: '550e8400-e29b-41d4-a716-446655440000',
     title: 'コードレビュー用プロンプト',
     content: 'このコードをレビューして、改善点を教えてください。特に以下の点を重視してください：\n\n1. 可読性\n2. パフォーマンス\n3. セキュリティ\n4. ベストプラクティス',
     tags: ['コードレビュー', 'プログラミング', '品質管理'],
     quick_access_key: 'review' as string | null,
     is_public: true,
+    view_count: 42,
+    copy_count: 15,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
     id: 'prompt-2',
-    user_id: 'stub-user-123',
+    user_id: '550e8400-e29b-41d4-a716-446655440000',
     title: 'ドキュメント作成支援',
     content: '以下の機能についてのドキュメントを作成してください：\n\n- 機能概要\n- 使用方法\n- 注意事項\n- サンプルコード',
     tags: ['ドキュメント', 'テクニカルライティング'],
     quick_access_key: 'docs' as string | null,
     is_public: true,
+    view_count: 28,
+    copy_count: 8,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
     id: 'prompt-3',
-    user_id: 'stub-user-123',
+    user_id: '550e8400-e29b-41d4-a716-446655440000',
     title: 'バグ分析プロンプト',
     content: 'このエラーメッセージやログを分析して、以下を教えてください：\n\n1. 問題の原因\n2. 修正方法\n3. 予防策\n4. 関連するベストプラクティス',
     tags: ['デバッグ', 'エラー分析', 'トラブルシューティング'],
     quick_access_key: 'debug' as string | null,
     is_public: false,
+    view_count: 5,
+    copy_count: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -56,6 +62,8 @@ export const STUB_PROMPTS = [
     tags: ['UI/UX', 'デザイン', 'ユーザビリティ'],
     quick_access_key: 'ux' as string | null,
     is_public: true,
+    view_count: 73,
+    copy_count: 22,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -67,6 +75,8 @@ export const STUB_PROMPTS = [
     tags: ['翻訳', '多言語', '国際化'],
     quick_access_key: 'translate' as string | null,
     is_public: true,
+    view_count: 31,
+    copy_count: 12,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -74,7 +84,7 @@ export const STUB_PROMPTS = [
 
 export const STUB_USERS = [
   {
-    id: 'stub-user-123',
+    id: '550e8400-e29b-41d4-a716-446655440000',
     email: 'stub@example.com',
     name: 'スタブユーザー',
     avatar_url: 'https://github.com/github.png',
@@ -84,7 +94,7 @@ export const STUB_USERS = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'other-user-456',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     email: 'other@example.com',
     name: '他のユーザー',
     avatar_url: 'https://github.com/octocat.png',
@@ -105,7 +115,7 @@ export const isLocalDevelopment = appConfig.isLocalDevelopment;
 export interface AuthService {
   isLocalDevelopment: boolean;
   getCurrentSession(): Session | null;
-  getPromptStorage(): any;
+  getPromptStorage(): typeof stubPromptStorage;
 }
 
 /**
@@ -147,6 +157,8 @@ export const stubPromptStorage = {
     const newPrompt = {
       ...prompt,
       id: `prompt-${Date.now()}`,
+      view_count: prompt.view_count ?? 0,
+      copy_count: prompt.copy_count ?? 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

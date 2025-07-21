@@ -11,7 +11,17 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase db push",
+    "db:migrate:production": "node scripts/migrate-production.js",
+    "db:generate-types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "db:status": "supabase status",
+    "db:validate": "node scripts/validate-migration.js",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
@@ -19,6 +29,7 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.51.0",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.460.0",
     "nanoid": "^5.0.4",
     "next": "15.3.4",

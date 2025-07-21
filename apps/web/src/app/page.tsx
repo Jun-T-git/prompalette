@@ -1,17 +1,19 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-
-import { authOptions } from '@/lib/auth';
-import { isLocalDevelopment } from '@/lib/auth-stub';
+import { getUserFromSession } from '@/lib/auth-utils';
+import { isLocalDevelopment, STUB_USER_SESSION } from '@/lib/auth-stub';
 
 export default async function HomePage() {
-  const session = await getServerSession(authOptions);
-  
   // ローカル開発環境では認証をスキップしてダッシュボードを表示
-  if (isLocalDevelopment || session) {
-    redirect('/dashboard');
+  if (isLocalDevelopment) {
+    redirect(`/${STUB_USER_SESSION.user.username}`);
   }
   
-  // 本番環境でセッションがない場合はドキュメントページを表示
-  redirect('/docs');
+  const currentUser = await getUserFromSession();
+  
+  if (currentUser?.username) {
+    redirect(`/${currentUser.username}`);
+  }
+  
+  // 本番環境でセッションがない場合はログインページを表示
+  redirect('/login');
 }
