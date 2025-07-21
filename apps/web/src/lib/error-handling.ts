@@ -202,3 +202,24 @@ export function handleValidationErrors(errors: Array<{ field: string; message: s
 
   return handler;
 }
+
+/**
+ * API route用のエラーハンドラー
+ */
+export function handleRouteError(error: unknown) {
+  const { NextResponse } = require('next/server');
+  
+  console.error('API route error:', error);
+  
+  if (error instanceof Error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+  
+  return NextResponse.json(
+    { success: false, error: 'Internal server error' },
+    { status: 500 }
+  );
+}

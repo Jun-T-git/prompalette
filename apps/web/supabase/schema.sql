@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS prompts (
   content TEXT NOT NULL,
   tags TEXT[] DEFAULT '{}',
   quick_access_key TEXT,
-  is_public BOOLEAN NOT NULL DEFAULT false,
+  is_public BOOLEAN NOT NULL DEFAULT true,
+  view_count INTEGER DEFAULT 0,
+  copy_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -36,6 +38,8 @@ CREATE INDEX IF NOT EXISTS idx_prompts_is_public ON prompts(is_public);
 CREATE INDEX IF NOT EXISTS idx_prompts_tags ON prompts USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_prompts_quick_access_key ON prompts(quick_access_key);
 CREATE INDEX IF NOT EXISTS idx_prompts_created_at ON prompts(created_at);
+CREATE INDEX IF NOT EXISTS idx_prompts_view_count ON prompts(view_count);
+CREATE INDEX IF NOT EXISTS idx_prompts_copy_count ON prompts(copy_count);
 
 -- Create unique index for quick_access_key per user
 CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_user_quick_key 
@@ -105,6 +109,8 @@ RETURNS TABLE (
   tags TEXT[],
   quick_access_key TEXT,
   is_public BOOLEAN,
+  view_count INTEGER,
+  copy_count INTEGER,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ,
   username TEXT
@@ -119,6 +125,8 @@ BEGIN
     p.tags,
     p.quick_access_key,
     p.is_public,
+    p.view_count,
+    p.copy_count,
     p.created_at,
     p.updated_at,
     u.username

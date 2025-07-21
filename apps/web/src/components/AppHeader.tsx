@@ -43,22 +43,16 @@ export function AppHeader() {
           {currentSession && (
             <nav className="hidden md:flex items-center gap-6">
               <Link
-                href="/dashboard"
+                href={`/${currentSession.user.username}`}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 ダッシュボード
               </Link>
               <Link
-                href="/prompts"
+                href={`/${currentSession.user.username}/prompts`}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 マイプロンプト
-              </Link>
-              <Link
-                href="/explore"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                探索
               </Link>
               <Link
                 href="/search"

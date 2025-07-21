@@ -80,6 +80,7 @@ export default function NewPromptPage() {
                 {currentSession && (
                   <PromptForm
                     userId={currentSession.user.id}
+                    username={currentSession.user.username}
                     isLocalDevelopment={isLocalDevelopment}
                     onError={setGlobalError}
                   />

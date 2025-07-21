@@ -32,9 +32,13 @@ export function createAppConfig(): AppConfig {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
   
+  // Use the same logic as env-config for local development detection
+  // If using local Supabase with URL configured, we want to use Supabase, not stubs
+  const isLocalDevelopment = nodeEnv === 'development' && !supabaseUrl && !supabaseAnonKey;
+  
   return {
     environment: nodeEnv as AppConfig['environment'],
-    isLocalDevelopment: nodeEnv === 'development' && !supabaseUrl,
+    isLocalDevelopment,
     supabase: {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,

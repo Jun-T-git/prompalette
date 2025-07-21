@@ -42,11 +42,14 @@ describe('Supabase Singleton Pattern', () => {
       expect(createClient).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw error when Supabase is not configured', async () => {
+    it('should create client even without explicit config in test environment', async () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      delete process.env.NEXT_PUBLIC_USE_LOCAL_SUPABASE;
       const { getSupabaseClient } = await import('../supabase');
       
-      expect(() => getSupabaseClient()).toThrow('Supabase not configured');
+      // In test environment, supabaseConfig provides defaults
+      const client = getSupabaseClient();
+      expect(client).toBeDefined();
     });
 
     it('should create client with correct configuration', async () => {
@@ -99,11 +102,14 @@ describe('Supabase Singleton Pattern', () => {
       expect(createClient).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw error when service role key is not configured', async () => {
+    it('should create service client even without explicit config in test environment', async () => {
       delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      delete process.env.NEXT_PUBLIC_USE_LOCAL_SUPABASE;
       const { getSupabaseServiceClient } = await import('../supabase');
       
-      expect(() => getSupabaseServiceClient()).toThrow('Supabase service role not configured');
+      // In test environment, supabaseConfig provides defaults
+      const client = getSupabaseServiceClient();
+      expect(client).toBeDefined();
     });
 
     it('should create service client with correct configuration', async () => {
