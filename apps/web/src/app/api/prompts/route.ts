@@ -13,7 +13,7 @@ const createPromptSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(200, 'Title too long'),
   content: z.string().trim().min(1, 'Content is required').max(100000, 'Content too long'),
   tags: z.array(z.string()).optional().default([]),
-  quick_access_key: z.string().optional(),
+  quick_access_key: z.string().optional().transform(val => val === '' ? null : val),
   is_public: z.boolean().optional().default(false),
 });
 
@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
 
     // 🔒 ユーザーIDの検証
     if (!validateUserId(user.id)) {
+      console.error('Invalid user ID format:', { userId: user.id, userObject: user });
       return NextResponse.json(
-        { error: 'Invalid user ID format' },
+        { error: 'Invalid user ID format', userId: user.id },
         { status: 400 }
       );
     }

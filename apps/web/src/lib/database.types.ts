@@ -45,6 +45,8 @@ export interface Database {
           tags: string[] | null;
           quick_access_key: string | null;
           is_public: boolean;
+          view_count: number;
+          copy_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +58,8 @@ export interface Database {
           tags?: string[] | null;
           quick_access_key?: string | null;
           is_public?: boolean;
+          view_count?: number;
+          copy_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -67,6 +71,8 @@ export interface Database {
           tags?: string[] | null;
           quick_access_key?: string | null;
           is_public?: boolean;
+          view_count?: number;
+          copy_count?: number;
           created_at?: string;
           updated_at?: string;
         };

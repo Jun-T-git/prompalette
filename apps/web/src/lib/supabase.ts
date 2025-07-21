@@ -1,12 +1,13 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from './database.types';
+import { supabaseConfig } from './env-config';
 
 // Check if Supabase is properly configured
-const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const isSupabaseConfigured = supabaseConfig.url && supabaseConfig.anonKey;
 
 if (!isSupabaseConfigured) {
-  console.warn('Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  console.warn('Supabase not configured. Please check environment configuration.');
 }
 
 // Singleton instances
@@ -21,8 +22,8 @@ export const getSupabaseClient = (): SupabaseClient<Database> => {
   
   if (!clientInstance) {
     clientInstance = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseConfig.url,
+      supabaseConfig.anonKey,
       {
         auth: {
           persistSession: true,
@@ -47,14 +48,10 @@ export const getSupabaseServiceClient = (): SupabaseClient<Database> => {
     throw new Error('Service role client should only be used on server side');
   }
   
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Supabase service role not configured');
-  }
-  
   if (!serviceInstance) {
     serviceInstance = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseConfig.url,
+      supabaseConfig.serviceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
