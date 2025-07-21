@@ -56,8 +56,14 @@ export const supabaseConfig = (() => {
   try {
     return getSupabaseConfig();
   } catch (error) {
-    // テスト環境では設定がない場合がある
-    if (process.env.NODE_ENV === 'test') {
+    // テスト環境やCI環境では設定がない場合がある
+    // CI環境を検出（GitHub Actions、Vercel、Netlify、その他のCI）
+    const isCI = process.env.CI === 'true' || 
+                 process.env.VERCEL === '1' ||
+                 process.env.NETLIFY === 'true' ||
+                 process.env.GITHUB_ACTIONS === 'true';
+    
+    if (process.env.NODE_ENV === 'test' || isCI) {
       return {
         url: 'http://localhost:54321',
         anonKey: 'test-anon-key',
