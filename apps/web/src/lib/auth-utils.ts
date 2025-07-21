@@ -101,11 +101,33 @@ export async function requireAuth(request: NextRequest): Promise<AuthenticatedUs
 /**
  * ユーザーIDの検証
  * SQLインジェクションやIDの改ざんを防ぐ
+ * OAuth認証（UUID）とスタブ認証の両方に対応
  */
 export function validateUserId(userId: string): boolean {
-  // UUIDフォーマットの検証
+  if (!userId || typeof userId !== 'string') {
+    return false;
+  }
+
+  // 長さ制限（セキュリティ上の制約）
+  if (userId.length > 255) {
+    return false;
+  }
+
+  // 危険な文字を含む場合は拒否
+  if (/[<>'"\\;]/.test(userId)) {
+    return false;
+  }
+
+  // UUID形式（OAuth認証）
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(userId);
+  if (uuidRegex.test(userId)) {
+    return true;
+  }
+
+  // スタブ認証や他の安全な識別子形式
+  // 英数字、ハイフン、アンダースコアのみ許可
+  const safeIdRegex = /^[a-zA-Z0-9_-]+$/;
+  return safeIdRegex.test(userId);
 }
 
 /**
@@ -124,4 +146,12 @@ export function checkResourceAccess(
   
   // 自身のリソースの場合のみアクセス可能
   return requestingUserId === resourceUserId;
+}
+
+/**
+ * サーバーサイドでユーザーセッションを取得
+ */
+export async function getUserFromSession() {
+  const session = await getServerSession(authOptions);
+  return session?.user || null;
 }

@@ -105,10 +105,10 @@ describe('Auth Stub', () => {
 
     describe('getByUserId', () => {
       it('should return prompts for specific user', () => {
-        const prompts = stubPromptStorage.getByUserId('stub-user-123');
+        const prompts = stubPromptStorage.getByUserId('550e8400-e29b-41d4-a716-446655440000');
         
         expect(prompts.length).toBeGreaterThan(0);
-        expect(prompts.every(p => p.user_id === 'stub-user-123')).toBe(true);
+        expect(prompts.every(p => p.user_id === '550e8400-e29b-41d4-a716-446655440000')).toBe(true);
       });
 
       it('should return empty array for non-existent user', () => {
@@ -136,6 +136,8 @@ describe('Auth Stub', () => {
           tags: ['test'],
           quick_access_key: 'test' as string | null,
           is_public: false,
+          view_count: 0,
+          copy_count: 0,
         };
 
         const initialLength = stubPromptStorage.data.length;

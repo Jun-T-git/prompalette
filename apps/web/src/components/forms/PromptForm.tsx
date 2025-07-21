@@ -3,6 +3,8 @@
  * React Hook Formを使用した適切な状態管理とバリデーション
  */
 
+'use client';
+
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,6 +29,7 @@ type PromptFormData = z.infer<typeof promptSchema>;
 
 interface PromptFormProps {
   userId: string;
+  username?: string;
   isLocalDevelopment: boolean;
   onSuccess?: (promptId: string) => void;
   onError?: (error: string) => void;
@@ -34,6 +37,7 @@ interface PromptFormProps {
 
 export function PromptForm({ 
   userId, 
+  username,
   isLocalDevelopment, 
   onSuccess, 
   onError 
@@ -46,6 +50,7 @@ export function PromptForm({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isValid },
     setError,
     clearErrors,
@@ -99,12 +104,18 @@ export function PromptForm({
         logInfo('Prompt created via service layer', { promptId });
       } else {
         // プロダクション環境: APIを使用
+        // APIの期待する形式に変換（tagsは配列として送信）
+        const apiPayload = {
+          ...promptInput,
+          tags: promptInput.tags, // 既に配列に変換済み
+        };
+        
         const response = await fetch('/api/prompts', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(promptInput),
+          body: JSON.stringify(apiPayload),
         });
 
         if (!response.ok) {
@@ -137,7 +148,12 @@ export function PromptForm({
       if (onSuccess) {
         onSuccess(promptId);
       } else {
-        router.push('/prompts');
+        // 新しいURL構造に従ってリダイレクト
+        if (username) {
+          router.push(`/${username}/prompts`);
+        } else {
+          router.push('/prompts');
+        }
       }
     } catch (error) {
       logError('Error creating prompt', { 
@@ -275,8 +291,13 @@ export function PromptForm({
             <input
               id="public"
               type="radio"
-              {...register('is_public')}
               value="true"
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setValue('is_public', true, { shouldValidate: true });
+                }
+              }}
+              defaultChecked={true}
               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
             />
             <label htmlFor="public" className="ml-2 text-sm text-gray-700">
@@ -287,8 +308,12 @@ export function PromptForm({
             <input
               id="private"
               type="radio"
-              {...register('is_public')}
               value="false"
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setValue('is_public', false, { shouldValidate: true });
+                }
+              }}
               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
             />
             <label htmlFor="private" className="ml-2 text-sm text-gray-700">

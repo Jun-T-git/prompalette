@@ -24,6 +24,8 @@ const mockPromptService = {
   update: vi.fn(),
   delete: vi.fn(),
   search: vi.fn(),
+  getByUsernameAndSlug: vi.fn(),
+  getByUsername: vi.fn(),
 };
 
 vi.mock('@/lib/services/service-factory', () => ({
@@ -168,6 +170,7 @@ describe('Prompt Creation Integration', () => {
       // モックサービスのレスポンスを設定
       mockPromptService.create.mockResolvedValue({
         id: 'new-prompt-id',
+        slug: 'test-prompt-title',
         title: 'Test Prompt Title',
         content: 'This is a test prompt content',
         tags: ['test', 'mvp'],
