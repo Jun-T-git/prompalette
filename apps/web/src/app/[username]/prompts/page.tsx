@@ -85,7 +85,16 @@ export default async function UserPromptsPage({ params }: UserPromptsPageProps) 
         <PromptFilter
           prompts={prompts}
           isOwnProfile={isOwnProfile}
-          currentUser={currentUser}
+          currentUser={currentUser ? {
+            id: currentUser.id,
+            username: currentUser.username,
+            name: currentUser.name || currentUser.username,
+            email: currentUser.email || '',
+            avatar_url: currentUser.image || null,
+            is_public: currentUser.isPublic,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } : null}
         />
         </div>
       </WebAppLayout>

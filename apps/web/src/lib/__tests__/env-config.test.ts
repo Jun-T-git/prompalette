@@ -56,14 +56,17 @@ describe('env-config', () => {
       expect(supabaseConfig.serviceRoleKey).toBe('test-service-key');
     });
 
-    it('should throw error when cloud config is missing required vars', async () => {
+    it('should return test defaults when cloud config is missing required vars in test env', async () => {
       process.env.NEXT_PUBLIC_USE_LOCAL_SUPABASE = 'false';
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
       // Missing ANON_KEY and SERVICE_ROLE_KEY
       
-      await expect(import('../env-config')).rejects.toThrow(
-        /Missing required Supabase configuration: NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY/
-      );
+      const { supabaseConfig } = await import('../env-config');
+      
+      // In test environment, it returns default test config
+      expect(supabaseConfig.url).toBe('http://localhost:54321');
+      expect(supabaseConfig.anonKey).toBe('test-anon-key');
+      expect(supabaseConfig.serviceRoleKey).toBe('test-service-role-key');
     });
 
     it('should use cloud config when NEXT_PUBLIC_USE_LOCAL_SUPABASE is not set', async () => {

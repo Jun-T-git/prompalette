@@ -23,9 +23,14 @@ export class StubPromptRepository implements PromptRepository {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       user: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
         username: 'stub-user',
         name: 'Stub User',
+        email: 'stub@example.com',
         avatar_url: null,
+        is_public: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
     },
     {
@@ -42,9 +47,14 @@ export class StubPromptRepository implements PromptRepository {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       user: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
         username: 'stub-user',
         name: 'Stub User',
+        email: 'stub@example.com',
         avatar_url: null,
+        is_public: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
     },
   ];

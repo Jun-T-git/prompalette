@@ -70,7 +70,11 @@ const mockUser = {
   id: 'test-user-id',
   username: 'testuser',
   name: 'Test User',
+  email: 'test@example.com',
   avatar_url: null,
+  is_public: true,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 };
 
 const mockPrompt = {

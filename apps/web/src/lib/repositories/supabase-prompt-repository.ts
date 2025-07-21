@@ -3,7 +3,6 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { nanoid } from 'nanoid';
 
 import type { Database } from '@/lib/database.types';
 import type { Prompt, PromptRepository } from '@/lib/services/prompt-service';

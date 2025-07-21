@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { UserProfile } from '../UserProfile';
 import type { Prompt } from '@/lib/services/prompt-service';
-import type { User } from 'next-auth';
+import type { User } from '@/lib/types';
 
 // Mock PromptCard component
 vi.mock('../PromptCard', () => ({
@@ -14,16 +14,26 @@ vi.mock('../PromptCard', () => ({
   ),
 }));
 
-const mockUser = {
+const mockUser: User = {
+  id: 'test-user-id',
   username: 'testuser',
   name: 'Test User',
+  email: 'test@example.com',
   avatar_url: null,
+  is_public: true,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 };
 
 const mockCurrentUser: User = {
   id: 'test-user-id',
+  username: 'testuser',
   name: 'Test User',
   email: 'test@example.com',
+  avatar_url: null,
+  is_public: true,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 };
 
 const mockPrompts: Prompt[] = [

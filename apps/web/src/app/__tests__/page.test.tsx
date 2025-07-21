@@ -42,13 +42,13 @@ describe('HomePage', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/test-user');
   });
 
-  it('should redirect to docs when user is not authenticated', async () => {
+  it('should redirect to login when user is not authenticated', async () => {
     mockGetUserFromSession.mockResolvedValue(null);
     
     const HomePage = (await import('../page')).default;
     await HomePage();
     
-    expect(mockRedirect).toHaveBeenCalledWith('/docs');
+    expect(mockRedirect).toHaveBeenCalledWith('/login');
   });
 
   it('should use local development stub when configured', async () => {

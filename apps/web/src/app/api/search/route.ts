@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // #tag 検索
     else if (query.startsWith('#')) {
       const tag = query.substring(1);
-      searchResults = await promptService.searchAdvanced({
+      searchResults = await promptService.advancedSearch({
         query: '',
         tags: [tag],
         isPublic: true,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // /quickkey 検索
     else if (query.startsWith('/')) {
       const quickkey = query.substring(1);
-      searchResults = await promptService.searchAdvanced({
+      searchResults = await promptService.advancedSearch({
         query: quickkey,
         isPublic: true,
         sortBy: 'created_at',
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
     // 通常のキーワード検索
     else {
-      searchResults = await promptService.searchAdvanced({
+      searchResults = await promptService.advancedSearch({
         query,
         isPublic: true,
         sortBy: 'created_at',
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 結果を配列として正規化
-    const prompts = Array.isArray(searchResults) ? searchResults : searchResults?.prompts || [];
+    const prompts = Array.isArray(searchResults) ? searchResults : searchResults?.results || [];
     const total = Array.isArray(searchResults) ? searchResults.length : searchResults?.total || 0;
 
     const result: SearchResult = {

@@ -12,7 +12,7 @@ export interface ServicePrompt extends Prompt {
 }
 
 // 後方互換性のために再エクスポート
-export { Prompt, CreatePromptInput, UpdatePromptInput } from '@/lib/types';
+export type { Prompt, CreatePromptInput, UpdatePromptInput };
 
 // バリデーションスキーマ
 export const createPromptSchema = z.object({
